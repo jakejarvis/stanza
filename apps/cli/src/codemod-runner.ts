@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { openProject } from "@stanza/codemods";
 import {
@@ -100,7 +101,7 @@ export async function applyModule(args: {
 
   // 4. Imperative codemods — resolved against the module's local codemod registry.
   if (adapter.codemods?.length) {
-    const codemods = await loadCodemods(moduleDir);
+    const codemods = await loadCodemods(module, moduleDir);
     const project = lazyProject(appRoot);
     const ctx = buildContext({
       projectRoot,
@@ -157,11 +158,58 @@ function readTemplateSource(tpl: TemplateRef, moduleDir: string): string {
 
 type CodemodMap = Record<string, import("@stanza/codemods").Codemod>;
 
-async function loadCodemods(moduleDir: string): Promise<CodemodMap> {
+/**
+ * Resolve a module's imperative codemods. HTTP-loaded modules carry a
+ * pre-bundled JS string in `module.codemodBundle` (set by the registry build
+ * step, with `@stanza/codemods` + `ts-morph` externalized so the CLI provides
+ * them); we materialize it inside the CLI's own `node_modules/.cache/` so the
+ * import can resolve those externals up the standard tree. Local dev imports
+ * the source straight off disk.
+ */
+async function loadCodemods(module: Module, moduleDir: string): Promise<CodemodMap> {
+  if (module.codemodBundle) {
+    const cacheDir = getBundleCacheDir();
+    const file = path.join(cacheDir, `${module.slot}-${module.id}-${Date.now()}.mjs`);
+    fs.writeFileSync(file, module.codemodBundle, "utf8");
+    try {
+      const mod = (await import(file)) as { default?: CodemodMap; codemods?: CodemodMap };
+      return mod.default ?? mod.codemods ?? {};
+    } finally {
+      // Best-effort cleanup — the import already cached the module so deleting
+      // the source file is safe. Leaving it on a failed import for debugging.
+      try {
+        fs.unlinkSync(file);
+      } catch {}
+    }
+  }
   const entry = path.join(moduleDir, "codemods", "index.ts");
   if (!fs.existsSync(entry)) return {};
   const mod = (await import(entry)) as { default?: CodemodMap; codemods?: CodemodMap };
   return mod.default ?? mod.codemods ?? {};
+}
+
+/**
+ * Find a `node_modules/` tree upstream of the CLI source that has
+ * `@stanza/codemods` installed, and return its `.cache/stanza-codemods/`
+ * subdir. Temp bundle files written here can resolve their `@stanza/*` and
+ * `ts-morph` imports the normal way.
+ */
+function getBundleCacheDir(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 10; i++) {
+    const candidate = path.join(dir, "node_modules");
+    if (fs.existsSync(path.join(candidate, "@stanza", "codemods"))) {
+      const out = path.join(candidate, ".cache", "stanza-codemods");
+      fs.mkdirSync(out, { recursive: true });
+      return out;
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error(
+    "Could not locate @stanza/codemods relative to the CLI — bundled codemods need it in the resolution graph.",
+  );
 }
 
 function lazyProject(appRoot: string): { (): Project; save?: () => Promise<void> } {

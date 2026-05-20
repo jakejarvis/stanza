@@ -10,6 +10,7 @@ export type {
   RegistryIndex,
   TemplateRef,
   EnvVar,
+  Logo,
 } from "./module.ts";
 export { defineModule, KNOWN_SLOTS } from "./module.ts";
 

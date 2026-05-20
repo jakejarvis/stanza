@@ -29,6 +29,7 @@ Three things differentiate stanza from other scaffolders:
 - `bun apps/cli/src/bin.ts <verb>` — run CLI directly without build
 - `pnpm registry:build` (or `bun packages/internal/src/registry-build.ts`) — regenerate `dist/registry/{index,modules/*}.json`
 - `pnpm module:new [slot] [id]` — scaffold a new module under `registry/modules/`
+- `pnpm --filter @stanza/web dev` — TanStack Start dev server; `predev` hook auto-copies `dist/registry/` → `apps/web/public/registry/` so the same-domain registry path resolves
 - `pnpm lint` / `pnpm lint:fix` — Oxlint across the whole repo (config: `.oxlintrc.json`)
 - `pnpm fmt` / `pnpm fmt:check` — oxfmt across the whole repo (config: `.oxfmtrc.json`)
 - `cd packages/<x> && node_modules/.bin/vitest run` — unit tests (per workspace; no root `vitest` binary)
@@ -49,6 +50,9 @@ Three things differentiate stanza from other scaffolders:
 
 - **Modules are vendored**: their templates land in the user's repo verbatim; no `@stanza/runtime` dep
 - **Template distribution**: `packages/internal`'s `registry-build.ts` inlines each template file's contents into the per-module JSON's `templates[].content` field so HTTP-loaded manifests are self-contained. The runner prefers `tpl.content` and only reads from `registry/modules/<x>/templates/` when it's absent (local dev). New templates need no build wiring — they're picked up automatically
+- **Module logos**: drop `logo.svg` (theme-agnostic) or `logo-light.svg` + `logo-dark.svg` (theme pair) in a module's directory. The registry build auto-detects and inlines as `mod.logo` (string or `{ light, dark }`) — module authors don't declare anything in `module.ts`. First-party logos come from [svgl.app](https://svgl.app). The web builder renders inline via `dangerouslySetInnerHTML`
+- **Codemod distribution**: each module's `codemods/index.ts` is bundled by `registry-build.ts` via `Bun.build` (`format: "esm"`, externals: `@stanza/codemods`, `@stanza/registry`, `ts-morph`, `node:*`) and embedded as `mod.codemodBundle` (string) in the per-module JSON. The CLI runner writes the bundle to `node_modules/.cache/stanza-codemods/` (located by walking up from `import.meta.url` looking for `@stanza/codemods` in a `node_modules`) and dynamic-imports it — that placement is what makes the externals resolve. Local dev still imports the `.ts` source off disk when no bundle is present
+- **apps/web previews are server-rendered**: Shiki runs in `apps/web/src/server/highlighter.ts` (module-singleton, kept warm). The builder loader (`createServerFn` in `apps/web/src/server/builder-state.ts`) computes selected files from URL search params, pre-renders Shiki HTML for each, and ships `Record<path, { light, dark }>` to the client. `shiki` must NEVER be imported from a client component — verified by `vite build` followed by `grep shiki .output/public/assets/*.js` (should return nothing)
 - **Slot taxonomy** is currently `framework | styling | db | orm | auth` (see `KNOWN_SLOTS`); adding a slot is a manifest schema bump — update `KNOWN_SLOTS`, `slotOrder`, and the Zod manifest schema together
 - **Adapter keys** encode peer choices (e.g., `next+drizzle`); the resolver picks the most specific match
 - **Region ownership** in `stanza.json` is the source of truth for `remove`/future-`swap`; two modules claiming the same region is a hard error (`RegionConflictError`)

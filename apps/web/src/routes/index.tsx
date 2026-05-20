@@ -1,30 +1,38 @@
-import type { RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 
 import { Builder } from "@/components/builder";
+import type { BuilderSearch } from "@/lib/selection";
+import { getBuilderState } from "@/server/builder-state";
 
-const getRegistryIndex = createServerFn({ method: "GET" }).handler(async () => {
-  const url = process.env.STANZA_REGISTRY ?? "https://stanza.dev/registry";
-  const res = await fetch(`${url}/index.json`);
-  if (!res.ok) {
-    throw new Error(`Failed to load stanza registry: ${res.status}`);
+function validateSearch(input: Record<string, unknown>): BuilderSearch {
+  const out: BuilderSearch = {};
+  for (const key of ["name", "framework", "styling", "db", "orm", "auth"] as const) {
+    const v = input[key];
+    if (typeof v === "string" && v.length > 0) out[key] = v;
   }
-  return (await res.json()) as RegistryIndex;
-});
+  return out;
+}
 
 export const Route = createFileRoute("/")({
-  loader: () => getRegistryIndex(),
+  validateSearch,
+  loaderDeps: ({ search }) => search,
+  loader: ({ deps }) => getBuilderState({ data: deps }),
   component: Page,
 });
 
 function Page() {
-  const index = Route.useLoaderData();
+  const state = Route.useLoaderData();
+  const search = Route.useSearch();
   return (
-    <main style={{ maxWidth: "48rem", margin: "4rem auto", padding: "0 1rem" }}>
-      <h1>stanza</h1>
-      <p>Pick your stack. Get an idiomatic monorepo.</p>
-      <Builder index={index} />
-    </main>
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <header className="mb-10 max-w-2xl">
+        <h1 className="text-3xl font-semibold tracking-tight">Build your stack</h1>
+        <p className="mt-2 text-muted-foreground">
+          Pick a framework, ORM, database, auth provider, and styling. Get a clean monorepo with
+          idiomatic, vendored code. Add modules later with <code>stanza add</code>.
+        </p>
+      </header>
+      <Builder state={state} search={search} />
+    </div>
   );
 }

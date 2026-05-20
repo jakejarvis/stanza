@@ -69,6 +69,15 @@ export type EnvVar = {
   description?: string;
 };
 
+/**
+ * Inlined SVG markup for a module's logo. A bare string is theme-agnostic;
+ * `{ light, dark }` lets the UI swap based on the active theme. The registry
+ * build step auto-detects `logo.svg` (single) or `logo-light.svg` +
+ * `logo-dark.svg` (pair) in the module directory and populates this field —
+ * module authors don't write it manually.
+ */
+export type Logo = string | { light: string; dark: string };
+
 export type Module = {
   id: ModuleId;
   slot: SlotId;
@@ -92,6 +101,17 @@ export type Module = {
   homepage?: string;
   /** Optional maintainer attribution. */
   author?: string;
+  /** Inlined SVG logo, populated by the registry build step. */
+  logo?: Logo;
+  /**
+   * Bundled JS source of this module's `codemods/index.ts`, populated by the
+   * registry build step. Self-contained ESM with `@stanza/codemods`,
+   * `@stanza/registry`, `ts-morph`, and Node built-ins externalized — the CLI
+   * provides them at runtime. The runner writes this to a temp file and
+   * dynamic-imports it; for local dev (no bundle) it falls back to reading
+   * `codemods/index.ts` off disk.
+   */
+  codemodBundle?: string;
 };
 
 /**
@@ -166,4 +186,6 @@ export const ModuleSchema = z.object({
   ),
   homepage: z.string().optional(),
   author: z.string().optional(),
+  logo: z.union([z.string(), z.object({ light: z.string(), dark: z.string() })]).optional(),
+  codemodBundle: z.string().optional(),
 }) satisfies z.ZodType<Module>;

@@ -67,8 +67,9 @@ async function main() {
       "Next steps:",
       `  ${kleur.dim("1.")} Edit ${kleur.cyan(`registry/modules/${args.slot}-${args.id}/module.ts`)}`,
       `  ${kleur.dim("2.")} Add templates under ${kleur.cyan("templates/")}`,
-      `  ${kleur.dim("3.")} ${kleur.cyan("pnpm install --force")} to link the workspace`,
-      `  ${kleur.dim("4.")} ${kleur.cyan("pnpm registry:build")} to verify the manifest`,
+      `  ${kleur.dim("3.")} Drop a ${kleur.cyan("logo.svg")} (or ${kleur.cyan("logo-light.svg")} + ${kleur.cyan("logo-dark.svg")}) — try ${kleur.dim("https://svgl.app")}`,
+      `  ${kleur.dim("4.")} ${kleur.cyan("pnpm install --force")} to link the workspace`,
+      `  ${kleur.dim("5.")} ${kleur.cyan("pnpm registry:build")} to verify the manifest`,
     ].join("\n"),
   );
 }

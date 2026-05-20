@@ -99,11 +99,10 @@ async function loadHttpRegistry(baseUrl: string): Promise<Registry> {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Module fetch failed: ${url} (${res.status})`);
       return (await res.json()) as Module;
-      // NOTE: HTTP-loaded modules can't ship codemod *functions* — they
-      // contain only the manifest + codemod ids. The CLI ships a bundled
-      // registry of codemod implementations keyed by id, populated at build
-      // time from the first-party modules. Custom codemod bundles for
-      // third-party modules are a future addition (signed JS payloads).
+      // HTTP-loaded modules carry their imperative codemods as a pre-bundled
+      // ESM string in `module.codemodBundle` (populated by registry-build,
+      // with `@stanza/codemods` + `ts-morph` externalized). The runner
+      // materializes it to a temp file and dynamic-imports.
     },
   };
 }

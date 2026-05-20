@@ -8,5 +8,16 @@
     "preserveWhitespace": false
   },
   "sortPackageJson": true,
-  "ignorePatterns": []
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.output/**",
+    "**/.turbo/**",
+    "**/.vercel/**",
+    "**/routeTree.gen.ts",
+    "**/coverage/**",
+    "apps/web/public/registry/**",
+    "registry/modules/*/logo*.svg",
+    "registry/modules/*/templates/**"
+  ]
 }

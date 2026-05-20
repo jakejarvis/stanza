@@ -33,7 +33,7 @@
     },
     {
       "files": ["apps/web/**/*.tsx"],
-      "plugins": ["typescript", "react", "react-hooks", "jsx-a11y", "unicorn", "import"],
+      "plugins": ["typescript", "react", "react-perf", "promise", "jsx-a11y", "unicorn", "import"],
       "rules": {
         "react/react-in-jsx-scope": "off"
       }
