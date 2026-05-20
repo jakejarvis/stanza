@@ -26,10 +26,12 @@ export type ModuleAdapter = {
   /** Templates copied verbatim into the project (relative dest path → registry-relative source). */
   templates?: TemplateRef[];
   /**
-   * Codemod IDs to run, in order. The CLI looks these up in the module's
-   * codemod registry (loaded lazily so the registry index stays JSON-serializable).
+   * Generic codemod invocations to run, in order. Each entry names a codemod
+   * from the CLI's catalog (e.g. `wrap-root-layout`) plus the per-invocation
+   * arguments. The CLI ships the implementations; the registry JSON carries
+   * only data (id + args).
    */
-  codemods?: string[];
+  codemods?: CodemodInvocation[];
   /** npm dependencies this adapter adds (name → semver range). */
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -58,6 +60,27 @@ export type TemplateRef = {
    * (FS-based registry) leaves this undefined; the runner reads from disk.
    */
   content?: string;
+};
+
+/**
+ * JSON-safe values for codemod arguments. The shape mirrors what survives a
+ * round-trip through the registry JSON — strings, numbers, booleans, nulls,
+ * and nested JSON values. Each catalog codemod narrows this to its own
+ * concrete `TArgs` interface at the call site.
+ */
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export type CodemodInvocation = {
+  /** Codemod id from the CLI's catalog (e.g. `"wrap-root-layout"`). */
+  id: string;
+  /** Per-invocation arguments. Shape is defined by the codemod's args contract. */
+  args?: Record<string, JsonValue>;
 };
 
 export type EnvVar = {
@@ -103,15 +126,6 @@ export type Module = {
   author?: string;
   /** Inlined SVG logo, populated by the registry build step. */
   logo?: Logo;
-  /**
-   * Bundled JS source of this module's `codemods/index.ts`, populated by the
-   * registry build step. Self-contained ESM with `@stanza/codemods`,
-   * `@stanza/registry`, `ts-morph`, and Node built-ins externalized — the CLI
-   * provides them at runtime. The runner writes this to a temp file and
-   * dynamic-imports it; for local dev (no bundle) it falls back to reading
-   * `codemods/index.ts` off disk.
-   */
-  codemodBundle?: string;
 };
 
 /**
@@ -141,6 +155,18 @@ export function defineModule(module: Module): Module {
 //
 // Zod 4 requires `z.record(K, V)` — the 1-arg form is gone. We use
 // `z.string()` for keys everywhere except `peers`, which keys on SlotId.
+
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ]),
+);
+
 export const ModuleSchema = z.object({
   id: z.string(),
   slot: z.enum(KNOWN_SLOTS),
@@ -168,7 +194,14 @@ export const ModuleSchema = z.object({
           }),
         )
         .optional(),
-      codemods: z.array(z.string()).optional(),
+      codemods: z
+        .array(
+          z.object({
+            id: z.string(),
+            args: z.record(z.string(), jsonValueSchema).optional(),
+          }),
+        )
+        .optional(),
       dependencies: z.record(z.string(), z.string()).optional(),
       devDependencies: z.record(z.string(), z.string()).optional(),
       env: z
@@ -187,5 +220,4 @@ export const ModuleSchema = z.object({
   homepage: z.string().optional(),
   author: z.string().optional(),
   logo: z.union([z.string(), z.object({ light: z.string(), dark: z.string() })]).optional(),
-  codemodBundle: z.string().optional(),
 }) satisfies z.ZodType<Module>;

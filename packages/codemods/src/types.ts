@@ -25,10 +25,20 @@ export type CodemodResult = {
   touchedFiles: string[];
 };
 
-export type Codemod = {
+/**
+ * A generic, reusable code transform. Each codemod implements one concept
+ * (e.g. "wrap root layout with a provider") and is parameterized by `TArgs`
+ * supplied per-invocation from the module manifest. The CLI ships a catalog
+ * of these; modules pick from it via `adapter.codemods: [{ id, args }]`.
+ *
+ * Codemods never bake module-specific identifiers into their implementation —
+ * if a module needs a bespoke transform, factor it into a new generic codemod
+ * with the right argument surface.
+ */
+export type Codemod<TArgs = Record<string, unknown>> = {
   id: string;
   description?: string;
-  apply(ctx: CodemodContext): Promise<CodemodResult> | CodemodResult;
+  apply(ctx: CodemodContext, args: TArgs): Promise<CodemodResult> | CodemodResult;
   /** Inverse for `stanza remove`. Ship these where cheap. */
-  revert?(ctx: CodemodContext): Promise<CodemodResult> | CodemodResult;
+  revert?(ctx: CodemodContext, args: TArgs): Promise<CodemodResult> | CodemodResult;
 };

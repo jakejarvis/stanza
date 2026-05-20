@@ -4,7 +4,7 @@ import { resolveAdapter, slotOrder } from "@stanza/registry";
 import { emptyManifest } from "@stanza/registry";
 import kleur from "kleur";
 
-import type { Registry } from "./registry-loader.ts";
+import type { Registry } from "./registry-loader";
 
 export type WizardResult = {
   name: string;

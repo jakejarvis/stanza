@@ -6,10 +6,10 @@ import { resolveAdapter, slotOrder } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { applyModule } from "../codemod-runner.ts";
-import { initManifest } from "../manifest.ts";
-import { loadRegistry } from "../registry-loader.ts";
-import { runInitWizard } from "../wizard.ts";
+import { applyModule } from "../codemod-runner";
+import { initManifest } from "../manifest";
+import { loadRegistry } from "../registry-loader";
+import { runInitWizard } from "../wizard";
 
 export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
   const registry = await loadRegistry();

@@ -4,12 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it, beforeEach } from "vitest";
 
-import {
-  addPackageDependency,
-  addPackageScript,
-  mergeJson,
-  removePackageDependency,
-} from "./json.ts";
+import { addPackageDependency, addPackageScript, mergeJson, removePackageDependency } from "./json";
 
 let tmp: string;
 beforeEach(() => {

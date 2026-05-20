@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it, beforeEach } from "vitest";
 
-import { addEnvVar, removeEnvVar } from "./env.ts";
+import { addEnvVar, removeEnvVar } from "./env";
 
 let tmp: string;
 beforeEach(() => {

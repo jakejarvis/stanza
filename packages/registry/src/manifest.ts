@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { KNOWN_SLOTS, type ModuleId, type SlotId } from "./module.ts";
+import { KNOWN_SLOTS, type ModuleId, type SlotId } from "./module";
 
 export const CURRENT_MANIFEST_VERSION = "0.1" as const;
 

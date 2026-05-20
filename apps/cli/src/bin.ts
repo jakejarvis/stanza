@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import mri from "mri";
 
-import { run } from "./run.ts";
+import { run } from "./run";
 
 const argv = mri(process.argv.slice(2), {
   alias: { h: "help", v: "version" },

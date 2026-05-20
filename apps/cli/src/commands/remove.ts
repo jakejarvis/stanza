@@ -7,8 +7,8 @@ import { KNOWN_SLOTS, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { findProjectRoot, readManifest, writeManifest } from "../manifest.ts";
-import { regionsOwnedBy } from "../region-tracker.ts";
+import { findProjectRoot, readManifest, writeManifest } from "../manifest";
+import { regionsOwnedBy } from "../region-tracker";
 
 export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<void> {
   if (!args.slot) {

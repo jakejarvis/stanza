@@ -1,7 +1,7 @@
 import { Project } from "ts-morph";
 import { describe, expect, it } from "vitest";
 
-import { addNamedImport, addDefaultImport, removeImport } from "./imports.ts";
+import { addNamedImport, addDefaultImport, removeImport } from "./imports";
 
 function file(src: string) {
   const project = new Project({ useInMemoryFileSystem: true });

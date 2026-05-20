@@ -29,3 +29,6 @@ Thumbs.db
 # Test artifacts
 coverage/
 __snapshots__/.tmp/
+
+# misc
+apps/web/public/registry/

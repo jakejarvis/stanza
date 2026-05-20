@@ -11,11 +11,13 @@ export type {
   TemplateRef,
   EnvVar,
   Logo,
-} from "./module.ts";
-export { defineModule, KNOWN_SLOTS } from "./module.ts";
+  CodemodInvocation,
+  JsonValue,
+} from "./module";
+export { defineModule, KNOWN_SLOTS } from "./module";
 
-export type { StanzaManifest, StanzaModuleRecord, RegionMap, RegionOwnership } from "./manifest.ts";
-export { StanzaManifestSchema, CURRENT_MANIFEST_VERSION, emptyManifest } from "./manifest.ts";
+export type { StanzaManifest, StanzaModuleRecord, RegionMap, RegionOwnership } from "./manifest";
+export { StanzaManifestSchema, CURRENT_MANIFEST_VERSION, emptyManifest } from "./manifest";
 
-export type { ResolveContext, ResolveResult, ResolveError } from "./resolver.ts";
-export { resolveAdapter, isCompatible, slotOrder } from "./resolver.ts";
+export type { ResolveContext, ResolveResult, ResolveError } from "./resolver";
+export { resolveAdapter, isCompatible, slotOrder } from "./resolver";

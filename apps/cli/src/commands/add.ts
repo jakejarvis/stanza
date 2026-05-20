@@ -6,9 +6,9 @@ import { resolveAdapter, type SlotId, KNOWN_SLOTS } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { applyModule } from "../codemod-runner.ts";
-import { findProjectRoot, readManifest } from "../manifest.ts";
-import { loadRegistry } from "../registry-loader.ts";
+import { applyModule } from "../codemod-runner";
+import { findProjectRoot, readManifest } from "../manifest";
+import { loadRegistry } from "../registry-loader";
 
 export async function cmdAdd(args: {
   slot?: string;

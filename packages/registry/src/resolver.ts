@@ -1,5 +1,5 @@
-import type { StanzaManifest } from "./manifest.ts";
-import { KNOWN_SLOTS, type Module, type ModuleAdapter, type SlotId } from "./module.ts";
+import type { StanzaManifest } from "./manifest";
+import { KNOWN_SLOTS, type Module, type ModuleAdapter, type SlotId } from "./module";
 
 /**
  * Topological order slots are processed in. Earlier slots become peer

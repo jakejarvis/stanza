@@ -1,1 +1,1 @@
-export { run } from "./run.ts";
+export { run } from "./run";

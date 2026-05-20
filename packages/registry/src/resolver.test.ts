@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { emptyManifest } from "./manifest.ts";
-import { defineModule, type Module } from "./module.ts";
-import { resolveAdapter } from "./resolver.ts";
+import { emptyManifest } from "./manifest";
+import { defineModule, type Module } from "./module";
+import { resolveAdapter } from "./resolver";
 
 const drizzle: Module = defineModule({
   id: "drizzle",

@@ -41,11 +41,9 @@ async function main() {
     // because the runner falls back to disk when `content` is absent.
     const templatesDir = path.join(modulesDir, dir, "templates");
     const logo = readLogo(path.join(modulesDir, dir));
-    const codemodBundle = await bundleCodemods(path.join(modulesDir, dir));
     const inlined: Module = {
       ...mod,
       ...(logo ? { logo } : {}),
-      ...(codemodBundle ? { codemodBundle } : {}),
       adapters: mod.adapters.map((adapter) => ({
         ...adapter,
         templates: adapter.templates?.map((tpl) => ({
@@ -106,44 +104,6 @@ function readLogo(moduleDir: string): Logo | undefined {
   const single = path.join(moduleDir, "logo.svg");
   if (fs.existsSync(single)) return fs.readFileSync(single, "utf8");
   return undefined;
-}
-
-/**
- * If a module ships imperative codemods (`codemods/index.ts`), bundle them
- * into a self-contained ESM string and embed in the registry JSON. We mark
- * the runtime helpers (`@stanza/codemods`, `ts-morph`, Node built-ins) as
- * external — the CLI provides them at install time. Local dev (FS-loaded
- * modules) can still ignore this and import the source directly off disk.
- */
-async function bundleCodemods(moduleDir: string): Promise<string | undefined> {
-  const entry = path.join(moduleDir, "codemods", "index.ts");
-  if (!fs.existsSync(entry)) return undefined;
-
-  const result = await Bun.build({
-    entrypoints: [entry],
-    target: "bun",
-    format: "esm",
-    external: [
-      "@stanza/codemods",
-      "@stanza/registry",
-      "ts-morph",
-      "node:*",
-      "fs",
-      "path",
-      "os",
-      "url",
-    ],
-    minify: false,
-  });
-
-  if (!result.success) {
-    const log = result.logs.map((l: { message?: string }) => l.message ?? String(l)).join("\n");
-    throw new Error(`Failed to bundle codemods at ${entry}:\n${log}`);
-  }
-
-  const out = result.outputs[0];
-  if (!out) throw new Error(`Bundler produced no output for ${entry}`);
-  return await out.text();
 }
 
 function findRepoRoot(start: string): string {

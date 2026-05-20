@@ -3,7 +3,7 @@ import { slotOrder, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { findProjectRoot, readManifest } from "../manifest.ts";
+import { findProjectRoot, readManifest } from "../manifest";
 
 export async function cmdList(_args: { argv: Argv }): Promise<void> {
   const projectRoot = findProjectRoot();

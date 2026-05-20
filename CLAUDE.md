@@ -22,7 +22,7 @@ Three things differentiate stanza from other scaffolders:
 - `packages/codemods/` — ts-morph helpers (idempotent + reversible)
 - `packages/create-stanza/` — `pnpm create stanza` shim
 - `packages/internal/` — Internal maintenance scripts: `registry-build.ts` (emits static CDN JSON), `module-new.ts` (scaffolds a new module)
-- `registry/modules/<slot>-<id>/` — first-party modules: `module.ts` + `templates/` (+ optional `codemods/`)
+- `registry/modules/<slot>-<id>/` — first-party modules: `module.ts` + `templates/` (modules don't ship codemod code; see Architecture rules)
 
 ## Commands
 
@@ -51,7 +51,9 @@ Three things differentiate stanza from other scaffolders:
 - **Modules are vendored**: their templates land in the user's repo verbatim; no `@stanza/runtime` dep
 - **Template distribution**: `packages/internal`'s `registry-build.ts` inlines each template file's contents into the per-module JSON's `templates[].content` field so HTTP-loaded manifests are self-contained. The runner prefers `tpl.content` and only reads from `registry/modules/<x>/templates/` when it's absent (local dev). New templates need no build wiring — they're picked up automatically
 - **Module logos**: drop `logo.svg` (theme-agnostic) or `logo-light.svg` + `logo-dark.svg` (theme pair) in a module's directory. The registry build auto-detects and inlines as `mod.logo` (string or `{ light, dark }`) — module authors don't declare anything in `module.ts`. First-party logos come from [svgl.app](https://svgl.app). The web builder renders inline via `dangerouslySetInnerHTML`
-- **Codemod distribution**: each module's `codemods/index.ts` is bundled by `registry-build.ts` via `Bun.build` (`format: "esm"`, externals: `@stanza/codemods`, `@stanza/registry`, `ts-morph`, `node:*`) and embedded as `mod.codemodBundle` (string) in the per-module JSON. The CLI runner writes the bundle to `node_modules/.cache/stanza-codemods/` (located by walking up from `import.meta.url` looking for `@stanza/codemods` in a `node_modules`) and dynamic-imports it — that placement is what makes the externals resolve. Local dev still imports the `.ts` source off disk when no bundle is present
+- **Registry is data; CLI is the runtime**: the per-module JSON ships templates (text), deps (strings), env (strings), scripts (strings), logos (SVG markup), and codemod **invocations** (`{ id, args }`). It does NOT ship codemod _code_. The catalog of generic codemods lives in [packages/codemods/src/builtins/](packages/codemods/src/builtins/) and is exposed via the `@stanza/codemods/builtins` subpath export — each codemod is parameterized by `TArgs` and reusable across modules (`wrap-root-layout` serves both Clerk and any future provider-style auth/state library). The catalog is statically imported into the CLI binary at build time, so distribution shape (single binary, pnpm-isolated, npm-hoisted, `npx`, `bun --compile`) doesn't matter — implementations always travel with the runtime
+- **Adding a generic codemod**: drop `<id>.ts` under [packages/codemods/src/builtins/](packages/codemods/src/builtins/), default-export a `Codemod<TArgs>`, and register it in [packages/codemods/src/builtins/index.ts](packages/codemods/src/builtins/index.ts). Codemods that bake in module-specific identifiers don't belong — factor them into args
+- **Third-party codemods**: deferred. Third-party HTTP-loaded modules can use the existing catalog codemods (pass `{ id, args }` from their manifest) but can't add new ones until we land a proper sandboxed-execution + signing model
 - **apps/web previews are server-rendered**: Shiki runs in `apps/web/src/server/highlighter.ts` (module-singleton, kept warm). The builder loader (`createServerFn` in `apps/web/src/server/builder-state.ts`) computes selected files from URL search params, pre-renders Shiki HTML for each, and ships `Record<path, { light, dark }>` to the client. `shiki` must NEVER be imported from a client component — verified by `vite build` followed by `grep shiki .output/public/assets/*.js` (should return nothing)
 - **Slot taxonomy** is currently `framework | styling | db | orm | auth` (see `KNOWN_SLOTS`); adding a slot is a manifest schema bump — update `KNOWN_SLOTS`, `slotOrder`, and the Zod manifest schema together
 - **Adapter keys** encode peer choices (e.g., `next+drizzle`); the resolver picks the most specific match
@@ -64,7 +66,7 @@ Three things differentiate stanza from other scaffolders:
 - `module.ts` exports `defineModule({...})` with at least one adapter (use `match: {}` for "default / no peer")
 - Templates go in `templates/`, referenced by `src` path; `scope: "app"` resolves against `manifest.appDir`, `scope: "repo"` against the repo root
 - Framework modules MUST NOT ship a `package.json.tpl` — it collides with `addPackageDependency`. Let the runner merge deps into the host's package.json
-- Codemod functions (when needed) live in `<module>/codemods/index.ts` as a default-exported map of `{ id: Codemod }`
+- To invoke an imperative codemod from a module, add `codemods: [{ id: "<catalog-id>", args: {...} }]` to the adapter. Modules never ship code — if no catalog entry matches the need, design a new generic codemod with the right args
 
 ## Gotchas
 
