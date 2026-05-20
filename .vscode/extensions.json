@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "oxc.oxc-vscode",
+    "vercel.turbo-vsc",
+    "vitest.explorer"
+  ]
+}

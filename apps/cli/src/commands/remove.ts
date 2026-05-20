@@ -1,12 +1,14 @@
-import type { Argv } from "mri";
-import * as p from "@clack/prompts";
-import kleur from "kleur";
-import path from "node:path";
 import fs from "node:fs";
-import { findProjectRoot, readManifest, writeManifest } from "../manifest.ts";
-import { regionsOwnedBy } from "../region-tracker.ts";
+import path from "node:path";
+
+import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
 import { KNOWN_SLOTS, type SlotId } from "@stanza/registry";
+import kleur from "kleur";
+import type { Argv } from "mri";
+
+import { findProjectRoot, readManifest, writeManifest } from "../manifest.ts";
+import { regionsOwnedBy } from "../region-tracker.ts";
 
 export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<void> {
   if (!args.slot) {

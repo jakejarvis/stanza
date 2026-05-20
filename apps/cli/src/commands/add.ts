@@ -1,12 +1,14 @@
-import type { Argv } from "mri";
-import kleur from "kleur";
-import * as p from "@clack/prompts";
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
+
+import * as p from "@clack/prompts";
+import { resolveAdapter, type SlotId, KNOWN_SLOTS } from "@stanza/registry";
+import kleur from "kleur";
+import type { Argv } from "mri";
+
+import { applyModule } from "../codemod-runner.ts";
 import { findProjectRoot, readManifest } from "../manifest.ts";
 import { loadRegistry } from "../registry-loader.ts";
-import { applyModule } from "../codemod-runner.ts";
-import { resolveAdapter, type SlotId, KNOWN_SLOTS } from "@stanza/registry";
 
 export async function cmdAdd(args: {
   slot?: string;

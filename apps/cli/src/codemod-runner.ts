@@ -1,5 +1,6 @@
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
+
 import { openProject } from "@stanza/codemods";
 import {
   addPackageDependency,
@@ -7,10 +8,11 @@ import {
   addEnvVar,
   renderTemplate,
 } from "@stanza/codemods";
-import type { Module, ModuleAdapter, StanzaManifest, TemplateRef } from "@stanza/registry";
 import type { CodemodContext, Project } from "@stanza/codemods";
-import { claim, RegionConflictError } from "./region-tracker.ts";
+import type { Module, ModuleAdapter, StanzaManifest, TemplateRef } from "@stanza/registry";
+
 import { writeManifest } from "./manifest.ts";
+import { claim, RegionConflictError } from "./region-tracker.ts";
 
 export type RunResult = {
   manifest: StanzaManifest;

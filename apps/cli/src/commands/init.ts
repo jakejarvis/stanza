@@ -1,13 +1,15 @@
-import path from "node:path";
 import fs from "node:fs";
-import type { Argv } from "mri";
-import kleur from "kleur";
+import path from "node:path";
+
 import * as p from "@clack/prompts";
+import { resolveAdapter, slotOrder } from "@stanza/registry";
+import kleur from "kleur";
+import type { Argv } from "mri";
+
+import { applyModule } from "../codemod-runner.ts";
 import { initManifest } from "../manifest.ts";
 import { loadRegistry } from "../registry-loader.ts";
 import { runInitWizard } from "../wizard.ts";
-import { applyModule } from "../codemod-runner.ts";
-import { resolveAdapter, slotOrder } from "@stanza/registry";
 
 export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
   const registry = await loadRegistry();

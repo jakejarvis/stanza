@@ -1,5 +1,5 @@
-import type { Project } from "ts-morph";
 import type { ModuleId, SlotId, StanzaManifest } from "@stanza/registry";
+import type { Project } from "ts-morph";
 
 export type CodemodContext = {
   /** Absolute path to the project root (where stanza.json lives). */

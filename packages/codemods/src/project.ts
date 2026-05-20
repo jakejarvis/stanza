@@ -1,6 +1,7 @@
-import { Project, ScriptTarget, ModuleKind } from "ts-morph";
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
+
+import { Project, ScriptTarget, ModuleKind } from "ts-morph";
 
 /**
  * Open (or lazily load) a ts-morph Project rooted at the given directory.

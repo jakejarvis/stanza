@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
 import type { ModuleSummary, RegistryIndex, SlotId } from "@stanza/registry";
 import { resolveAdapter, slotOrder, emptyManifest } from "@stanza/registry";
+import { useMemo, useState } from "react";
 
 type Selections = Partial<Record<SlotId, string>>;
 

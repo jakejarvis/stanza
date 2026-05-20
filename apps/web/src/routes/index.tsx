@@ -1,7 +1,8 @@
+import type { RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import type { RegistryIndex } from "@stanza/registry";
-import { Builder } from "~/components/builder.tsx";
+
+import { Builder } from "@/components/builder";
 
 const getRegistryIndex = createServerFn({ method: "GET" }).handler(async () => {
   const url = process.env.STANZA_REGISTRY ?? "https://stanza.dev/registry";

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+
 import { StanzaManifestSchema, type StanzaManifest, emptyManifest } from "@stanza/registry";
 
 const MANIFEST_FILENAME = "stanza.json";

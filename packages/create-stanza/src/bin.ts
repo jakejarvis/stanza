@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { run } from "@stanza/cli";
 /**
  * `pnpm create stanza my-app` lands here. We forward straight to the CLI's
  * init command — no extra logic, since the wizard wants to live in one place.
@@ -7,7 +8,6 @@
  * invocation, with the project name as the first positional arg.
  */
 import mri from "mri";
-import { run } from "@stanza/cli";
 
 const argv = mri(process.argv.slice(2), {
   alias: { h: "help", v: "version" },

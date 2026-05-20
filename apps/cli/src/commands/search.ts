@@ -1,5 +1,6 @@
-import type { Argv } from "mri";
 import kleur from "kleur";
+import type { Argv } from "mri";
+
 import { loadRegistry } from "../registry-loader.ts";
 
 export async function cmdSearch(args: { query?: string; argv: Argv }): Promise<void> {

@@ -1,9 +1,10 @@
 import * as p from "@clack/prompts";
-import kleur from "kleur";
 import type { Module, RegistryIndex, SlotId } from "@stanza/registry";
 import { resolveAdapter, slotOrder } from "@stanza/registry";
-import type { Registry } from "./registry-loader.ts";
 import { emptyManifest } from "@stanza/registry";
+import kleur from "kleur";
+
+import type { Registry } from "./registry-loader.ts";
 
 export type WizardResult = {
   name: string;

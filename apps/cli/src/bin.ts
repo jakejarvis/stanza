@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import mri from "mri";
+
 import { run } from "./run.ts";
 
 const argv = mri(process.argv.slice(2), {

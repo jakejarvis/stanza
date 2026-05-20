@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { Project } from "ts-morph";
+import { describe, expect, it } from "vitest";
+
 import { addNamedImport, addDefaultImport, removeImport } from "./imports.ts";
 
 function file(src: string) {

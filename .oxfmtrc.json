@@ -1,4 +1,12 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "sortImports": {},
+  "sortTailwindcss": {
+    "stylesheet": "apps/web/src/styles.css",
+    "functions": ["clsx", "cn", "cva", "tw"],
+    "preserveDuplicates": false,
+    "preserveWhitespace": false
+  },
+  "sortPackageJson": true,
   "ignorePatterns": []
 }

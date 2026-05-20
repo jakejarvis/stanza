@@ -17,10 +17,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 import * as p from "@clack/prompts";
+import { KNOWN_SLOTS, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import mri from "mri";
-import { KNOWN_SLOTS, type SlotId } from "@stanza/registry";
 
 type Args = {
   slot?: SlotId;

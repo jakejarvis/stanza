@@ -1,7 +1,8 @@
-import type { Module, RegistryIndex } from "@stanza/registry";
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import type { Module, RegistryIndex } from "@stanza/registry";
 
 /**
  * In dev (when running from the stanza monorepo), modules are imported

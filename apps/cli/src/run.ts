@@ -1,9 +1,10 @@
-import type { Argv } from "mri";
 import kleur from "kleur";
-import { cmdInit } from "./commands/init.ts";
+import type { Argv } from "mri";
+
 import { cmdAdd } from "./commands/add.ts";
-import { cmdRemove } from "./commands/remove.ts";
+import { cmdInit } from "./commands/init.ts";
 import { cmdList } from "./commands/list.ts";
+import { cmdRemove } from "./commands/remove.ts";
 import { cmdSearch } from "./commands/search.ts";
 
 const VERSION = "0.1.0";
