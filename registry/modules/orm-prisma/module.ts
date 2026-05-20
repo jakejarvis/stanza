@@ -8,17 +8,17 @@ export default defineModule({
   version: "0.1.0",
   peers: { db: ["postgres", "sqlite"] },
   homepage: "https://www.prisma.io",
+  dependencies: { "@prisma/client": "^7.8.0" },
+  devDependencies: { prisma: "^7.8.0" },
+  scripts: {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+  },
   adapters: [
     {
       key: "postgres",
       match: { db: "postgres" },
-      dependencies: { "@prisma/client": "^7.8.0" },
-      devDependencies: { prisma: "^7.8.0" },
-      scripts: {
-        "db:generate": "prisma generate",
-        "db:migrate": "prisma migrate dev",
-        "db:studio": "prisma studio",
-      },
       templates: [
         { src: "prisma/schema.postgres.prisma", dest: "prisma/schema.prisma", scope: "package" },
         { src: "src/db.ts", dest: "src/index.ts", scope: "package" },
@@ -27,13 +27,6 @@ export default defineModule({
     {
       key: "sqlite",
       match: { db: "sqlite" },
-      dependencies: { "@prisma/client": "^7.8.0" },
-      devDependencies: { prisma: "^7.8.0" },
-      scripts: {
-        "db:generate": "prisma generate",
-        "db:migrate": "prisma migrate dev",
-        "db:studio": "prisma studio",
-      },
       templates: [
         { src: "prisma/schema.sqlite.prisma", dest: "prisma/schema.prisma", scope: "package" },
         { src: "src/db.ts", dest: "src/index.ts", scope: "package" },

@@ -2,11 +2,10 @@ import type { StanzaManifest } from "./manifest";
 import { KNOWN_SLOTS, type Module, type ModuleAdapter, type SlotId } from "./module";
 
 /**
- * Topological order slots are processed in. Earlier slots become peer
- * candidates for later ones. Hardcoded for now since the dependency graph
- * is small and fixed; can be derived from peer declarations later.
+ * Topological order slots are processed in. Derived from `SLOTS` array order;
+ * earlier slots become peer candidates for later ones.
  */
-export const slotOrder: readonly SlotId[] = ["framework", "styling", "db", "orm", "auth"];
+export const slotOrder: readonly SlotId[] = KNOWN_SLOTS;
 
 export type ResolveContext = {
   /** Manifest state at the moment of resolution (post any pending picks). */

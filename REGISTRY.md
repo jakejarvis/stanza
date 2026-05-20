@@ -4,7 +4,26 @@ This is the canonical roadmap for the first-party modules stanza ships. Each
 entry maps to a `registry/modules/<slot>-<id>/` directory. Update this file
 when a module lands, gets renamed, or is dropped.
 
-Legend: `[x]` added· `[ ]` planned
+Legend: `[x]` added · `[ ]` planned
+
+## Categories: slots vs add-ons
+
+Stanza's module taxonomy splits into two categories. **Slots** are
+single-choice and constrain other modules' adapter dispatch (picking
+Next.js influences which auth adapters are available). **Add-ons** can
+coexist freely and don't influence anyone else's adapters (vitest doesn't
+constrain anything).
+
+| Category | Type | Examples |
+| --- | --- | --- |
+| **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma |
+| **Add-ons** (no constraints, many allowed) | `testing`, `tooling`, `deploy`, `email`, `monorepo` | vitest + playwright together; eslint or biome |
+
+Today's CLI/manifest only models slots. The add-on schema (likely a
+`manifest.addons[]` array + `kind` discriminator on `Module`) is
+intentionally deferred — it should be designed around real add-on modules,
+not in a vacuum. The first add-on (probably `testing-vitest`) will force the
+schema decisions.
 
 ## framework
 
@@ -16,14 +35,14 @@ Legend: `[x]` added· `[ ]` planned
 
 ## api
 
-_New slot._ Optional layer between the framework and the database/services.
+_New **slot** (single-choice, constraint-bearing)._ Optional layer between the framework and the database/services.
 
 - [ ] **trpc** — tRPC v11; per-framework adapters (next, tanstack-start, nuxt, svelte, solid)
 - [ ] **orpc** — oRPC
 
 ## ai
 
-_New slot._
+_New **slot** (single-choice, constraint-bearing)._
 
 - [ ] **vercel-ai-sdk** — `ai` package + provider sub-recipes
 - [ ] **tanstack-ai** — TanStack AI
@@ -50,27 +69,27 @@ _New slot._
 
 ## ui
 
-_New slot._ Layered on top of `styling`; provides component primitives.
+_New **slot** (single-choice, constraint-bearing)._ Layered on top of `styling`; provides component primitives.
 
 - [ ] **shadcn-radix** — classic shadcn/ui (Radix primitives)
 - [ ] **shadcn-base** — shadcn on react-base-ui
 
 ## payments
 
-_New slot._
+_New **slot** (single-choice, constraint-bearing)._
 
 - [ ] **stripe** — Checkout Sessions + webhooks
 - [ ] **polar** — Polar SDK
 
 ## email
 
-_New slot._
+_New **add-on** (multi-allowed, no constraints)._
 
 - [ ] **resend** — Resend SDK + React Email templates
 
 ## tooling
 
-_New slot._ Lint/format toolchain. Single-choice slot.
+_New **add-on**._ Lint/format toolchain. Conventionally one per project but doesn't constrain others.
 
 - [ ] **eslint-prettier** — ESLint + Prettier
 - [ ] **biome** — Biome (lint + format)
@@ -78,14 +97,14 @@ _New slot._ Lint/format toolchain. Single-choice slot.
 
 ## testing
 
-_New slot._ Multi-choice (unit + e2e are independent).
+_New **add-on**._ Vitest and Playwright are independent and routinely coexist.
 
 - [ ] **vitest** — unit + integration
 - [ ] **playwright** — e2e
 
 ## deploy
 
-_New slot._
+_New **add-on**._
 
 - [ ] **vercel** — `vercel.json` + framework-specific output
 - [ ] **cloudflare** — Workers / Pages adapter per framework
@@ -94,9 +113,9 @@ _New slot._
 
 ## monorepo
 
-_Currently hardcoded in `bootstrapShell` as Turborepo. Will become a slot if we ever add a Nx/Moonrepo alternative._
+_Currently hardcoded in `bootstrapShell` as Turborepo. Promotes to an **add-on** when a second option (Nx, Moonrepo) lands._
 
-- [x] **turborepo** — Turbo 2.x (current default; not yet a configurable slot)
+- [x] **turborepo** — Turbo 2.x (current default; not yet a configurable choice)
 
 ## packageManager
 
@@ -114,10 +133,10 @@ Generated projects place each slot's output in one of two homes:
 - **App-scoped** (`framework`, `styling`) — files land in `manifest.appDir` (e.g. `apps/web/`). These slots wire the app shell itself, so there's no useful extraction boundary.
 - **Package-scoped** (`auth`, `db`, `orm`) — files land in `packages/<dir>/`, named `@<manifest.name>/<dir>`, and the app gets a `workspace:*` dep. `db` and `orm` share a single `packages/db/` package so the ORM client sits next to the schema it queries.
 
-The mapping is hardcoded in [`SLOT_PACKAGE_DIR`](packages/registry/src/module.ts) and applies to every adapter in those slots — module authors don't opt in per-adapter. When you add a new slot, decide upfront whether it extracts (data layer, observability, payments) or wires the shell (router, UI primitives that mount in `<html>`) and add the entry alongside `KNOWN_SLOTS`.
+The mapping lives in the canonical [`SLOTS`](packages/registry/src/module.ts) array as the `packageDir` field — `SLOT_PACKAGE_DIR` is just a `Record<SlotId, ...>` view derived from it. When you add a new slot, decide upfront whether it extracts (data layer, observability, payments) or wires the shell (router, UI primitives that mount in `<html>`) and set `packageDir` accordingly.
 
 ## Slot taxonomy changes required
 
-The slots `api`, `ai`, `ui`, `payments`, `email`, `tooling`, `testing`, `deploy` don't exist in `KNOWN_SLOTS` yet. Adding them is a manifest-schema bump and a `slotOrder` update in `packages/registry/src/resolver.ts`, plus a `SLOT_PACKAGE_DIR` entry (`null` for shell-wiring slots, a directory name for extracted ones). Plan the rollout so existing `stanza.json` files don't break — new slots are optional, so adding them is additive.
+Adding a new slot is now a **two-line edit**: append the id to `KNOWN_SLOTS` (the `as const` tuple Zod needs) and append a `Slot` entry to `SLOTS` with `{ id, label, description, packageDir }`. Order is topological — earlier slots become peer candidates for later ones. Existing `stanza.json` files don't break: new slots are optional, so adding them is additive.
 
-`tooling` and `monorepo` are single-choice within their slot; `testing` is multi-choice (a project can have both vitest and playwright). The current resolver assumes single-choice — `testing` will need an array-valued slot or two sub-slots (`testing-unit`, `testing-e2e`).
+Adding an add-on category is a larger lift because the manifest schema doesn't model add-ons yet. When the first add-on lands, expect to introduce `manifest.addons[]` and a discriminator on `Module`. See the category table at the top of this file for which planned modules are add-ons vs slots.

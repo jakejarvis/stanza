@@ -8,7 +8,7 @@ import type { Argv } from "mri";
 
 import { applyModule } from "@/lib/codemod-runner";
 import { initManifest } from "@/lib/manifest";
-import { loadRegistry } from "@/lib/registry-loader";
+import { loadRegistry, pickRegistryRoot } from "@/lib/registry-loader";
 import { runInitWizard } from "@/lib/wizard";
 
 export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
@@ -140,22 +140,4 @@ function bootstrapShell(
 
 function defaultPmVersion(pm: "pnpm" | "bun" | "npm"): string {
   return { pnpm: "pnpm@9.12.0", bun: "bun@1.1.34", npm: "npm@10.9.0" }[pm];
-}
-
-function pickRegistryRoot(): string {
-  // Same resolution as registry-loader's local path lookup. Kept here so the
-  // template + codemod files can be sourced from the same place we read the
-  // index from.
-  const override = process.env.STANZA_REGISTRY;
-  if (override && !override.startsWith("http")) return override;
-  // Walk up from this file.
-  const here = path.dirname(new URL(import.meta.url).pathname);
-  let dir = here;
-  for (let i = 0; i < 6; i++) {
-    if (fs.existsSync(path.join(dir, "registry", "modules"))) {
-      return path.join(dir, "registry");
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error("Could not locate stanza registry root.");
 }

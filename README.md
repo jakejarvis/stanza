@@ -15,7 +15,7 @@ Generated projects keep slot boundaries explicit: `auth`, `db`, and `orm` instal
 ```
 apps/
   cli/            # @stanza/cli — the CLI binary
-  web/            # builder.stanza.dev (TanStack Start)
+  web/            # https://stanza.tools (TanStack Start)
 packages/
   registry/       # shared schema, slot/peer/capability resolver
   codemods/       # ts-morph helpers for region-aware patching

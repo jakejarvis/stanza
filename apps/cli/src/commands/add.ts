@@ -1,6 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
-
 import * as p from "@clack/prompts";
 import { resolveAdapter, type SlotId, KNOWN_SLOTS } from "@stanza/registry";
 import kleur from "kleur";
@@ -8,7 +5,7 @@ import type { Argv } from "mri";
 
 import { applyModule } from "@/lib/codemod-runner";
 import { findProjectRoot, readManifest } from "@/lib/manifest";
-import { loadRegistry } from "@/lib/registry-loader";
+import { loadRegistry, pickRegistryRoot } from "@/lib/registry-loader";
 
 export async function cmdAdd(args: {
   slot?: string;
@@ -100,16 +97,3 @@ function describeResolveError(kind: string): string {
   }
 }
 
-function pickRegistryRoot(): string {
-  const override = process.env.STANZA_REGISTRY;
-  if (override && !override.startsWith("http")) return override;
-  const here = path.dirname(new URL(import.meta.url).pathname);
-  let dir = here;
-  for (let i = 0; i < 6; i++) {
-    if (fs.existsSync(path.join(dir, "registry", "modules"))) {
-      return path.join(dir, "registry");
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error("Could not locate stanza registry root.");
-}

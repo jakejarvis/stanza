@@ -1,8 +1,12 @@
 #!/usr/bin/env bun
 /**
- * Copies the registry CDN output (`dist/registry/`) into `apps/web/public/registry/`
- * so the web builder can serve it from the same domain. Runs as a predev/prebuild
- * hook; safe to re-run.
+ * Builds the registry (if needed) and copies its JSON output into
+ * `apps/web/public/registry/` so the deployed web app serves it from the
+ * same origin. Both `predev` and `prebuild` invoke this — production deploys
+ * therefore ship a self-contained registry alongside the website.
+ *
+ * The web app is the canonical registry host. The published CLI's default
+ * `STANZA_REGISTRY` points at this same `/registry/` URL.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -15,11 +19,22 @@ const repoRoot = path.resolve(appDir, "..", "..");
 const src = path.join(repoRoot, "dist", "registry");
 const dest = path.join(appDir, "public", "registry");
 
+// Build the registry on demand. The prebuild path needs this because CI may
+// run the web build without first running `pnpm registry:build` at the root.
 if (!fs.existsSync(src)) {
-  console.warn(
-    `[copy-registry] ${path.relative(repoRoot, src)} doesn't exist yet — run \`pnpm registry:build\` first. Skipping.`,
+  console.log(
+    `[copy-registry] ${path.relative(repoRoot, src)} not found — running registry build first.`,
   );
-  process.exit(0);
+  const buildScript = path.join(repoRoot, "scripts", "registry-build.ts");
+  const proc = Bun.spawnSync(["bun", buildScript], {
+    cwd: repoRoot,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (proc.exitCode !== 0) {
+    console.error("[copy-registry] registry build failed; aborting.");
+    process.exit(proc.exitCode ?? 1);
+  }
 }
 
 fs.rmSync(dest, { recursive: true, force: true });

@@ -58,6 +58,11 @@ export async function applyModule(args: {
   const owner = module.id;
   const moduleDir = path.join(registryRoot, "modules", `${module.slot}-${module.id}`);
 
+  // Module-level install fields (shared across adapters) are merged with the
+  // adapter-level ones (variation per peer combination). Adapter wins per-key
+  // on conflicts; env merges by `name`.
+  const installFields = mergeInstallFields(module, adapter);
+
   // Slot → package mapping. When non-null, this slot's templates/deps/scripts
   // are routed into `packages/<packageDir>/` instead of into the active app.
   const packageDir = SLOT_PACKAGE_DIR[module.slot];
@@ -67,9 +72,9 @@ export async function applyModule(args: {
   const needsPackage =
     packageDir !== null &&
     (Boolean(adapter.templates?.some((t) => t.scope === "package")) ||
-      Boolean(adapter.dependencies && Object.keys(adapter.dependencies).length > 0) ||
-      Boolean(adapter.devDependencies && Object.keys(adapter.devDependencies).length > 0) ||
-      Boolean(adapter.scripts && Object.keys(adapter.scripts).length > 0));
+      Object.keys(installFields.dependencies).length > 0 ||
+      Object.keys(installFields.devDependencies).length > 0 ||
+      Object.keys(installFields.scripts).length > 0);
 
   let bootstrappedPackage: { dir: string; name: string } | undefined;
   if (needsPackage && packageDir && packageRoot) {
@@ -80,7 +85,7 @@ export async function applyModule(args: {
       packageDir,
       packageName,
       packageRoot,
-      peerPackages: adapter.peerPackages ?? [],
+      consumesPackages: module.consumesPackages ?? [],
       dryRun,
     });
     if (created) bootstrappedPackage = { dir: packageDir, name: packageName };
@@ -108,11 +113,12 @@ export async function applyModule(args: {
   const pkgJsonPath = packageRoot
     ? path.join(packageRoot, "package.json")
     : path.join(appRoot, "package.json");
-  if (
-    (adapter.dependencies || adapter.devDependencies || adapter.scripts) &&
-    fs.existsSync(pkgJsonPath)
-  ) {
-    for (const [name, range] of Object.entries(adapter.dependencies ?? {})) {
+  const hasInstall =
+    Object.keys(installFields.dependencies).length > 0 ||
+    Object.keys(installFields.devDependencies).length > 0 ||
+    Object.keys(installFields.scripts).length > 0;
+  if (hasInstall && fs.existsSync(pkgJsonPath)) {
+    for (const [name, range] of Object.entries(installFields.dependencies)) {
       manifest = claim(
         manifest,
         path.relative(projectRoot, pkgJsonPath),
@@ -121,7 +127,7 @@ export async function applyModule(args: {
       );
       if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
     }
-    for (const [name, range] of Object.entries(adapter.devDependencies ?? {})) {
+    for (const [name, range] of Object.entries(installFields.devDependencies)) {
       manifest = claim(
         manifest,
         path.relative(projectRoot, pkgJsonPath),
@@ -130,7 +136,7 @@ export async function applyModule(args: {
       );
       if (!dryRun) addPackageDependency(pkgJsonPath, name, range, { dev: true });
     }
-    for (const [name, command] of Object.entries(adapter.scripts ?? {})) {
+    for (const [name, command] of Object.entries(installFields.scripts)) {
       manifest = claim(manifest, path.relative(projectRoot, pkgJsonPath), `scripts.${name}`, owner);
       if (!dryRun) addPackageScript(pkgJsonPath, name, command);
     }
@@ -138,9 +144,9 @@ export async function applyModule(args: {
   }
 
   // 3. Env vars in .env.example at repo root.
-  if (adapter.env && adapter.env.length > 0) {
+  if (installFields.env.length > 0) {
     const envFile = path.join(projectRoot, ".env.example");
-    for (const v of adapter.env) {
+    for (const v of installFields.env) {
       manifest = claim(manifest, ".env.example", v.name, owner);
       if (!dryRun) addEnvVar(envFile, v.name, v.example, v.description);
     }
@@ -160,7 +166,7 @@ export async function applyModule(args: {
       manifest,
       module,
       adapter,
-      project,
+      project: project.get,
       touchedFiles,
       dryRun,
       onClaim: (file, region) => {
@@ -171,7 +177,7 @@ export async function applyModule(args: {
       const fn = CODEMOD_CATALOG[invocation.id];
       if (!fn) {
         throw new Error(
-          `Codemod "${invocation.id}" not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
+          `Codemod "${invocation.id}" referenced by ${module.slot}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
         );
       }
       if (!dryRun) {
@@ -180,7 +186,7 @@ export async function applyModule(args: {
         result.touchedFiles.forEach((f) => touchedFiles.add(f));
       }
     }
-    if (!dryRun) await project.save?.();
+    if (!dryRun) await project.save();
   }
 
   if (!dryRun) {
@@ -240,10 +246,10 @@ function ensureSlotPackage(args: {
   packageDir: string;
   packageName: string;
   packageRoot: string;
-  peerPackages: string[];
+  consumesPackages: string[];
   dryRun: boolean;
 }): boolean {
-  const { appRoot, packageDir, packageName, packageRoot, peerPackages, dryRun } = args;
+  const { appRoot, packageDir, packageName, packageRoot, consumesPackages, dryRun } = args;
   const pkgPath = path.join(packageRoot, "package.json");
   const tsconfigPath = path.join(packageRoot, "tsconfig.json");
   const appPkgPath = path.join(appRoot, "package.json");
@@ -324,10 +330,10 @@ function ensureSlotPackage(args: {
   // Wire cross-package workspace deps so this package can import from its
   // peers (e.g. better-auth's auth.ts importing `db` from `@<project>/db`).
   // Skip self-references and unknown package dirs.
-  if (peerPackages.length > 0) {
+  if (consumesPackages.length > 0) {
     const allowed = new Set(Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null));
     const ownPkgJson = path.join(packageRoot, "package.json");
-    for (const peer of peerPackages) {
+    for (const peer of consumesPackages) {
       if (peer === packageDir) continue;
       if (!allowed.has(peer)) continue;
       const peerName = `@${args.manifest.name}/${peer}`;
@@ -343,6 +349,32 @@ function ensureSlotPackage(args: {
   }
 
   return created;
+}
+
+/**
+ * Combine a module's shared install fields with the chosen adapter's overrides.
+ * Adapter values win per-key. Env merges by `name`. Used at the top of
+ * `applyModule` so the rest of the body operates on one set of merged maps
+ * regardless of where each field was declared.
+ */
+function mergeInstallFields(
+  module: Module,
+  adapter: ModuleAdapter,
+): {
+  dependencies: Record<string, string>;
+  devDependencies: Record<string, string>;
+  scripts: Record<string, string>;
+  env: NonNullable<ModuleAdapter["env"]>;
+} {
+  const envByName = new Map<string, NonNullable<ModuleAdapter["env"]>[number]>();
+  for (const v of module.env ?? []) envByName.set(v.name, v);
+  for (const v of adapter.env ?? []) envByName.set(v.name, v);
+  return {
+    dependencies: { ...module.dependencies, ...adapter.dependencies },
+    devDependencies: { ...module.devDependencies, ...adapter.devDependencies },
+    scripts: { ...module.scripts, ...adapter.scripts },
+    env: [...envByName.values()],
+  };
 }
 
 /**
@@ -379,16 +411,22 @@ function readTemplateSource(tpl: TemplateRef, moduleDir: string): string {
   return fs.readFileSync(path.join(moduleDir, "templates", tpl.src), "utf8");
 }
 
-function lazyProject(appRoot: string): { (): Project; save?: () => Promise<void> } {
+/**
+ * Defer opening a ts-morph project until a codemod actually asks for it —
+ * adapters that only ship templates/deps don't pay the cost. `save()` is a
+ * no-op if no codemod ever called `get()`.
+ */
+function lazyProject(appRoot: string): { get: () => Project; save: () => Promise<void> } {
   let project: Project | undefined;
-  const fn = (() => {
-    if (!project) project = openProject(appRoot);
-    return project;
-  }) as { (): Project; save?: () => Promise<void> };
-  fn.save = async () => {
-    if (project) await project.save();
+  return {
+    get() {
+      if (!project) project = openProject(appRoot);
+      return project;
+    },
+    async save() {
+      if (project) await project.save();
+    },
   };
-  return fn;
 }
 
 function buildContext(args: {
@@ -492,7 +530,7 @@ export async function revertCodemods(args: {
     manifest,
     module,
     adapter,
-    project,
+    project: project.get,
     touchedFiles,
     dryRun,
     onRelease: (file, region) => {
@@ -520,7 +558,7 @@ export async function revertCodemods(args: {
       manualCleanup.push(invocation.id);
     }
   }
-  if (!dryRun) await project.save?.();
+  if (!dryRun) await project.save();
 
   return { manifest, touchedFiles: [...touchedFiles], dryRun, manualCleanup };
 }

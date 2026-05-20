@@ -1,6 +1,12 @@
 # TODO
 
-State at end of last session: declarative slot-package extraction landed — `auth`/`db`/`orm` modules now install into their own internal workspace packages (`packages/auth/`, `packages/db/` named `@<project>/<dir>`); the app consumes via `workspace:*`. Cross-package wiring is declared via `peerPackages` and templated via `{{<dir>PackageName}}` substitution. `stanza add` composes modules across slots (verified: `framework next` → `db postgres` → `orm drizzle` → `auth better-auth` produces a working tree with the right adapter selection and the auth package depending on the db package). 49 unit tests pass. apps/web is a minimal Vite-native TanStack Start scaffold — needs the actual builder UI.
+State at end of last session: pre-1.0 architectural cleanup landed.
+- **B1–B6** (mechanical cleanup): `SLOTS` array is now the source of truth (was 5 hardcoded copies); `pickRegistryRoot` deduped; dead `telemetryId` removed; codemod-not-found error now includes module/adapter context; orphan HTTP-bundle comment dropped; `lazyProject` returns a clean `{ get, save }` object.
+- **A3**: deleted `Module.provides`/`Module.requires`/`Capability` — they were declared but never read by the resolver. Peer constraints already encode the same info more precisely.
+- **A1**: hoisted module-level install fields (`dependencies`, `devDependencies`, `env`, `scripts`, `consumesPackages`). Adapters override per-key when needed. Better Auth's 6 adapters no longer duplicate `dependencies`, `env`, or workspace deps.
+- **A4**: web app is now the canonical registry host. `prebuild` builds + copies the registry into `apps/web/public/registry/`; deployed Vercel output ships it; the CLI's default URL points at the same path.
+- **A2 deferred**: the add-on schema (`manifest.addons[]` + `kind` discriminator) is intentionally postponed until the first real add-on module forces concrete design decisions. Categorization documented in [REGISTRY.md](REGISTRY.md).
+- Cross-package wiring is now declared via module-level `consumesPackages` (was per-adapter `peerPackages`). `stanza add` composes modules across slots (verified: `framework next` → `db postgres` → `orm drizzle` → `auth better-auth` produces a working tree with the right adapter selection and the auth package depending on the db package). 49 unit tests pass. apps/web is a minimal Vite-native TanStack Start scaffold — needs the actual builder UI.
 
 ## Web app (apps/web) — priority
 
@@ -67,7 +73,7 @@ The full first-party module roadmap lives in [REGISTRY.md](REGISTRY.md). These a
 
 ## Open items from the plan
 
-- [ ] Domain clearance — confirm `stanza.dev` / `stanza.sh` availability + decide
+- [x] Domain — `stanza.tools` (registry served at `https://stanza.tools/registry`, web builder at `https://stanza.tools`)
 - [ ] npm scope clearance — `@stanza` scope availability (the CLI assumes `@stanza/cli`); fall back to unscoped `stanza` if taken
 - [ ] Better Auth vs Clerk feature parity — Clerk wraps its own UI, Better Auth is headless; document the difference or ship shared UI stubs (`SignInForm`, callback page) that each adapter fills in
 

@@ -3,18 +3,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Module, RegistryIndex } from "@stanza/registry";
+import { SLOTS } from "@stanza/registry";
 
 /**
  * In dev (when running from the stanza monorepo), modules are imported
  * directly from `registry/modules/<id>/module.ts`. In production (published
- * CLI), the registry is a static JSON endpoint plus per-module bundles.
+ * CLI), the registry is a static JSON endpoint served by the canonical
+ * stanza website — the web builder and CLI consume the same URL.
  *
  * Resolution order:
- *  1. `STANZA_REGISTRY` env var — explicit URL or filesystem path.
+ *  1. `STANZA_REGISTRY` env var — explicit URL or filesystem path. Used by
+ *     self-hosters and by CI to point at a local registry build.
  *  2. Local workspace at `../../registry` (the stanza monorepo dev case).
- *  3. The default CDN URL `https://stanza.dev/registry`.
+ *  3. The default published URL.
  */
-const DEFAULT_REGISTRY_URL = "https://stanza.dev/registry";
+const DEFAULT_REGISTRY_URL = "https://stanza.tools/registry";
 
 export type Registry = {
   index: RegistryIndex;
@@ -48,6 +51,23 @@ function resolveLocalRegistry(): string | undefined {
   return undefined;
 }
 
+/**
+ * Locate the registry root on disk for sourcing template/codemod files.
+ * Mirrors `loadRegistry`'s local-path resolution:
+ *   1. `STANZA_REGISTRY` env var if it points at a filesystem path.
+ *   2. Walk up from this file looking for a sibling `registry/modules/` dir.
+ *
+ * Throws if neither resolves. Used by command handlers (`init`, `add`) that
+ * need to read template source files alongside the registry index.
+ */
+export function pickRegistryRoot(): string {
+  const override = process.env.STANZA_REGISTRY;
+  if (override && !override.startsWith("http")) return override;
+  const local = resolveLocalRegistry();
+  if (local) return local;
+  throw new Error("Could not locate stanza registry root.");
+}
+
 async function loadFsRegistry(rootDir: string): Promise<Registry> {
   const modulesDir = path.join(rootDir, "modules");
   const ids = fs
@@ -67,7 +87,7 @@ async function loadFsRegistry(rootDir: string): Promise<Registry> {
   const index: RegistryIndex = {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
-    slots: slotMetadata(),
+    slots: SLOTS.map((s) => ({ ...s })),
     modules: summaries,
   };
 
@@ -99,10 +119,6 @@ async function loadHttpRegistry(baseUrl: string): Promise<Registry> {
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Module fetch failed: ${url} (${res.status})`);
       return (await res.json()) as Module;
-      // HTTP-loaded modules carry their imperative codemods as a pre-bundled
-      // ESM string in `module.codemodBundle` (populated by registry-build,
-      // with `@stanza/codemods` + `ts-morph` externalized). The runner
-      // materializes it to a temp file and dynamic-imports.
     },
   };
 }
@@ -123,12 +139,3 @@ function summarize(mod: Module) {
   };
 }
 
-function slotMetadata() {
-  return [
-    { id: "framework" as const, label: "Framework", description: "Web/native app framework." },
-    { id: "styling" as const, label: "Styling", description: "CSS / styling system." },
-    { id: "db" as const, label: "Database", description: "Database engine." },
-    { id: "orm" as const, label: "ORM", description: "Database query layer." },
-    { id: "auth" as const, label: "Auth", description: "Authentication provider." },
-  ];
-}

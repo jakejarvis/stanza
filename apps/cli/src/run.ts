@@ -28,7 +28,7 @@ ${kleur.bold("Options")}
   --dry-run                    Print the actions that would be taken; write nothing.
   --no-telemetry               Disable telemetry for this invocation.
 
-${kleur.dim("Docs: https://stanza.dev")}
+${kleur.dim("Docs: https://stanza.tools")}
 `;
 
 export async function run(argv: Argv): Promise<void> {

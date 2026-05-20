@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Logo, Module, RegistryIndex } from "@stanza/registry";
+import { SLOTS } from "@stanza/registry";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = findRepoRoot(here);
@@ -71,13 +72,7 @@ async function main() {
   const index: RegistryIndex = {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
-    slots: [
-      { id: "framework", label: "Framework", description: "Web/native app framework." },
-      { id: "styling", label: "Styling", description: "CSS / styling system." },
-      { id: "db", label: "Database", description: "Database engine." },
-      { id: "orm", label: "ORM", description: "Database query layer." },
-      { id: "auth", label: "Auth", description: "Authentication provider." },
-    ],
+    slots: SLOTS.map((s) => ({ ...s })),
     modules: summaries,
   };
 

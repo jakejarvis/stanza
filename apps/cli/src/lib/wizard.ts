@@ -1,7 +1,6 @@
 import * as p from "@clack/prompts";
 import type { Module, RegistryIndex, SlotId } from "@stanza/registry";
-import { resolveAdapter, slotOrder } from "@stanza/registry";
-import { emptyManifest } from "@stanza/registry";
+import { emptyManifest, resolveAdapter, slotLabel, slotOrder } from "@stanza/registry";
 import kleur from "kleur";
 
 import type { Registry } from "./registry-loader";
@@ -109,12 +108,6 @@ function candidatesForSlot(
       const result = resolveAdapter(synthetic, { manifest, pending: picked });
       return result.ok;
     });
-}
-
-function slotLabel(slot: SlotId): string {
-  return { framework: "Framework", styling: "Styling", db: "Database", orm: "ORM", auth: "Auth" }[
-    slot
-  ];
 }
 
 function cancel(): null {

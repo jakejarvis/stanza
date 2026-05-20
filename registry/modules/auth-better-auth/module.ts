@@ -1,23 +1,5 @@
 import { defineModule } from "@stanza/registry";
 
-// Shared env declaration — every adapter wants the same two vars.
-const env = [
-  {
-    name: "BETTER_AUTH_SECRET",
-    example: "change-me-in-prod",
-    required: true,
-    description: "Better Auth signing secret.",
-  },
-  {
-    name: "BETTER_AUTH_URL",
-    example: "http://localhost:3000",
-    required: true,
-    description: "Public URL of the app (used server-side for callbacks and cookies).",
-  },
-];
-
-const deps = { "better-auth": "^1.6.11" };
-
 // All drizzle adapters wire their schema barrel inside the shared db package.
 // The auth tables live in `@<project>/auth/auth-schema` (shipped from the
 // auth package's own templates) and the orm-owned barrel at
@@ -169,13 +151,28 @@ export default defineModule({
     db: ["postgres", "sqlite"],
   },
   homepage: "https://better-auth.com",
+  // Shared across every adapter — hoisted to avoid 6× duplication.
+  dependencies: { "better-auth": "^1.6.11" },
+  env: [
+    {
+      name: "BETTER_AUTH_SECRET",
+      example: "change-me-in-prod",
+      required: true,
+      description: "Better Auth signing secret.",
+    },
+    {
+      name: "BETTER_AUTH_URL",
+      example: "http://localhost:3000",
+      required: true,
+      description: "Public URL of the app (used server-side for callbacks and cookies).",
+    },
+  ],
+  // auth.ts imports `db` from `@<project>/db`; the runner wires the workspace dep.
+  consumesPackages: ["db"],
   adapters: [
     {
       key: "next+drizzle+postgres",
       match: { framework: "next", orm: "drizzle", db: "postgres" },
-      dependencies: deps,
-      env,
-      peerPackages: ["db"],
       templates: [
         authImplPackage("next/auth.drizzle.ts"),
         authClientPackage("next/auth-client.ts"),
@@ -188,9 +185,6 @@ export default defineModule({
     {
       key: "next+drizzle+sqlite",
       match: { framework: "next", orm: "drizzle", db: "sqlite" },
-      dependencies: deps,
-      env,
-      peerPackages: ["db"],
       templates: [
         authImplPackage("next/auth.drizzle.ts"),
         authClientPackage("next/auth-client.ts"),
@@ -203,9 +197,6 @@ export default defineModule({
     {
       key: "next+prisma",
       match: { framework: "next", orm: "prisma" },
-      dependencies: deps,
-      env,
-      peerPackages: ["db"],
       templates: [
         authImplPackage("next/auth.prisma.ts"),
         authClientPackage("next/auth-client.ts"),
@@ -217,9 +208,6 @@ export default defineModule({
     {
       key: "tanstack-start+drizzle+postgres",
       match: { framework: "tanstack-start", orm: "drizzle", db: "postgres" },
-      dependencies: deps,
-      env,
-      peerPackages: ["db"],
       templates: [
         authImplPackage("tanstack/auth.drizzle.ts"),
         authClientPackage("tanstack/auth-client.ts"),
@@ -232,9 +220,6 @@ export default defineModule({
     {
       key: "tanstack-start+drizzle+sqlite",
       match: { framework: "tanstack-start", orm: "drizzle", db: "sqlite" },
-      dependencies: deps,
-      env,
-      peerPackages: ["db"],
       templates: [
         authImplPackage("tanstack/auth.drizzle.ts"),
         authClientPackage("tanstack/auth-client.ts"),
@@ -247,9 +232,6 @@ export default defineModule({
     {
       key: "tanstack-start+prisma",
       match: { framework: "tanstack-start", orm: "prisma" },
-      dependencies: deps,
-      env,
-      peerPackages: ["db"],
       templates: [
         authImplPackage("tanstack/auth.prisma.ts"),
         authClientPackage("tanstack/auth-client.ts"),

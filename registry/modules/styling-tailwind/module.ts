@@ -6,9 +6,10 @@ export default defineModule({
   label: "Tailwind CSS",
   description: "Utility-first CSS framework. Pairs with any web framework.",
   version: "0.1.0",
-  requires: ["web"],
   peers: { framework: ["next", "tanstack-start"] },
   homepage: "https://tailwindcss.com",
+  // `tailwindcss` itself is shared; the per-framework integration dep varies.
+  devDependencies: { tailwindcss: "^4.3.0" },
   adapters: [
     {
       key: "next",
@@ -16,7 +17,6 @@ export default defineModule({
       devDependencies: {
         "@tailwindcss/postcss": "^4.3.0",
         postcss: "^8.5.15",
-        tailwindcss: "^4.3.0",
       },
       templates: [
         { src: "next/postcss.config.mjs", dest: "postcss.config.mjs", scope: "app" },
@@ -26,10 +26,7 @@ export default defineModule({
     {
       key: "tanstack-start",
       match: { framework: "tanstack-start" },
-      devDependencies: {
-        "@tailwindcss/vite": "^4.3.0",
-        tailwindcss: "^4.3.0",
-      },
+      devDependencies: { "@tailwindcss/vite": "^4.3.0" },
       templates: [{ src: "globals.css", dest: "src/globals.css", scope: "app" }],
       codemods: [
         {

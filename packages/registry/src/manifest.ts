@@ -35,8 +35,6 @@ export type StanzaManifest = {
   appDir: string;
   modules: Partial<Record<SlotId, StanzaModuleRecord>>;
   regions: RegionOwnership;
-  /** Anonymous client id used by opt-out telemetry. Stored to dedupe events. */
-  telemetryId?: string;
 };
 
 export const StanzaManifestSchema = z.object({
@@ -56,7 +54,6 @@ export const StanzaManifestSchema = z.object({
     }),
   ),
   regions: z.record(z.string(), z.record(z.string(), z.string())),
-  telemetryId: z.string().optional(),
 }) satisfies z.ZodType<StanzaManifest>;
 
 export function emptyManifest(input: {
