@@ -52,6 +52,12 @@ export type TemplateRef = {
   scope?: "repo" | "app";
   /** If true, run as a template (mustache-style) with the manifest as context. */
   template?: boolean;
+  /**
+   * Embedded template contents. Populated by the registry build step so HTTP-
+   * loaded modules carry their template payloads in the manifest. Local dev
+   * (FS-based registry) leaves this undefined; the runner reads from disk.
+   */
+  content?: string;
 };
 
 export type EnvVar = {
@@ -138,6 +144,7 @@ export const ModuleSchema = z.object({
             dest: z.string(),
             scope: z.enum(["repo", "app"]).optional(),
             template: z.boolean().optional(),
+            content: z.string().optional(),
           }),
         )
         .optional(),

@@ -5,9 +5,9 @@ import {
   addPackageDependency,
   addPackageScript,
   addEnvVar,
-  writeTemplateFile,
+  renderTemplate,
 } from "@stanza/codemods";
-import type { Module, ModuleAdapter, StanzaManifest } from "@stanza/registry";
+import type { Module, ModuleAdapter, StanzaManifest, TemplateRef } from "@stanza/registry";
 import type { CodemodContext, Project } from "@stanza/codemods";
 import { claim, RegionConflictError } from "./region-tracker.ts";
 import { writeManifest } from "./manifest.ts";
@@ -50,10 +50,12 @@ export async function applyModule(args: {
 
     manifest = claim(manifest, rel, "file", owner);
     if (!dryRun) {
-      writeTemplateFile(path.join(moduleDir, "templates", tpl.src), dest, {
-        appDir: manifest.appDir,
-        projectName: manifest.name,
-      });
+      const source = readTemplateSource(tpl, moduleDir);
+      const rendered = tpl.template
+        ? renderTemplate(source, { appDir: manifest.appDir, projectName: manifest.name })
+        : source;
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.writeFileSync(dest, rendered, "utf8");
     }
     touchedFiles.add(rel);
   }
@@ -138,6 +140,17 @@ export async function applyModule(args: {
   }
 
   return { manifest, touchedFiles: [...touchedFiles], dryRun };
+}
+
+/**
+ * Resolve a template's source text. HTTP-loaded modules inline their template
+ * contents in `tpl.content` (the registry build step bakes them in). Local
+ * dev (FS-based registry) leaves `content` undefined, so we fall back to
+ * reading from the module's templates/ directory on disk.
+ */
+function readTemplateSource(tpl: TemplateRef, moduleDir: string): string {
+  if (tpl.content !== undefined) return tpl.content;
+  return fs.readFileSync(path.join(moduleDir, "templates", tpl.src), "utf8");
 }
 
 type CodemodMap = Record<string, import("@stanza/codemods").Codemod>;

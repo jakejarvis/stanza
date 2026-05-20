@@ -48,6 +48,7 @@ Three things differentiate stanza from other scaffolders:
 ## Architecture rules
 
 - **Modules are vendored**: their templates land in the user's repo verbatim; no `@stanza/runtime` dep
+- **Template distribution**: `packages/internal`'s `registry-build.ts` inlines each template file's contents into the per-module JSON's `templates[].content` field so HTTP-loaded manifests are self-contained. The runner prefers `tpl.content` and only reads from `registry/modules/<x>/templates/` when it's absent (local dev). New templates need no build wiring — they're picked up automatically
 - **Slot taxonomy** is currently `framework | styling | db | orm | auth` (see `KNOWN_SLOTS`); adding a slot is a manifest schema bump — update `KNOWN_SLOTS`, `slotOrder`, and the Zod manifest schema together
 - **Adapter keys** encode peer choices (e.g., `next+drizzle`); the resolver picks the most specific match
 - **Region ownership** in `stanza.json` is the source of truth for `remove`/future-`swap`; two modules claiming the same region is a hard error (`RegionConflictError`)

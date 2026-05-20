@@ -34,11 +34,30 @@ async function main() {
     const mod = ((await import(entry)) as { default: Module }).default;
     if (!mod) throw new Error(`Module ${dir} has no default export.`);
 
+    // Inline each template's file contents. The per-module JSON is the
+    // payload the CLI fetches from the CDN, so it has to be self-contained —
+    // no follow-up requests to retrieve template files. Local dev still works
+    // because the runner falls back to disk when `content` is absent.
+    const templatesDir = path.join(modulesDir, dir, "templates");
+    const inlined: Module = {
+      ...mod,
+      adapters: mod.adapters.map((adapter) => ({
+        ...adapter,
+        templates: adapter.templates?.map((tpl) => ({
+          ...tpl,
+          content: fs.readFileSync(path.join(templatesDir, tpl.src), "utf8"),
+        })),
+      })),
+    };
+
     fs.writeFileSync(
       path.join(outDir, "modules", `${mod.slot}-${mod.id}.json`),
-      JSON.stringify(mod, null, 2),
+      JSON.stringify(inlined, null, 2),
     );
 
+    // The index keeps a lightweight summary — no `content`, no per-adapter
+    // payloads. The wizard/web builder uses this for filtering; the full
+    // module JSON is only fetched when a user actually picks something.
     summaries.push({
       ...mod,
       adapters: mod.adapters.map((a) => ({ key: a.key, match: a.match })),

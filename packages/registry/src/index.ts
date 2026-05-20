@@ -8,6 +8,8 @@ export type {
   ModuleAdapter,
   ModuleSummary,
   RegistryIndex,
+  TemplateRef,
+  EnvVar,
 } from "./module.ts";
 export { defineModule, KNOWN_SLOTS } from "./module.ts";
 
