@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
+import { buildHead } from "@/lib/seo";
 import { getBuilderState } from "@/server/builder-state";
 
 function validateSearch(input: Record<string, unknown>): BuilderSearch {
@@ -17,6 +18,13 @@ export const Route = createFileRoute("/")({
   validateSearch,
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getBuilderState({ data: deps }),
+  head: () =>
+    buildHead({
+      title: "Build your stack",
+      description:
+        "Pick a framework, ORM, database, auth provider, and styling. Get a clean monorepo with idiomatic, vendored code.",
+      path: "/",
+    }),
   component: Page,
 });
 

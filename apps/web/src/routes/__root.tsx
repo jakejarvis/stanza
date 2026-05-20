@@ -7,16 +7,18 @@ import { Header } from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getRegistryIndex } from "@/server/registry-index";
 
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
+  loader: () => getRegistryIndex(),
+  // Per-route `head()` overrides supply title / OG / canonical. The root just
+  // sets the always-present basics and ships the global stylesheet.
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "stanza" },
-      { name: "description", content: "Modular monorepo template builder." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),

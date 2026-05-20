@@ -13,21 +13,21 @@ State at end of last session: pre-1.0 architectural cleanup landed.
 
 The builder is functionally wired but visually unfinished. It's inline-styled radios + a code block.
 
-- [ ] Add Tailwind 4 to `apps/web` — use the `@tailwindcss/vite` plugin (mirror what the `styling-tailwind` module emits for the `tanstack-start` adapter)
-- [ ] Hand-roll a small component layer or pull in shadcn (web variant) for cards, buttons, inputs, code blocks
-- [ ] Replace the radio-list `Builder` with a card grid per slot, showing module label + description + homepage link
-- [ ] Show _why_ a module is filtered out (e.g. "needs `framework: next`, you picked tanstack-start") instead of just dropping it
-- [ ] Deep linking: encode selections in URL search params (`?framework=next&orm=drizzle&...`) so users can share configurations
-- [ ] Copy-to-clipboard for the generated `pnpm create stanza ...` command
-- [ ] Preview pane: list of files stanza will write (derived from `module.adapters[].templates[].dest` for the selected adapter combo)
-- [ ] Show pinned npm versions per selected module (from `adapter.dependencies` / `adapter.devDependencies`)
-- [ ] Module detail route at `/m/$slot/$id` — full description, all adapters, deps, env vars, templates list
-- [ ] Search route at `/search` backed by the same registry index
-- [ ] Layout: header (logo, GitHub link, docs link), footer
-- [ ] Dark mode (Tailwind 4 `light-dark()` + system pref)
-- [ ] SEO: meta tags via `head()` on routes, OG image, sitemap
-- [ ] Host the registry on the same domain — wire the registry-build output (`scripts/registry-build.ts` → `dist/registry/`) to `apps/web/public/registry/` and serve statically, or via a Vercel route handler
-- [ ] Vercel deploy config — `vercel.json` if needed, env vars for `STANZA_REGISTRY` (point dev at local FS, prod at the deployed CDN path)
+- [x] Add Tailwind 4 to `apps/web` — `@tailwindcss/vite` v4 wired in `vite.config.ts`, theme variables in `styles.css` via `@theme` (OKLCH), dark mode via `.dark` class
+- [x] Hand-roll a small component layer or pull in shadcn (web variant) — shadcn-style primitives at `apps/web/src/components/ui/` (Card, Button, Input, Badge, Tooltip, Tabs, DropdownMenu, Separator, Sonner). All use base-ui under the hood
+- [x] Replace the radio-list `Builder` with a card grid per slot — `apps/web/src/components/builder/slot-cards.tsx`
+- [ ] Show _why_ a module is filtered out (e.g. "needs `framework: next`, you picked tanstack-start") instead of just dropping it — partly covered by the tooltip in `slot-cards.tsx`, could expand to inline why-disabled copy on the card itself
+- [x] Deep linking: encode selections in URL search params (`?framework=next&orm=drizzle&...`) — typed `validateSearch` on `routes/index.tsx`, parser in `lib/selection.ts`
+- [x] Copy-to-clipboard for the generated `pnpm create stanza ...` command — `command-bar.tsx`
+- [x] Preview pane: list of files stanza will write — `file-preview.tsx` with `@pierre/trees` + Shiki-rendered server-side preview
+- [x] Show pinned npm versions per selected module — `apps/web/src/components/detail/deps-table.tsx` on `/m/$slot/$id` (also covers devDeps + scripts + env). Builder cards stay clean per the design call; versions surface on the detail page
+- [x] Module detail route at `/m/$slot/$id` — full description, adapter switcher (peer chip rows), deps tables, env table, templates list with click-to-expand Shiki preview, "Try it" command. `apps/web/src/routes/m.$slot.$id.tsx`
+- [x] Search route — implemented as a header-only popover (`apps/web/src/components/search/site-search.tsx`) bound to ⌘K, mirrors the CLI's id/label/description/slot match (`lib/module-search.ts`)
+- [x] Layout: header (logo, GitHub link, search), footer — `apps/web/src/components/header.tsx`, `footer.tsx`
+- [x] Dark mode — Tailwind 4 `.dark` variant + ThemeProvider, system pref aware
+- [x] SEO: meta tags via `head()` on routes, OG image, sitemap — `apps/web/src/lib/seo.ts` builds `head()` output with title/og:\*/twitter:\*/canonical for every route. Dynamic OG via `@vercel/og` at `/og/$slot/$id` and `/og` (Nitro server routes under `apps/web/server/routes/`). `sitemap.xml` server route enumerates the index; `public/robots.txt` is static
+- [x] Host the registry on the same domain — `prebuild` script copies `dist/registry/` into `apps/web/public/registry/`. CLI's `DEFAULT_REGISTRY_URL` points at the same path. Server-side reads use the filesystem directly (`apps/web/src/server/registry-base.ts`) to avoid the SSR loopback-fetch deadlock
+- [ ] Vercel deploy config — Vercel auto-detects TanStack Start's `.output/` directory, no `vercel.json` needed. Env vars (`STANZA_REGISTRY`) optional override
 - [ ] Docs section (could be MDX routes): overview, authoring guide, registry spec
 
 ## CLI (apps/cli)

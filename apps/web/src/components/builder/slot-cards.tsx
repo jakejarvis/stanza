@@ -1,7 +1,8 @@
-import type { Logo, Module, ModuleSummary, SlotId } from "@stanza/registry";
+import type { Module, ModuleSummary, SlotId } from "@stanza/registry";
 import { KNOWN_SLOTS, emptyManifest, resolveAdapter } from "@stanza/registry";
 import { IconCheck } from "@tabler/icons-react";
 
+import { ModuleLogo } from "@/components/module-logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Selections } from "@/lib/selection";
 import { cn } from "@/lib/utils";
@@ -155,46 +156,6 @@ function ModuleCard({
       <TooltipTrigger render={card} />
       <TooltipContent side="top">{reason}</TooltipContent>
     </Tooltip>
-  );
-}
-
-function ModuleLogo({ logo, label }: { logo: Logo | undefined; label: string }) {
-  if (!logo) {
-    // Fallback: a subtle initial-letter tile. Keeps card geometry consistent.
-    return (
-      <div
-        aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 text-xs font-semibold text-muted-foreground"
-      >
-        {label.slice(0, 1)}
-      </div>
-    );
-  }
-  const wrapClass =
-    "flex size-9 shrink-0 items-center justify-center [&_svg]:size-7 [&_svg]:max-h-7 [&_svg]:max-w-7";
-  if (typeof logo === "string") {
-    return (
-      <div
-        aria-hidden
-        className={wrapClass}
-        // Inlined SVG from our trusted first-party registry payload.
-        dangerouslySetInnerHTML={{ __html: logo }}
-      />
-    );
-  }
-  return (
-    <>
-      <div
-        aria-hidden
-        className={cn(wrapClass, "dark:hidden")}
-        dangerouslySetInnerHTML={{ __html: logo.light }}
-      />
-      <div
-        aria-hidden
-        className={cn(wrapClass, "hidden dark:flex")}
-        dangerouslySetInnerHTML={{ __html: logo.dark }}
-      />
-    </>
   );
 }
 
