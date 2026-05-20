@@ -46,10 +46,11 @@ The wizard and verbs work but a few things from the plan are stubbed.
 Functional but a few real issues to fix.
 
 - [ ] `auth-better-auth` tanstack-start adapter references `import.meta.env.VITE_BETTER_AUTH_URL` but the env var is declared as `BETTER_AUTH_URL` — either add `VITE_` prefix or read it server-side
-- [ ] `auth-better-auth` drizzle `auth.ts` hardcodes `provider: "pg"` in the `drizzleAdapter` call — wrong for the sqlite peer. Split the template per-db or pass the provider through a substitution var
+- [x] `auth-better-auth` drizzle `auth.ts` hardcoded `provider: "pg"` — split into per-db templates (`auth.drizzle.postgres.ts` + `auth.drizzle.sqlite.ts`) so sqlite gets `provider: "sqlite"`
 - [ ] `auth-better-auth` sqlite schema variant exists (`shared/auth-schema.drizzle-sqlite.ts`); confirm it matches what better-auth actually expects on SQLite end-to-end
-- [ ] `styling-tailwind` + `framework-next` adapter writes `app/globals.css` over the framework's own — confirm the merge order produces the right import (`@import "tailwindcss"`)
-- [ ] Authoring guide: docs page covering `defineModule`, slot/peer/capability semantics, template vs. codemod choice, region ownership, and the `scope: "package"` + `peerPackages` story
+- [x] `styling-tailwind` + `framework-next` `app/globals.css` conflict — fixed by switching styling-tailwind's next adapter to prepend `@import "tailwindcss";` via the `append-to-file` codemod's new `position: "start"` mode. Framework retains ownership of base styles; revert restores cleanly
+- [ ] tanstack-start `__root.tsx` doesn't import `src/globals.css` — styling-tailwind writes the file but nothing consumes it. Needs an `add-side-effect-import` codemod (or the styling module ships a router edit)
+- [ ] Authoring guide: docs page covering `defineModule`, slot/peer/capability semantics, template vs. codemod choice, region ownership, and the `scope: "package"` + `consumesPackages` story
 
 ## Registry expansion
 

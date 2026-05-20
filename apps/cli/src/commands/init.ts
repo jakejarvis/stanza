@@ -93,7 +93,9 @@ function bootstrapShell(
         name: opts.name,
         private: true,
         version: "0.1.0",
-        packageManager: defaultPmVersion(opts.packageManager),
+        packageManager: { pnpm: "pnpm@9.12.0", bun: "bun@1.1.34", npm: "npm@10.9.0" }[
+          opts.packageManager
+        ],
         scripts: {
           dev: `${opts.packageManager} -r run dev`,
           build: `${opts.packageManager} -r run build`,
@@ -136,8 +138,4 @@ function bootstrapShell(
   // App shell — empty but layout-correct. The framework module fills it in.
   fs.mkdirSync(path.join(projectRoot, opts.appDir), { recursive: true });
   fs.mkdirSync(path.join(projectRoot, "packages"), { recursive: true });
-}
-
-function defaultPmVersion(pm: "pnpm" | "bun" | "npm"): string {
-  return { pnpm: "pnpm@9.12.0", bun: "bun@1.1.34", npm: "npm@10.9.0" }[pm];
 }

@@ -188,6 +188,62 @@ describe("append-to-file", () => {
     ).toThrow(/not found/);
   });
 
+  it("prepends with position: 'start' (required for CSS @import)", () => {
+    const baseCss = `html, body {\n  margin: 0;\n}\n`;
+    const { ctx, abs } = setup("app/globals.css", baseCss);
+    appendToFile.apply(ctx, {
+      file: "app/globals.css",
+      content: `@import "tailwindcss";`,
+      marker: "tailwind",
+      position: "start",
+    });
+    const text = fs.readFileSync(abs, "utf8");
+    // The marker block must precede the existing base styles for CSS @import to be valid.
+    const markerIdx = text.indexOf("/* stanza:tailwind:start */");
+    const baseIdx = text.indexOf("html, body");
+    expect(markerIdx).toBeGreaterThanOrEqual(0);
+    expect(markerIdx).toBeLessThan(baseIdx);
+    expect(text).toContain(`@import "tailwindcss";`);
+    expect(text).toContain("html, body");
+  });
+
+  it("revert restores the original file after a prepend", () => {
+    const baseCss = `html, body {\n  margin: 0;\n}\n`;
+    const { ctx, abs } = setup("app/globals.css", baseCss);
+    appendToFile.apply(ctx, {
+      file: "app/globals.css",
+      content: `@import "tailwindcss";`,
+      marker: "tailwind",
+      position: "start",
+    });
+    appendToFile.revert!(ctx, {
+      file: "app/globals.css",
+      content: `@import "tailwindcss";`,
+      marker: "tailwind",
+      position: "start",
+    });
+    expect(fs.readFileSync(abs, "utf8")).toBe(baseCss);
+  });
+
+  it("prepend is idempotent on re-apply", () => {
+    const baseCss = `html, body {\n  margin: 0;\n}\n`;
+    const { ctx, abs } = setup("app/globals.css", baseCss);
+    appendToFile.apply(ctx, {
+      file: "app/globals.css",
+      content: `@import "tailwindcss";`,
+      marker: "tailwind",
+      position: "start",
+    });
+    const after1 = fs.readFileSync(abs, "utf8");
+    appendToFile.apply(ctx, {
+      file: "app/globals.css",
+      content: `@import "tailwindcss";`,
+      marker: "tailwind",
+      position: "start",
+    });
+    expect(fs.readFileSync(abs, "utf8")).toBe(after1);
+  });
+
   it("lets two modules append distinct blocks to the same file", () => {
     const { ctx, abs, claimed } = setup("prisma/schema.prisma", PRISMA_INITIAL);
     appendToFile.apply(ctx, {

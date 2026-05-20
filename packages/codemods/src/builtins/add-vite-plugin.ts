@@ -49,7 +49,9 @@ const addVitePlugin: Codemod<AddVitePluginArgs> = {
   description: "Insert a plugin into vite.config.ts's defineConfig plugins array.",
 
   apply(ctx, args) {
-    const sf = openViteConfig(ctx);
+    const abs = path.join(ctx.appRoot, VITE_CONFIG_FILE);
+    const rel = path.relative(ctx.projectRoot, abs);
+    const sf = ctx.project().addSourceFileAtPath(abs);
     const plugins = findPluginsArray(sf);
 
     // Idempotency: same plugin call already present → no-op.
@@ -68,14 +70,15 @@ const addVitePlugin: Codemod<AddVitePluginArgs> = {
     const index = resolveIndex(plugins, args.position ?? "end", args.importName);
     plugins.insertElement(index, args.call);
 
-    const rel = relPath(ctx);
     ctx.claimRegion(rel, `vite.plugins.${args.importName}`);
 
     return { touchedFiles: [rel] };
   },
 
   revert(ctx, args) {
-    const sf = openViteConfig(ctx);
+    const abs = path.join(ctx.appRoot, VITE_CONFIG_FILE);
+    const rel = path.relative(ctx.projectRoot, abs);
+    const sf = ctx.project().addSourceFileAtPath(abs);
     const plugins = findPluginsArray(sf);
 
     const target = normalize(args.call);
@@ -87,22 +90,11 @@ const addVitePlugin: Codemod<AddVitePluginArgs> = {
     );
     importDecl?.remove();
 
-    const rel = relPath(ctx);
     ctx.releaseRegion(rel, `vite.plugins.${args.importName}`);
 
     return { touchedFiles: [rel] };
   },
 };
-
-function openViteConfig(ctx: Parameters<Codemod<AddVitePluginArgs>["apply"]>[0]) {
-  const abs = path.join(ctx.appRoot, VITE_CONFIG_FILE);
-  return ctx.project().addSourceFileAtPath(abs);
-}
-
-function relPath(ctx: Parameters<Codemod<AddVitePluginArgs>["apply"]>[0]): string {
-  const abs = path.join(ctx.appRoot, VITE_CONFIG_FILE);
-  return path.relative(ctx.projectRoot, abs);
-}
 
 /**
  * Locate the `plugins` ArrayLiteralExpression inside the default-exported

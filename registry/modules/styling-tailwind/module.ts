@@ -18,9 +18,21 @@ export default defineModule({
         "@tailwindcss/postcss": "^4.3.0",
         postcss: "^8.5.15",
       },
-      templates: [
-        { src: "next/postcss.config.mjs", dest: "postcss.config.mjs", scope: "app" },
-        { src: "globals.css", dest: "app/globals.css", scope: "app" },
+      templates: [{ src: "next/postcss.config.mjs", dest: "postcss.config.mjs", scope: "app" }],
+      codemods: [
+        {
+          // framework-next ships its own `app/globals.css` with base styles.
+          // Prepend Tailwind's `@import` so the CSS is well-formed (@import
+          // must precede all other rules) and we don't fight the framework
+          // module for ownership of the whole file.
+          id: "append-to-file",
+          args: {
+            file: "app/globals.css",
+            content: '@import "tailwindcss";',
+            marker: "tailwind",
+            position: "start",
+          },
+        },
       ],
     },
     {

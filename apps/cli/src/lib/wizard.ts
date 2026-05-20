@@ -31,7 +31,10 @@ export async function runInitWizard(args: {
     validate: (v) =>
       v && /^[a-z0-9][a-z0-9-]*$/i.test(v) ? undefined : "Use letters, digits, dashes.",
   });
-  if (p.isCancel(name)) return cancel();
+  if (p.isCancel(name)) {
+    p.cancel("Cancelled.");
+    return null;
+  }
 
   const modules: Partial<Record<SlotId, Module>> = {};
 
@@ -51,7 +54,10 @@ export async function runInitWizard(args: {
       message: `${slotLabel(slot)}?`,
       options: [...choices, { value: "__skip__", label: kleur.dim("Skip this slot") }],
     });
-    if (p.isCancel(choice)) return cancel();
+    if (p.isCancel(choice)) {
+      p.cancel("Cancelled.");
+      return null;
+    }
     if (choice === "__skip__") continue;
 
     const full = await registry.loadModule(slot, choice as string);
@@ -67,7 +73,10 @@ export async function runInitWizard(args: {
     ],
     initialValue: "pnpm",
   });
-  if (p.isCancel(pmChoice)) return cancel();
+  if (p.isCancel(pmChoice)) {
+    p.cancel("Cancelled.");
+    return null;
+  }
 
   // Summary screen — what we're about to write.
   const summary = [
@@ -82,7 +91,10 @@ export async function runInitWizard(args: {
   p.note(summary, "Summary");
 
   const confirm = await p.confirm({ message: "Scaffold this project?" });
-  if (p.isCancel(confirm) || !confirm) return cancel();
+  if (p.isCancel(confirm) || !confirm) {
+    p.cancel("Cancelled.");
+    return null;
+  }
 
   return {
     name: String(name),
@@ -110,7 +122,3 @@ function candidatesForSlot(
     });
 }
 
-function cancel(): null {
-  p.cancel("Cancelled.");
-  return null;
-}

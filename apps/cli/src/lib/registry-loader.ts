@@ -76,11 +76,12 @@ async function loadFsRegistry(rootDir: string): Promise<Registry> {
     .map((d) => d.name);
 
   // Lazily import each module manifest. We don't keep them all in memory;
-  // we keep summaries for the index and re-import full modules on demand.
+  // we strip the adapter payloads down to `key` + `match` for the index and
+  // re-import full modules on demand.
   const summaries = await Promise.all(
     ids.map(async (name) => {
       const mod = await importModule(modulesDir, name);
-      return summarize(mod);
+      return { ...mod, adapters: mod.adapters.map((a) => ({ key: a.key, match: a.match })) };
     }),
   );
 
@@ -131,11 +132,3 @@ async function importModule(modulesDir: string, dirName: string): Promise<Module
   }
   return mod.default;
 }
-
-function summarize(mod: Module) {
-  return {
-    ...mod,
-    adapters: mod.adapters.map((a) => ({ key: a.key, match: a.match })),
-  };
-}
-

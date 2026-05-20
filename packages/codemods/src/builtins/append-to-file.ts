@@ -51,7 +51,20 @@ export type AppendToFileArgs = {
    * If the extension isn't in the inferred set, this field is required.
    */
   commentStyle?: CommentStyle;
-  /** Insert a blank line before the wrapped block. Defaults to `true`. */
+  /**
+   * Where to put the wrapped block:
+   *   - `"end"` (default): append to the file. Use for Prisma models, YAML
+   *     keys, .env entries — anywhere insertion order doesn't matter.
+   *   - `"start"`: prepend before any other content. Required for CSS
+   *     `@import` (must be the first rule) and similar header-only directives.
+   */
+  position?: "start" | "end";
+  /**
+   * Blank-line padding around the wrapped block. For `position: "end"` this
+   * controls whether a blank line is inserted before the block; for
+   * `position: "start"` it controls whether a blank line is inserted after.
+   * Defaults to `true`.
+   */
   leadingBlank?: boolean;
 };
 
@@ -83,9 +96,12 @@ const appendToFile: Codemod<AppendToFileArgs> = {
     }
 
     const leadingBlank = args.leadingBlank !== false;
-    const sep = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
-    const blank = leadingBlank && current.trimEnd().length > 0 ? "\n" : "";
-    fs.writeFileSync(fileAbs, current + sep + blank + block + "\n", "utf8");
+    const position = args.position ?? "end";
+    const next =
+      position === "start"
+        ? prependBlock(current, block, leadingBlank)
+        : appendBlock(current, block, leadingBlank);
+    fs.writeFileSync(fileAbs, next, "utf8");
 
     ctx.claimRegion(fileRel, `append.${args.marker}`);
     return { touchedFiles: [fileRel] };
@@ -102,21 +118,34 @@ const appendToFile: Codemod<AppendToFileArgs> = {
       return { touchedFiles: [] };
     }
 
-    // Slice out the marked block plus a single trailing newline. Also drop
-    // one leading blank line if it was inserted by apply.
+    // Slice out the marked block plus a single trailing newline. Drop one
+    // padding blank line on either side if it looks like apply inserted one.
     let start = range.start;
     let end = range.end;
     if (current[end] === "\n") end += 1;
-    if (start >= 2 && current[start - 1] === "\n" && current[start - 2] === "\n") {
-      start -= 1;
-    }
-    const next = current.slice(0, start) + current.slice(end);
+    if (current[end] === "\n") end += 1;
+    if (start >= 1 && current[start - 1] === "\n") start -= 1;
+    if (start >= 1 && current[start - 1] === "\n") start -= 1;
+    const next = current.slice(0, start === 0 ? 0 : start + 1) + current.slice(end);
     fs.writeFileSync(fileAbs, next, "utf8");
 
     ctx.releaseRegion(fileRel, `append.${args.marker}`);
     return { touchedFiles: [fileRel] };
   },
 };
+
+function appendBlock(current: string, block: string, leadingBlank: boolean): string {
+  const sep = current.length > 0 && !current.endsWith("\n") ? "\n" : "";
+  const blank = leadingBlank && current.trimEnd().length > 0 ? "\n" : "";
+  return current + sep + blank + block + "\n";
+}
+
+function prependBlock(current: string, block: string, trailingBlank: boolean): string {
+  // The marker block always ends with its end-tag line; add a trailing newline
+  // so the next content starts on its own line, plus an optional blank gap.
+  const blank = trailingBlank && current.trimStart().length > 0 ? "\n" : "";
+  return block + "\n" + blank + current;
+}
 
 function resolve(ctx: Parameters<Codemod<AppendToFileArgs>["apply"]>[0], args: AppendToFileArgs) {
   const baseAbs = baseDir(ctx, args);
