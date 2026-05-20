@@ -8,5 +8,8 @@
   "dependencies": {
     "@stanza/codemods": "workspace:*",
     "@stanza/registry": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1"
   }
 }

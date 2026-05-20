@@ -37,6 +37,7 @@ export default defineModule({
         { src: "middleware.ts", dest: "middleware.ts", scope: "app" },
         { src: "layout-wrapper.tsx", dest: "app/_clerk-provider.tsx", scope: "app" },
       ],
+      codemods: ["wrap-root-layout"],
     },
   ],
 });

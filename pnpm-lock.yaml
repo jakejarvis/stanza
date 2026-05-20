@@ -176,6 +176,10 @@ importers:
       '@stanza/registry':
         specifier: workspace:*
         version: link:../../../packages/registry
+    devDependencies:
+      '@types/node':
+        specifier: ^25.9.1
+        version: 25.9.1
 
   registry/modules/db-postgres:
     dependencies:

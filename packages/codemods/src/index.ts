@@ -1,8 +1,9 @@
 export type { CodemodContext, Codemod, CodemodResult } from "./types.ts";
 
-// Re-export the ts-morph Project type so consumers don't need a direct
-// ts-morph dep just to type a parameter.
-export type { Project, SourceFile } from "ts-morph";
+// Re-export common ts-morph types + the SyntaxKind enum so module codemods
+// don't need a direct ts-morph dep.
+export type { Project, SourceFile, Node } from "ts-morph";
+export { SyntaxKind } from "ts-morph";
 
 export { openProject } from "./project.ts";
 
