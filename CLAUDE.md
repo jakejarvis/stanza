@@ -21,13 +21,14 @@ Three things differentiate stanza from other scaffolders:
 - `packages/registry/` — shared schema, slot/peer resolver, Zod manifest validator
 - `packages/codemods/` — ts-morph helpers (idempotent + reversible)
 - `packages/create-stanza/` — `pnpm create stanza` shim
-- `packages/registry-build/` — Bun script that emits the static CDN JSON
+- `packages/internal/` — Internal maintenance scripts: `registry-build.ts` (emits static CDN JSON), `module-new.ts` (scaffolds a new module)
 - `registry/modules/<slot>-<id>/` — first-party modules: `module.ts` + `templates/` (+ optional `codemods/`)
 
 ## Commands
 
 - `bun apps/cli/src/bin.ts <verb>` — run CLI directly without build
-- `bun packages/registry-build/src/build.ts` — regenerate `dist/registry/{index,modules/*}.json`
+- `pnpm registry:build` (or `bun packages/internal/src/registry-build.ts`) — regenerate `dist/registry/{index,modules/*}.json`
+- `pnpm module:new [slot] [id]` — scaffold a new module under `registry/modules/`
 - `pnpm lint` / `pnpm lint:fix` — Oxlint across the whole repo (config: `.oxlintrc.json`)
 - `pnpm fmt` / `pnpm fmt:check` — oxfmt across the whole repo (config: `.oxfmtrc.json`)
 - `cd packages/<x> && node_modules/.bin/vitest run` — unit tests (per workspace; no root `vitest` binary)

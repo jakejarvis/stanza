@@ -14,7 +14,8 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "registry:build": "turbo run registry:build --filter=@stanza/registry-build"
+    "registry:build": "turbo run registry:build --filter=@stanza/internal",
+    "module:new": "pnpm --filter=@stanza/internal run module:new"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

@@ -19,7 +19,7 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 - [ ] Layout: header (logo, GitHub link, docs link), footer
 - [ ] Dark mode (Tailwind 4 `light-dark()` + system pref)
 - [ ] SEO: meta tags via `head()` on routes, OG image, sitemap
-- [ ] Host the registry on the same domain — wire `packages/registry-build` output to `apps/web/public/registry/` and serve statically, or via a Vercel route handler
+- [ ] Host the registry on the same domain — wire `packages/internal`'s registry-build output to `apps/web/public/registry/` and serve statically, or via a Vercel route handler
 - [ ] Vercel deploy config — `vercel.json` if needed, env vars for `STANZA_REGISTRY` (point dev at local FS, prod at the deployed CDN path)
 - [ ] Docs section (could be MDX routes): overview, authoring guide, registry spec
 
