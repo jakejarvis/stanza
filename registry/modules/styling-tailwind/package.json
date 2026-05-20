@@ -1,0 +1,12 @@
+{
+  "name": "@stanza-modules/styling-tailwind",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./module.ts",
+  "dependencies": {
+    "@stanza/codemods": "workspace:*",
+    "@stanza/registry": "workspace:*"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "stanza",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Modular monorepo template CLI — shadcn for stacks.",
+  "license": "MIT",
+  "author": "Jake Jarvis <jakejarvis@gmail.com>",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "registry:build": "turbo run registry:build --filter=@stanza/registry-build"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "oxfmt": "^0.51.0",
+    "oxlint": "^1.66.0",
+    "turbo": "^2.9.14",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "packageManager": "pnpm@10.20.0"
+}

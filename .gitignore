@@ -1,0 +1,31 @@
+node_modules/
+dist/
+.output/
+.vercel/
+.turbo/
+*.tsbuildinfo
+.tanstack/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+coverage/
+__snapshots__/.tmp/

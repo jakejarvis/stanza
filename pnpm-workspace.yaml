@@ -1,0 +1,10 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "registry/modules/*"
+
+onlyBuiltDependencies:
+  - "esbuild"
+  - "better-sqlite3"
+
+ignoredOptionalDependencies: []

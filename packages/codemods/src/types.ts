@@ -1,0 +1,34 @@
+import type { Project } from "ts-morph";
+import type { ModuleId, SlotId, StanzaManifest } from "@stanza/registry";
+
+export type CodemodContext = {
+  /** Absolute path to the project root (where stanza.json lives). */
+  projectRoot: string;
+  /** Absolute path to the active app dir (manifest.appDir resolved). */
+  appRoot: string;
+  /** ts-morph Project, lazily opened on first AST-touching codemod. */
+  project: () => Project;
+  /** Current manifest snapshot (read-only inside a codemod). */
+  manifest: StanzaManifest;
+  /** The slot/module this codemod is acting on behalf of. */
+  owner: { slot: SlotId; module: ModuleId };
+  /** Adapter key the resolver selected — useful for adapter-specific branches. */
+  adapter: string;
+  /** Claim a region in stanza.json. Throws if a different owner already holds it. */
+  claimRegion(filePath: string, region: string): void;
+  /** Release a region (used by remove/inverse codemods). */
+  releaseRegion(filePath: string, region: string): void;
+};
+
+export type CodemodResult = {
+  /** Files this codemod touched (relative to projectRoot). For dry-run output. */
+  touchedFiles: string[];
+};
+
+export type Codemod = {
+  id: string;
+  description?: string;
+  apply(ctx: CodemodContext): Promise<CodemodResult> | CodemodResult;
+  /** Inverse for `stanza remove`. Ship these where cheap. */
+  revert?(ctx: CodemodContext): Promise<CodemodResult> | CodemodResult;
+};

@@ -1,0 +1,41 @@
+{
+  "name": "@stanza/cli",
+  "version": "0.1.0",
+  "description": "Modular monorepo template CLI — shadcn for stacks.",
+  "license": "MIT",
+  "bin": {
+    "stanza": "./src/bin.ts"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./bin": "./src/bin.ts"
+  },
+  "scripts": {
+    "dev": "bun run --watch ./src/bin.ts",
+    "build": "bun build ./src/bin.ts --target=bun --outdir=./dist --minify",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.4.0",
+    "@stanza/codemods": "workspace:*",
+    "@stanza/registry": "workspace:*",
+    "kleur": "^4.1.5",
+    "mri": "^1.2.0",
+    "posthog-node": "^5.34.7",
+    "semver": "^7.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/semver": "^7.7.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
+  }
+}
