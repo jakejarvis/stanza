@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import type { Module, RegistryIndex, SlotId } from "@stanza/registry";
-import { emptyManifest, resolveAdapter, slotLabel, slotOrder } from "@stanza/registry";
+import { emptyManifest, KNOWN_SLOTS, resolveAdapter, slotLabel, slotOrder } from "@stanza/registry";
 import kleur from "kleur";
 
 import type { Registry } from "./registry-loader";
@@ -13,15 +13,35 @@ export type WizardResult = {
 };
 
 /**
+ * Non-interactive selections, typically from CLI flags. When provided to
+ * `runInitWizard`, the wizard skips every prompt and validates the picks
+ * against the registry instead. Used by `stanza init --yes` for CI / scripts.
+ */
+export type WizardOverrides = {
+  name?: string;
+  packageManager?: "pnpm" | "bun" | "npm";
+  /** Slot → module id. Missing slots are skipped, not defaulted. */
+  modules: Partial<Record<SlotId, string>>;
+};
+
+/**
  * Run the interactive `stanza init` wizard. Topological prompt order (defined
  * by slotOrder); slots that don't have any compatible modules given prior
  * picks are skipped. Returns the user's selections.
+ *
+ * When `overrides` is provided, the wizard runs in non-interactive mode:
+ * picks come from `overrides` instead of prompts. Invalid picks (unknown
+ * module id, resolver rejection) cause the function to log an error and
+ * return null — mirroring the cancel path.
  */
 export async function runInitWizard(args: {
   registry: Registry;
   defaultName: string;
+  overrides?: WizardOverrides;
 }): Promise<WizardResult | null> {
-  const { registry, defaultName } = args;
+  const { registry, defaultName, overrides } = args;
+
+  if (overrides) return runNonInteractive({ registry, defaultName, overrides });
 
   p.intro(kleur.bold().cyan("stanza"));
 
@@ -122,3 +142,43 @@ function candidatesForSlot(
     });
 }
 
+async function runNonInteractive(args: {
+  registry: Registry;
+  defaultName: string;
+  overrides: WizardOverrides;
+}): Promise<WizardResult | null> {
+  const { registry, defaultName, overrides } = args;
+  const name = overrides.name ?? defaultName;
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(name)) {
+    p.log.error(`Invalid project name: "${name}". Use letters, digits, dashes.`);
+    return null;
+  }
+
+  const manifest = emptyManifest({ name: "tmp" });
+  const modules: Partial<Record<SlotId, Module>> = {};
+  for (const slot of slotOrder) {
+    const moduleId = overrides.modules[slot];
+    if (!moduleId) continue;
+    const mod = await registry.loadModule(slot, moduleId).catch(() => null);
+    if (!mod) {
+      p.log.error(`Module not found: ${slot}/${moduleId}`);
+      return null;
+    }
+    const result = resolveAdapter(mod, { manifest, pending: modules });
+    if (!result.ok) {
+      p.log.error(`Cannot use ${slot}/${moduleId}: ${result.error.kind} (check peer slots).`);
+      return null;
+    }
+    modules[slot] = mod;
+  }
+
+  return {
+    name,
+    appDir: "apps/web",
+    packageManager: overrides.packageManager ?? "pnpm",
+    modules,
+  };
+}
+
+/** Slot flag names accepted on the command line — one per known slot. */
+export const SLOT_FLAGS: readonly SlotId[] = KNOWN_SLOTS;

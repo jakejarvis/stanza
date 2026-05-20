@@ -16,8 +16,7 @@
     "./resolver": "./src/resolver.ts"
   },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

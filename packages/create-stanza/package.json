@@ -4,16 +4,15 @@
   "description": "`pnpm create stanza` — the canonical entry point to the stanza wizard.",
   "license": "MIT",
   "bin": {
-    "create-stanza": "./src/bin.ts"
+    "create-stanza": "./dist/bin.mjs"
   },
   "files": [
-    "src",
     "dist"
   ],
   "type": "module",
   "scripts": {
-    "build": "bun build ./src/bin.ts --target=bun --outdir=./dist --minify",
-    "typecheck": "tsc --noEmit"
+    "build": "tsdown",
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@stanza/cli": "workspace:*",
@@ -21,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "tsdown": "^0.22.0",
     "typescript": "^6.0.3"
   }
 }

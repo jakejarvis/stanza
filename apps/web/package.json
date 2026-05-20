@@ -6,11 +6,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "predev": "bun run scripts/copy-registry.ts",
     "build": "vite build",
-    "prebuild": "bun run scripts/copy-registry.ts",
+    "prebuild": "./scripts/copy-registry.sh",
     "start": "node .output/server/index.mjs",
-    "typecheck": "tsc --noEmit"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

@@ -24,9 +24,16 @@ ${kleur.bold("Commands")}
 ${kleur.bold("Options")}
   -h, --help                   Show this help.
   -v, --version                Print the CLI version.
-  --yes                        Accept all defaults; suppress prompts.
+  --yes                        Non-interactive mode. With \`init\`, takes picks
+                               from --framework / --styling / --db / --orm /
+                               --auth / --pm flags. Missing slots are skipped.
   --dry-run                    Print the actions that would be taken; write nothing.
   --no-telemetry               Disable telemetry for this invocation.
+
+${kleur.bold("Examples")}
+  stanza init my-app --yes --framework=next --orm=drizzle --db=postgres
+  stanza add auth better-auth
+  stanza remove styling
 
 ${kleur.dim("Docs: https://stanza.tools")}
 `;

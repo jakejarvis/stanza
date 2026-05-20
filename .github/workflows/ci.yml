@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # The root maintainer scripts (`pnpm registry:build`, `pnpm module:new`)
+      # are bun-shebanged for local dev convenience. Their bodies are pure
+      # node-API and could run under tsx too, but we install bun here so the
+      # CI invocation mirrors the dev one exactly.
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm fmt:check
+
+      - name: Build registry
+        run: pnpm registry:build
+
+      - name: Build web app
+        run: pnpm --filter @stanza/web build
+
+      - name: Typecheck
+        run: pnpm check-types
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build CLI bundle
+        run: pnpm --filter @stanza/cli build
+
+      - name: Smoke-test built CLI
+        run: |
+          node apps/cli/dist/bin.mjs --version
+          node apps/cli/dist/bin.mjs --help

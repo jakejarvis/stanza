@@ -1,7 +1,7 @@
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { loadRegistry } from "@/lib/registry-loader";
+import { loadRegistry } from "../lib/registry-loader";
 
 export async function cmdSearch(args: { query?: string; argv: Argv }): Promise<void> {
   const registry = await loadRegistry();

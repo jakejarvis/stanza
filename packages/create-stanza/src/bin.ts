@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { run } from "@stanza/cli";
 import mri from "mri";
 

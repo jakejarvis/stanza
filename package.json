@@ -9,7 +9,7 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck",
+    "check-types": "turbo run check-types",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
@@ -32,5 +32,5 @@
     "node": ">=22",
     "pnpm": ">=10"
   },
-  "packageManager": "pnpm@10.20.0"
+  "packageManager": "pnpm@10.33.4"
 }

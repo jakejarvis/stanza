@@ -3,8 +3,7 @@
   "version": "0.1.0",
   "license": "MIT",
   "files": [
-    "src",
-    "dist"
+    "src"
   ],
   "type": "module",
   "main": "./src/index.ts",
@@ -14,8 +13,7 @@
     "./builtins": "./src/builtins/index.ts"
   },
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

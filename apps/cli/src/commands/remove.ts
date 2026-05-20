@@ -7,10 +7,10 @@ import { KNOWN_SLOTS, SLOT_PACKAGE_DIR, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { revertCodemods } from "@/lib/codemod-runner";
-import { findProjectRoot, readManifest, writeManifest } from "@/lib/manifest";
-import { regionsOwnedBy } from "@/lib/region-tracker";
-import { loadRegistry } from "@/lib/registry-loader";
+import { revertCodemods } from "../lib/codemod-runner";
+import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
+import { regionsOwnedBy } from "../lib/region-tracker";
+import { loadRegistry } from "../lib/registry-loader";
 
 export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<void> {
   if (!args.slot) {

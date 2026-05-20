@@ -74,9 +74,10 @@ export const SLOT_PACKAGE_DIR: Record<SlotId, string | null> = Object.fromEntrie
   SLOTS.map((s) => [s.id, s.packageDir]),
 ) as Record<SlotId, string | null>;
 
-const SLOT_BY_ID: Record<SlotId, Slot> = Object.fromEntries(
-  SLOTS.map((s) => [s.id, s]),
-) as Record<SlotId, Slot>;
+const SLOT_BY_ID: Record<SlotId, Slot> = Object.fromEntries(SLOTS.map((s) => [s.id, s])) as Record<
+  SlotId,
+  Slot
+>;
 
 /** Display name for a slot — used by the wizard, summary, and CLI list output. */
 export function slotLabel(slot: SlotId): string {

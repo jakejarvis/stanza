@@ -1,6 +1,7 @@
 # TODO
 
 State at end of last session: pre-1.0 architectural cleanup landed.
+
 - **B1–B6** (mechanical cleanup): `SLOTS` array is now the source of truth (was 5 hardcoded copies); `pickRegistryRoot` deduped; dead `telemetryId` removed; codemod-not-found error now includes module/adapter context; orphan HTTP-bundle comment dropped; `lazyProject` returns a clean `{ get, save }` object.
 - **A3**: deleted `Module.provides`/`Module.requires`/`Capability` — they were declared but never read by the resolver. Peer constraints already encode the same info more precisely.
 - **A1**: hoisted module-level install fields (`dependencies`, `devDependencies`, `env`, `scripts`, `consumesPackages`). Adapters override per-key when needed. Better Auth's 6 adapters no longer duplicate `dependencies`, `env`, or workspace deps.
@@ -33,13 +34,13 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 
 The wizard and verbs work but a few things from the plan are stubbed.
 
-- [ ] Implement opt-out PostHog telemetry — wire `posthog-node` (already a dep), prompt on first run, store a `telemetryId` in `stanza.json`, respect `--no-telemetry` and `DO_NOT_TRACK=1`
-- [ ] `--yes` flag for non-interactive `init` — pick defaults via flags (`--framework=next` etc.); essential for CI tests
+- [ ] Implement opt-out PostHog telemetry — wire `posthog-node` (already a dep), prompt on first run, respect `--no-telemetry` and `DO_NOT_TRACK=1`
+- [x] `--yes` flag for non-interactive `init` — takes picks from `--framework / --styling / --db / --orm / --auth / --pm` flags; missing slots are skipped (explicit is better than auto-default)
 - [ ] HTTP registry loader path is implemented but unverified — smoke test against the static JSON output
-- [ ] `stanza init`: today's `bootstrapShell` doesn't emit `turbo.json`. Decide whether stanza ships that or a tooling module does. Also: the root `pnpm-workspace.yaml` must cover `packages/*` so the runner's bootstrapped slot packages link correctly
+- [ ] `stanza init`: today's `bootstrapShell` doesn't emit `turbo.json`. Decide whether stanza ships that or a tooling module does. (The root `pnpm-workspace.yaml` is now correctly emitted with `packages/*`, and `apps/<dir>/package.json` is bootstrapped so the runner's dep merges aren't silent no-ops)
 - [ ] Better error messages for `RegionConflictError` (current message is technical; should suggest `stanza remove <slot>` or manual cleanup)
-- [ ] `bun build` the CLI for publish — script exists, not yet exercised
-- [ ] Tests for command handlers (`init`, `add`, `remove`) — current coverage is just codemods + resolver
+- [x] Build the CLI for publish — `pnpm --filter @stanza/cli build` runs **tsdown**, producing `apps/cli/dist/bin.mjs` (~64 KB unminified; ~18 KB gzipped). External npm deps (`ts-morph`, `zod`, etc.) stay external — users get them via the normal npm install chain. Workspace deps (`@stanza/codemods`, `@stanza/registry`) are inlined. `create-stanza` builds the same way (744 bytes). The published bin runs on plain `node`; dev runs via `tsx watch ./src/bin.ts`. Bun is now gone from the dev workflow except as a maintainer-convenience shebang on `scripts/*.ts`
+- [x] Tests for command handlers (`init`, `add`, `remove`) — 10 tests in `apps/cli/src/commands/commands.test.ts`, exercise `--yes` init, add to existing project, remove + slot-package sweep, cross-package dep cleanup
 
 ## Modules
 
@@ -65,7 +66,7 @@ The full first-party module roadmap lives in [REGISTRY.md](REGISTRY.md). These a
 
 ## Infrastructure
 
-- [ ] GitHub Actions CI: typecheck (every workspace), unit tests, registry build, lint (add Biome or ESLint)
+- [x] GitHub Actions CI: lint, format check, registry build, web build (generates routeTree.gen.ts), typecheck (every workspace via turbo), tests, CLI bundle + smoke. Single workflow at `.github/workflows/ci.yml`
 - [ ] Golden snapshot tests per module combination (per the plan's verification section) — for each valid `(framework, orm, db, auth, styling, pm)` tuple, run `stanza init` headless, snapshot the tree, compare against fixture
 - [ ] Integration test for the canonical stack — Docker Postgres + Playwright sign-up flow
 - [ ] Registry deploy pipeline — on push to main, build `dist/registry/` and push to Vercel/CF

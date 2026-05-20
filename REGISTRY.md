@@ -14,10 +14,10 @@ Next.js influences which auth adapters are available). **Add-ons** can
 coexist freely and don't influence anyone else's adapters (vitest doesn't
 constrain anything).
 
-| Category | Type | Examples |
-| --- | --- | --- |
-| **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma |
-| **Add-ons** (no constraints, many allowed) | `testing`, `tooling`, `deploy`, `email`, `monorepo` | vitest + playwright together; eslint or biome |
+| Category                                        | Type                                                                       | Examples                                      |
+| ----------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma     |
+| **Add-ons** (no constraints, many allowed)      | `testing`, `tooling`, `deploy`, `email`, `monorepo`                        | vitest + playwright together; eslint or biome |
 
 Today's CLI/manifest only models slots. The add-on schema (likely a
 `manifest.addons[]` array + `kind` discriminator on `Module`) is

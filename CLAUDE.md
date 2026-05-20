@@ -17,7 +17,7 @@ Three things differentiate stanza from other scaffolders:
 
 ## Layout
 
-- `apps/cli/` — `@stanza/cli`, Bun entrypoint at `src/bin.ts`
+- `apps/cli/` — `@stanza/cli`, node entrypoint at `src/bin.ts` (run via tsx in dev, tsdown-built to `dist/bin.mjs` for publish)
 - `apps/web/` — `@stanza/web`, TanStack Start visual builder (Vite-native, no Vinxi)
 - `packages/registry/` — shared schema, slot/peer resolver, Zod manifest validator
 - `packages/codemods/` — ts-morph helpers (idempotent + reversible)
@@ -29,25 +29,27 @@ In a **generated project**, `auth`, `db`, and `orm` modules install into their o
 
 ## Commands
 
-- `bun apps/cli/src/bin.ts <verb>` — run CLI directly without build
-- `pnpm registry:build` (or `bun scripts/registry-build.ts`) — regenerate `dist/registry/{index,modules/*}.json`
+- `pnpm --filter @stanza/cli dev -- <verb>` — run CLI directly via `tsx watch ./src/bin.ts`; no build step. Or `tsx apps/cli/src/bin.ts <verb>` for a one-shot run
+- `pnpm --filter @stanza/cli build` — build the publishable CLI via tsdown (compiles to ESM JS at `apps/cli/dist/`, externalizes npm deps, inlines workspace packages). Same for `create-stanza`
+- `pnpm registry:build` — regenerate `dist/registry/{index,modules/*}.json`. Uses bun for maintainer convenience (the script body is portable; `tsx scripts/registry-build.ts` works too)
 - `pnpm module:new [slot] [id]` — scaffold a new module under `registry/modules/`
-- `pnpm --filter @stanza/web dev` — TanStack Start dev server. `predev`/`prebuild` invoke [`apps/web/scripts/copy-registry.ts`](apps/web/scripts/copy-registry.ts) which builds `dist/registry/` if missing and copies it into `apps/web/public/registry/`. The deployed site ships this directory as static assets, so CLI and web consume the same JSON
+- `pnpm --filter @stanza/web dev` — TanStack Start dev server. `prebuild` invokes [`apps/web/scripts/copy-registry.sh`](apps/web/scripts/copy-registry.sh) which copies the prebuilt `dist/registry/` into `apps/web/public/registry/`. Pure bash — no node/tsx prerequisite on the deploy target. The deployed site ships this directory as static assets, so CLI and web consume the same JSON. Run `pnpm registry:build` before the first web build
 - `pnpm lint` / `pnpm lint:fix` — Oxlint across the whole repo (config: `.oxlintrc.json`)
 - `pnpm fmt` / `pnpm fmt:check` — oxfmt across the whole repo (config: `.oxfmtrc.json`)
-- `cd packages/<x> && node_modules/.bin/vitest run` — unit tests (per workspace; no root `vitest` binary)
-- `cd <pkg> && node_modules/.bin/tsc --noEmit` — typecheck (per workspace)
+- `pnpm test` / `pnpm check-types` — fan out to every workspace via turbo
 - `cd apps/web && node_modules/.bin/vite build` — generates `src/routeTree.gen.ts` (required before first typecheck)
-- E2E smoke: seed `$TMPDIR/x` with `stanza.json` + `apps/web/package.json`, then `bun .../bin.ts add <slot> <module>`
+- E2E smoke: seed `$TMPDIR/x` with `stanza.json` + `apps/web/package.json`, then `tsx apps/cli/src/bin.ts add <slot> <module>`
 
 ## Toolchain invariants
 
+- **Node-only at runtime.** The CLI source uses node APIs and is dev-run via `tsx`; the published binary is plain ESM JS (`#!/usr/bin/env node`). The only place bun appears is the shebang on root maintainer scripts (`scripts/*.ts`) for our own convenience — those scripts don't use any `Bun.*` APIs and run fine under tsx/node
+- **Build pipeline**: `tsdown` compiles each publishable package to ESM JS in `dist/`. External npm deps are _not_ bundled (users install them via the normal dep chain); workspace deps are _inlined_ (we don't publish `@stanza/registry` and `@stanza/codemods` separately). Transitive runtime deps (`ts-morph`, `zod`) MUST be declared as direct `dependencies` of the publishable package or tsdown will inline them into the bundle
+- **Per-workspace `dist/` paths**: `main`/`types` in the source `package.json` still point at `./src/` so other workspaces resolve `.ts` directly during dev. The published tarball overrides via `publishConfig` to point at `./dist/<x>.mjs`/`.d.mts`
 - pnpm 10 + `node-linker: isolated` — each workspace MUST declare `@types/node` in its own devDeps and set `types: ["node"]` in tsconfig (auto-discovery doesn't reach into the isolated `node_modules/@types`)
-- TypeScript 6 — `allowImportingTsExtensions: true` + `noEmit: true` is set in `tsconfig.json`; build with `bun build`, not `tsc`
+- TypeScript 6 — `allowImportingTsExtensions: true` + `noEmit: true` is set in `tsconfig.json`; the CLI/create-stanza emit JS via tsdown, the registry/codemods packages stay source-only and never emit
 - `tsconfig.json` excludes `**/templates/**` globally — template files target user projects, not this repo
 - Zod 4: use `z.partialRecord(K, V)` for finite-key partial records (`z.record(z.enum, V)` requires exhaustive keys)
 - TanStack Start: `verbatimModuleSyntax: false` in `apps/web/tsconfig.json` (server bundles leak otherwise); `tanstackStart()` MUST precede `react()` in vite plugins
-- Bun runs the CLI directly from `.ts`; don't add a TS compile step
 
 ## Architecture rules
 
@@ -59,13 +61,13 @@ In a **generated project**, `auth`, `db`, and `orm` modules install into their o
 - **Third-party codemods**: deferred. Third-party HTTP-loaded modules can use the existing catalog codemods (pass `{ id, args }` from their manifest) but can't add new ones until we land a proper sandboxed-execution + signing model
 - **apps/web previews are server-rendered**: Shiki runs in `apps/web/src/server/highlighter.ts` (module-singleton, kept warm). The builder loader (`createServerFn` in `apps/web/src/server/builder-state.ts`) computes selected files from URL search params, pre-renders Shiki HTML for each, and ships `Record<path, { light, dark }>` to the client. `shiki` must NEVER be imported from a client component — verified by `vite build` followed by `grep shiki .output/public/assets/*.js` (should return nothing)
 - **Slot taxonomy** is currently `framework | styling | db | orm | auth`. Adding a slot is now a **two-line edit**: append the id to `KNOWN_SLOTS` (the `as const` tuple Zod needs for literal inference) and append a `Slot` entry to `SLOTS` with `{ id, label, description, packageDir }`. Decide upfront whether the new slot extracts (data layer, observability) or wires the app shell (router, global CSS) and set `packageDir` accordingly
-- **Slots vs. add-ons**: today's 5 slots are all *one-choice, peer-constraint-bearing*. Future categories planned in REGISTRY.md fall into two buckets: **slots** (single-choice, constrain other modules' adapter dispatch — `api`, `ai`, `ui`, `payments`) and **add-ons** (multi-choice, no peer constraints — `testing`, `tooling`, `deploy`, `email`, `monorepo`). The add-on schema is intentionally deferred: it should be designed around real add-on modules, not in a vacuum. When the first add-on lands, expect to introduce `manifest.addons[]` and a `kind` discriminator (or equivalent) on `Module`
+- **Slots vs. add-ons**: today's 5 slots are all _one-choice, peer-constraint-bearing_. Future categories planned in REGISTRY.md fall into two buckets: **slots** (single-choice, constrain other modules' adapter dispatch — `api`, `ai`, `ui`, `payments`) and **add-ons** (multi-choice, no peer constraints — `testing`, `tooling`, `deploy`, `email`, `monorepo`). The add-on schema is intentionally deferred: it should be designed around real add-on modules, not in a vacuum. When the first add-on lands, expect to introduce `manifest.addons[]` and a `kind` discriminator (or equivalent) on `Module`
 - **Adapter keys** encode peer choices (e.g., `next+drizzle`); the resolver picks the most specific match
 - **Module-level install fields**: `dependencies`, `devDependencies`, `env`, `scripts`, and `consumesPackages` are declared at the module level when shared across adapters. Adapter-level fields override per-key (`env` merges by `name`). This avoids re-declaring the same `dependencies` and `env` block in every adapter of a multi-framework module (cf. Better Auth — 6 adapters, but `better-auth` dep and the two env vars are declared once)
 - **Slot-package extraction**: `auth`/`db`/`orm` modules install into `packages/<dir>/` workspace packages (named `@<manifest.name>/<dir>`); templates `scope: "package"`, deps/devDeps/scripts route there, and the app gets a `workspace:*` dep wired by the runner. `framework`/`styling` stay app-scoped (their `packageDir` entry is `null`). The bootstrap files (the package's `package.json` + `tsconfig.json` and the host app's workspace dep) are **system-owned** — not tracked in `regions`. `stanza remove`'s sweep deletes them when no claims remain under `packages/<dir>/`
 - **Generated projects don't share a tsconfig base**: every `apps/*/tsconfig.json` and `packages/*/tsconfig.json` is self-contained. The framework module ships the app's tsconfig; the runner's `ensureSlotPackage` writes a matching self-contained config when bootstrapping a slot package. `tsconfig.json` lives in the stanza repo only; do not emit it in generated trees
 - **Cross-package wiring**: when a module's source code imports from another internal package (e.g. `better-auth`'s `auth.ts` reads `db` from the orm package), declare `consumesPackages: ["db"]` at the module level. The runner adds `@<project>/db: workspace:*` to this module's own package. Module-level (not adapter-level) because the source code is shared infrastructure — adapters vary in templates/codemods, not in what they import. Templates can reference other packages via `{{<dir>PackageName}}` substitution (e.g. `{{dbPackageName}}` → `@my-app/db`) — substitution runs over both template bodies (when `template: true`) and codemod-invocation `args` string values
-- **Region ownership** in `stanza.json` is the source of truth for `stanza remove`. Two modules claiming the same region is a hard error (`RegionConflictError`). Note: regions are *not yet sufficient for `swap`* — that verb additionally needs old-adapter-region → new-adapter-region mapping; design pending
+- **Region ownership** in `stanza.json` is the source of truth for `stanza remove`. Two modules claiming the same region is a hard error (`RegionConflictError`). Note: regions are _not yet sufficient for `swap`_ — that verb additionally needs old-adapter-region → new-adapter-region mapping; design pending
 - **Codemod catalog ids are part of the public contract**: once stanza is published, renaming a builtin codemod id breaks every third-party manifest that references it. Treat ids as you would npm package names — additions are free, renames require a deprecation cycle, removals require a manifest schema version bump
 - **Module `version` field**: every module manifest declares a `version` string, pinned into `stanza.json` at install time. The upcoming `swap`/`update` verbs read it; today it's stored for forward compatibility. Bump it on schema-affecting changes (template additions, dep upgrades) per semver
 - **Declarative beats imperative**: prefer `templates`/`dependencies`/`env`/`scripts` over imperative codemods; the runner applies declarative fields generically

@@ -110,6 +110,9 @@ export async function applyModule(args: {
 
   // 2. Dependencies + scripts on package.json. Routes to the slot's package
   //    when `SLOT_PACKAGE_DIR[slot]` is non-null; otherwise the active app.
+  // The slot-package path is bootstrapped above by `ensureSlotPackage`; the
+  // app path is created by `stanza init` (bootstrapShell). For `stanza add`
+  // in a pre-existing project, missing app package.json is a real misuse.
   const pkgJsonPath = packageRoot
     ? path.join(packageRoot, "package.json")
     : path.join(appRoot, "package.json");
@@ -117,7 +120,13 @@ export async function applyModule(args: {
     Object.keys(installFields.dependencies).length > 0 ||
     Object.keys(installFields.devDependencies).length > 0 ||
     Object.keys(installFields.scripts).length > 0;
-  if (hasInstall && fs.existsSync(pkgJsonPath)) {
+  if (hasInstall && !fs.existsSync(pkgJsonPath)) {
+    throw new Error(
+      `Cannot apply ${module.id}: ${path.relative(projectRoot, pkgJsonPath)} doesn't exist. ` +
+        `For \`stanza add\` in an existing project, create it manually first.`,
+    );
+  }
+  if (hasInstall) {
     for (const [name, range] of Object.entries(installFields.dependencies)) {
       manifest = claim(
         manifest,

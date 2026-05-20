@@ -2,20 +2,25 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import { resolveAdapter, slotOrder } from "@stanza/registry";
+import { KNOWN_SLOTS, resolveAdapter, type SlotId, slotOrder } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { applyModule } from "@/lib/codemod-runner";
-import { initManifest } from "@/lib/manifest";
-import { loadRegistry, pickRegistryRoot } from "@/lib/registry-loader";
-import { runInitWizard } from "@/lib/wizard";
+import { applyModule } from "../lib/codemod-runner";
+import { initManifest } from "../lib/manifest";
+import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
+import { runInitWizard, type WizardOverrides } from "../lib/wizard";
 
 export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
   const registry = await loadRegistry();
   const defaultName = args.name ?? path.basename(process.cwd());
 
-  const result = await runInitWizard({ registry, defaultName });
+  // --yes turns CLI flags into the wizard's answers (each `--<slot>=<id>` picks
+  // a module for that slot; `--pm=<...>` picks the package manager). Missing
+  // slots are simply skipped — no auto-defaulting, explicit is better.
+  const overrides = args.argv.yes ? overridesFromArgv(args.name, args.argv) : undefined;
+
+  const result = await runInitWizard({ registry, defaultName, overrides });
   if (!result) return;
 
   const projectRoot = path.resolve(process.cwd(), result.name);
@@ -93,7 +98,7 @@ function bootstrapShell(
         name: opts.name,
         private: true,
         version: "0.1.0",
-        packageManager: { pnpm: "pnpm@9.12.0", bun: "bun@1.1.34", npm: "npm@10.9.0" }[
+        packageManager: { pnpm: "pnpm@10.33.4", bun: "bun@1.3.14", npm: "npm@10.9.0" }[
           opts.packageManager
         ],
         scripts: {
@@ -136,6 +141,36 @@ function bootstrapShell(
   );
 
   // App shell — empty but layout-correct. The framework module fills it in.
+  // The package.json must exist before any module runs: the runner appends
+  // deps/scripts into it (and silently no-ops if it's absent), and the slot-
+  // package bootstrap wires `@<name>/<dir>: workspace:*` into its deps map.
   fs.mkdirSync(path.join(projectRoot, opts.appDir), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectRoot, opts.appDir, "package.json"),
+    JSON.stringify(
+      {
+        name: `@${opts.name}/${path.basename(opts.appDir)}`,
+        version: "0.0.0",
+        private: true,
+        type: "module",
+      },
+      null,
+      2,
+    ) + "\n",
+  );
   fs.mkdirSync(path.join(projectRoot, "packages"), { recursive: true });
+}
+
+function overridesFromArgv(name: string | undefined, argv: Argv): WizardOverrides {
+  const modules: Partial<Record<SlotId, string>> = {};
+  for (const slot of KNOWN_SLOTS) {
+    const value = argv[slot];
+    if (typeof value === "string" && value.length > 0) modules[slot] = value;
+  }
+  const pm = argv.pm;
+  return {
+    name,
+    packageManager: pm === "pnpm" || pm === "bun" || pm === "npm" ? pm : undefined,
+    modules,
+  };
 }
