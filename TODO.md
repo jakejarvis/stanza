@@ -70,7 +70,7 @@ The full first-party module roadmap lives in [REGISTRY.md](REGISTRY.md). These a
 - [ ] Golden snapshot tests per module combination (per the plan's verification section) — for each valid `(framework, orm, db, auth, styling, pm)` tuple, run `stanza init` headless, snapshot the tree, compare against fixture
 - [ ] Integration test for the canonical stack — Docker Postgres + Playwright sign-up flow
 - [ ] Registry deploy pipeline — on push to main, build `dist/registry/` and push to Vercel/CF
-- [ ] npm publish workflow for `@stanza/cli` + `create-stanza` (Changesets recommended; no changesets config yet)
+- [x] npm publish workflow — Changesets configured (`.changeset/config.json`, public access, `@changesets/changelog-github` for PR links). [Release workflow](.github/workflows/release.yml) runs `changesets/action@v1` on push to main: opens a "Version Packages" PR when changesets queue up; merging publishes via `pnpm release` (build CLI + create-stanza, then `changeset publish`). Provenance attestations enabled. Tarball dry-run verified: `@stanza/cli` is 20 KB, `create-stanza` is 1.7 KB; both `npm install`-able from a clean tmpdir and `--version` / `--help` work. Repo needs `NPM_TOKEN` secret before the first publish
 - [ ] `.env.example` at repo root listing `STANZA_REGISTRY`, PostHog key, etc.
 
 ## Open items from the plan

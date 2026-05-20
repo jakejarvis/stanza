@@ -1,8 +1,23 @@
 {
   "name": "create-stanza",
   "version": "0.1.0",
-  "description": "`pnpm create stanza` — the canonical entry point to the stanza wizard.",
+  "description": "`npm init stanza` — the canonical entry point to the stanza wizard.",
+  "keywords": [
+    "cli",
+    "create",
+    "monorepo",
+    "scaffold",
+    "shadcn"
+  ],
+  "homepage": "https://stanza.tools",
+  "bugs": "https://github.com/jakejarvis/stanza/issues",
   "license": "MIT",
+  "author": "Jake Jarvis <jake@jarv.is>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakejarvis/stanza.git",
+    "directory": "packages/create-stanza"
+  },
   "bin": {
     "create-stanza": "./dist/bin.mjs"
   },
@@ -10,6 +25,9 @@
     "dist"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "check-types": "tsc --noEmit"

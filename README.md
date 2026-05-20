@@ -20,7 +20,6 @@ packages/
   registry/       # shared schema, slot/peer/capability resolver
   codemods/       # ts-morph helpers for region-aware patching
   create-stanza/  # `pnpm create stanza` shim
-  internal/       # maintenance scripts (registry-build, module-new)
 registry/
   modules/        # first-party modules (framework, orm, db, auth, styling)
 ```

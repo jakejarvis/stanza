@@ -28,10 +28,6 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      # The root maintainer scripts (`pnpm registry:build`, `pnpm module:new`)
-      # are bun-shebanged for local dev convenience. Their bodies are pure
-      # node-API and could run under tsx too, but we install bun here so the
-      # CI invocation mirrors the dev one exactly.
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:

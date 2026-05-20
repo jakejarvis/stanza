@@ -1,11 +1,8 @@
 {
   "name": "@stanza/registry",
   "version": "0.1.0",
+  "private": true,
   "license": "MIT",
-  "files": [
-    "src",
-    "dist"
-  ],
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

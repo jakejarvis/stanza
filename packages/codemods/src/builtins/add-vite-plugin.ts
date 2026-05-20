@@ -11,6 +11,8 @@ import {
   SyntaxKind,
 } from "../index";
 
+type ArrayLiteral = ReturnType<typeof findPluginsArray>;
+
 /**
  * Splice a plugin into an existing `vite.config.ts`'s `defineConfig({ plugins: [...] })`
  * array. Lets multiple modules layer plugins on top of the framework's base
@@ -68,7 +70,7 @@ const addVitePlugin: Codemod<AddVitePluginArgs> = {
     }
 
     const index = resolveIndex(plugins, args.position ?? "end", args.importName);
-    plugins.insertElement(index, args.call);
+    insertPluginCall(sf, plugins, index, args.call);
 
     ctx.claimRegion(rel, `vite.plugins.${args.importName}`);
 
@@ -135,6 +137,54 @@ function findPluginsArray(sf: SourceFile) {
   }
 
   return pluginsArr;
+}
+
+/**
+ * Splice a new call expression into the plugins array while preserving the
+ * indent style of existing elements. ts-morph's `insertElement` reformats the
+ * array with its own `manipulationSettings.indentationText` (4 spaces by
+ * default), which doesn't match 2-space configs and produces over-indented
+ * output. We do the text edit ourselves: capture the leading whitespace of an
+ * existing element and reuse it. The empty-array case has no element to copy
+ * from, so we fall back to ts-morph's default formatting.
+ */
+function insertPluginCall(
+  sf: SourceFile,
+  plugins: ArrayLiteral,
+  index: number,
+  call: string,
+): void {
+  const elements = plugins.getElements();
+  if (elements.length === 0) {
+    plugins.insertElement(index, call);
+    return;
+  }
+
+  const probe = elements[Math.min(index, elements.length - 1)];
+  if (!probe) {
+    plugins.insertElement(index, call);
+    return;
+  }
+
+  const trivia = sf.getFullText().slice(probe.getFullStart(), probe.getStart());
+  const newlineIndent = trivia.match(/\n([ \t]*)$/);
+
+  if (newlineIndent) {
+    const indent = newlineIndent[1];
+    if (index < elements.length) {
+      sf.insertText(probe.getStart(), `${call},\n${indent}`);
+    } else {
+      const last = elements[elements.length - 1]!;
+      sf.insertText(last.getEnd(), `,\n${indent}${call}`);
+    }
+  } else {
+    if (index < elements.length) {
+      sf.insertText(probe.getStart(), `${call}, `);
+    } else {
+      const last = elements[elements.length - 1]!;
+      sf.insertText(last.getEnd(), `, ${call}`);
+    }
+  }
 }
 
 function resolveIndex(

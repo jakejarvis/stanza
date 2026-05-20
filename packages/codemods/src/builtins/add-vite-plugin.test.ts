@@ -13,6 +13,18 @@ export default defineConfig({
 });
 `;
 
+const MULTILINE_VITE_CONFIG = `import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  plugins: [
+    tanstackStart(),
+    react(),
+  ],
+});
+`;
+
 /**
  * Spin up a ts-morph project with a single in-memory vite.config.ts at the
  * given content, plus a mock `CodemodContext` that records claimed regions.
@@ -145,6 +157,20 @@ describe("add-vite-plugin", () => {
       `import { defineConfig } from "vite";\nexport default defineConfig({ plugins: existing });\n`,
     );
     expect(() => addVitePlugin.apply(ctx, TAILWIND_ARGS)).toThrow(/needs a .*array literal/);
+  });
+
+  it("preserves the existing indent when inserting into a multi-line array", () => {
+    const { ctx, sf } = setup(MULTILINE_VITE_CONFIG);
+    addVitePlugin.apply(ctx, TAILWIND_ARGS);
+    const text = sf.getFullText();
+    // All three elements should share the same 4-space indent — earlier regression
+    // had ts-morph's default 4-space-per-level reformat the inserted+following
+    // elements to 8 spaces while leaving the first element at 4.
+    expect(text).toContain(
+      ["  plugins: [", "    tanstackStart(),", "    tailwindcss(),", "    react(),", "  ],"].join(
+        "\n",
+      ),
+    );
   });
 
   it("lets two modules insert different plugins without colliding", () => {
