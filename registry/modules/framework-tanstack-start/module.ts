@@ -32,6 +32,7 @@ export default defineModule({
       templates: [
         { src: "vite.config.ts", dest: "vite.config.ts", scope: "app" },
         { src: "tsconfig.json", dest: "tsconfig.json", scope: "app" },
+        { src: "src/globals.css", dest: "src/globals.css", scope: "app" },
         { src: "src/router.tsx", dest: "src/router.tsx", scope: "app" },
         { src: "src/routes/__root.tsx", dest: "src/routes/__root.tsx", scope: "app" },
         { src: "src/routes/index.tsx", dest: "src/routes/index.tsx", scope: "app" },

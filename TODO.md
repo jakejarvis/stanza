@@ -34,7 +34,7 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 
 The wizard and verbs work but a few things from the plan are stubbed.
 
-- [ ] Implement opt-out PostHog telemetry — wire `posthog-node` (already a dep), prompt on first run, respect `--no-telemetry` and `DO_NOT_TRACK=1`
+- [ ] Implement opt-out PostHog telemetry — wire `posthog-node`, prompt on first run, respect `--no-telemetry` and `DO_NOT_TRACK=1`
 - [x] `--yes` flag for non-interactive `init` — takes picks from `--framework / --styling / --db / --orm / --auth / --pm` flags; missing slots are skipped (explicit is better than auto-default)
 - [ ] HTTP registry loader path is implemented but unverified — smoke test against the static JSON output
 - [ ] `stanza init`: today's `bootstrapShell` doesn't emit `turbo.json`. Decide whether stanza ships that or a tooling module does. (The root `pnpm-workspace.yaml` is now correctly emitted with `packages/*`, and `apps/<dir>/package.json` is bootstrapped so the runner's dep merges aren't silent no-ops)
@@ -46,11 +46,11 @@ The wizard and verbs work but a few things from the plan are stubbed.
 
 Functional but a few real issues to fix.
 
-- [ ] `auth-better-auth` tanstack-start adapter references `import.meta.env.VITE_BETTER_AUTH_URL` but the env var is declared as `BETTER_AUTH_URL` — either add `VITE_` prefix or read it server-side
+- [x] `auth-better-auth` VITE_BETTER_AUTH_URL: stale — auth-client.ts defaults to current origin; server reads `BETTER_AUTH_URL` automatically. No template references VITE_BETTER_AUTH_URL.
 - [x] `auth-better-auth` drizzle `auth.ts` hardcoded `provider: "pg"` — split into per-db templates (`auth.drizzle.postgres.ts` + `auth.drizzle.sqlite.ts`) so sqlite gets `provider: "sqlite"`
 - [ ] `auth-better-auth` sqlite schema variant exists (`shared/auth-schema.drizzle-sqlite.ts`); confirm it matches what better-auth actually expects on SQLite end-to-end
 - [x] `styling-tailwind` + `framework-next` `app/globals.css` conflict — fixed by switching styling-tailwind's next adapter to prepend `@import "tailwindcss";` via the `append-to-file` codemod's new `position: "start"` mode. Framework retains ownership of base styles; revert restores cleanly
-- [ ] tanstack-start `__root.tsx` doesn't import `src/globals.css` — styling-tailwind writes the file but nothing consumes it. Needs an `add-side-effect-import` codemod (or the styling module ships a router edit)
+- [x] tanstack-start globals.css orphan — fixed symmetrically to Next. framework-tanstack-start now ships `src/globals.css` and `__root.tsx` imports it; styling-tailwind's tanstack adapter prepends `@import "tailwindcss";` via `append-to-file` instead of writing the file. No new codemod needed; pattern is now identical across both framework adapters.
 - [ ] Authoring guide: docs page covering `defineModule`, slot/peer/capability semantics, template vs. codemod choice, region ownership, and the `scope: "package"` + `consumesPackages` story
 
 ## Registry expansion

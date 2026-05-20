@@ -39,8 +39,20 @@ export default defineModule({
       key: "tanstack-start",
       match: { framework: "tanstack-start" },
       devDependencies: { "@tailwindcss/vite": "^4.3.0" },
-      templates: [{ src: "globals.css", dest: "src/globals.css", scope: "app" }],
       codemods: [
+        {
+          // framework-tanstack-start ships `src/globals.css` (imported from
+          // `__root.tsx`); prepend Tailwind's `@import` so CSS stays valid
+          // (@import must precede all other rules). Same shape as the next
+          // adapter for symmetry.
+          id: "append-to-file",
+          args: {
+            file: "src/globals.css",
+            content: '@import "tailwindcss";',
+            marker: "tailwind",
+            position: "start",
+          },
+        },
         {
           // Splice tailwindcss() into the framework's existing vite.config.ts
           // between tanstackStart() and react() — Start's plugin order is

@@ -8,21 +8,12 @@ importers:
 
   .:
     devDependencies:
-      '@clack/prompts':
-        specifier: ^1.4.0
-        version: 1.4.0
       '@stanza/registry':
         specifier: workspace:*
         version: link:packages/registry
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
-      kleur:
-        specifier: ^4.1.5
-        version: 4.1.5
-      mri:
-        specifier: ^1.2.0
-        version: 1.2.0
       oxfmt:
         specifier: ^0.51.0
         version: 0.51.0
@@ -47,9 +38,6 @@ importers:
       mri:
         specifier: ^1.2.0
         version: 1.2.0
-      posthog-node:
-        specifier: ^5.34.7
-        version: 5.34.7
       semver:
         specifier: ^7.8.0
         version: 7.8.0
@@ -1301,12 +1289,6 @@ packages:
     peerDependencies:
       react: ^18.3.1 || ^19.0.0
       react-dom: ^18.3.1 || ^19.0.0
-
-  '@posthog/core@1.29.6':
-    resolution: {integrity: sha512-qLA/4xTzxG1FabliYjsOy5pTC9XZWA225MHnpCmqGBoDVGL4sKKgLixMK2dpsHZbSo6AHpBLUfqkvTsh2YxZcQ==}
-
-  '@posthog/types@1.374.3':
-    resolution: {integrity: sha512-AewLXVP/JR0iUTcY3wkYeDomNDAEWagX6g+39U61HyYcnWOjxzEVPsMGV2VdVjaAP2lRtkIOc00EzoIc9fIZ+Q==}
 
   '@quansync/fs@1.0.0':
     resolution: {integrity: sha512-4TJ3DFtlf1L5LDMaM6CanJ/0lckGNtJcMjQ1NAV6zDmA0tEHKZtxNKin8EgPaVX1YzljbxckyT2tJrpQKAtngQ==}
@@ -3261,15 +3243,6 @@ packages:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@5.34.7:
-    resolution: {integrity: sha512-OwZ7k6KnJqvhda+CeZnj0fStHmSiKSpHlbFYnC8thn+fwkMgDRi6L1FVfscbrC+c226I78u91LJq6MTAt0qrCw==}
-    engines: {node: ^20.20.0 || >=22.22.0}
-    peerDependencies:
-      rxjs: ^7.0.0
-    peerDependenciesMeta:
-      rxjs:
-        optional: true
-
   powershell-utils@0.1.0:
     resolution: {integrity: sha512-dM0jVuXJPsDN6DvRpea484tCUaMiXWjuCn++HGTqUWzGDjv5tZkEZldAJ/UMlqRYGFrD/etByo4/xOuC/snX2A==}
     engines: {node: '>=20'}
@@ -4869,12 +4842,6 @@ snapshots:
       preact-render-to-string: 6.6.5(preact@11.0.0-beta.0)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
-
-  '@posthog/core@1.29.6':
-    dependencies:
-      '@posthog/types': 1.374.3
-
-  '@posthog/types@1.374.3': {}
 
   '@quansync/fs@1.0.0':
     dependencies:
@@ -6832,10 +6799,6 @@ snapshots:
       nanoid: 3.3.12
       picocolors: 1.1.1
       source-map-js: 1.2.1
-
-  posthog-node@5.34.7:
-    dependencies:
-      '@posthog/core': 1.29.6
 
   powershell-utils@0.1.0: {}
 
