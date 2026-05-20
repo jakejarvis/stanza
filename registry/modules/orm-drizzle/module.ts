@@ -20,9 +20,9 @@ export default defineModule({
         "db:studio": "drizzle-kit studio",
       },
       templates: [
-        { src: "drizzle.config.postgres.ts", dest: "drizzle.config.ts", scope: "app" },
-        { src: "src/db/index.postgres.ts", dest: "src/db/index.ts", scope: "app" },
-        { src: "src/db/schema.postgres.ts", dest: "src/db/schema.ts", scope: "app" },
+        { src: "drizzle.config.postgres.ts", dest: "drizzle.config.ts", scope: "package" },
+        { src: "src/db/index.postgres.ts", dest: "src/index.ts", scope: "package" },
+        { src: "src/db/schema.postgres.ts", dest: "src/schema.ts", scope: "package" },
       ],
     },
     {
@@ -36,9 +36,9 @@ export default defineModule({
         "db:studio": "drizzle-kit studio",
       },
       templates: [
-        { src: "drizzle.config.sqlite.ts", dest: "drizzle.config.ts", scope: "app" },
-        { src: "src/db/index.sqlite.ts", dest: "src/db/index.ts", scope: "app" },
-        { src: "src/db/schema.sqlite.ts", dest: "src/db/schema.ts", scope: "app" },
+        { src: "drizzle.config.sqlite.ts", dest: "drizzle.config.ts", scope: "package" },
+        { src: "src/db/index.sqlite.ts", dest: "src/index.ts", scope: "package" },
+        { src: "src/db/schema.sqlite.ts", dest: "src/schema.ts", scope: "package" },
       ],
     },
   ],

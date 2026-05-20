@@ -11,12 +11,12 @@ export const user = sqliteTable("user", {
 });
 `;
 
-function setup(initial: string = BARREL) {
+function setup(initial: string = BARREL, opts: { barrelPath?: string } = {}) {
   const seed = openProject("/repo/apps/web");
   const inMem: Project = new (seed.constructor as new (opts: Record<string, unknown>) => Project)({
     useInMemoryFileSystem: true,
   });
-  const sf = inMem.createSourceFile("/repo/apps/web/src/db/schema.ts", initial);
+  const sf = inMem.createSourceFile(opts.barrelPath ?? "/repo/apps/web/src/db/schema.ts", initial);
 
   const claimed: Array<{ file: string; region: string }> = [];
   const released: Array<{ file: string; region: string }> = [];
@@ -139,6 +139,23 @@ describe("re-export", () => {
     expect(() => reExport.apply(ctx, { file: "src/db/missing.ts", from: "./auth-schema" })).toThrow(
       /not found/,
     );
+  });
+
+  it('resolves against packages/<dir>/ when base is "package:<dir>"', () => {
+    const { ctx, sf, claimed } = setup(BARREL, {
+      barrelPath: "/repo/packages/db/src/schema.ts",
+    });
+    const result = reExport.apply(ctx, {
+      file: "src/schema.ts",
+      from: "@t/auth/auth-schema",
+      base: "package:db",
+    }) as { touchedFiles: string[] };
+
+    expect(result.touchedFiles).toEqual(["packages/db/src/schema.ts"]);
+    expect(sf.getFullText()).toContain(`export * from "@t/auth/auth-schema"`);
+    expect(claimed).toEqual([
+      { file: "packages/db/src/schema.ts", region: "re-exports.@t/auth/auth-schema" },
+    ]);
   });
 
   it("lets two modules re-export from different sources without colliding", () => {

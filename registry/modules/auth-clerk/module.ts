@@ -34,15 +34,20 @@ export default defineModule({
         },
       ],
       templates: [
-        { src: "middleware.ts", dest: "middleware.ts", scope: "app" },
-        { src: "layout-wrapper.tsx", dest: "app/_clerk-provider.tsx", scope: "app" },
+        // Package-scoped: provider + barrel land in packages/auth/.
+        { src: "provider.tsx", dest: "src/provider.tsx", scope: "package" },
+        { src: "index.ts", dest: "src/index.ts", scope: "package" },
+        // App-scoped: Next requires middleware.ts at the app root. We ship a
+        // thin shim that re-exports clerkMiddleware from the auth package, so
+        // the @clerk/nextjs dep stays in packages/auth/.
+        { src: "middleware.ts", dest: "middleware.ts", scope: "app", template: true },
       ],
       codemods: [
         {
           id: "wrap-root-layout",
           args: {
             providerName: "ClerkRootProvider",
-            providerImport: "./_clerk-provider",
+            providerImport: "{{packageName}}",
           },
         },
       ],

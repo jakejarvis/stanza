@@ -3,7 +3,7 @@ import path from "node:path";
 
 import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
-import { KNOWN_SLOTS, type SlotId } from "@stanza/registry";
+import { KNOWN_SLOTS, SLOT_PACKAGE_DIR, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -87,11 +87,38 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
   const nextModules = { ...manifest.modules };
   delete nextModules[slot];
 
+  // Sweep: for each slot that maps to an internal package, if nothing remains
+  // claimed under packages/<dir>/, tear down the bootstrap (package.json,
+  // tsconfig.json, the dir itself) and drop the workspace dep from the app.
+  // The system-owned bootstrap files aren't tracked as regions, so they'd
+  // otherwise linger forever.
+  const sweptPackages: string[] = [];
+  const appPkgRel = `${manifest.appDir}/package.json`;
+  const appPkgAbs = path.join(projectRoot, appPkgRel);
+  for (const dir of new Set(
+    Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null),
+  )) {
+    const stillUsed = Object.keys(nextRegions).some((file) => file.startsWith(`packages/${dir}/`));
+    if (stillUsed) continue;
+    const pkgRoot = path.join(projectRoot, "packages", dir);
+    if (!fs.existsSync(pkgRoot)) continue;
+    if (!dryRun) {
+      fs.rmSync(pkgRoot, { recursive: true, force: true });
+      if (fs.existsSync(appPkgAbs)) {
+        removePackageDependency(appPkgAbs, `@${manifest.name}/${dir}`);
+      }
+    }
+    sweptPackages.push(dir);
+  }
+
   if (!dryRun) {
     writeManifest(projectRoot, { ...manifest, modules: nextModules, regions: nextRegions });
   }
 
   p.log.success(`${kleur.green("✓")} Removed ${installed.id} from ${slot}`);
+  if (sweptPackages.length > 0) {
+    p.log.info(`Swept packages/${sweptPackages.join(", packages/")} (no remaining slot owns it).`);
+  }
   if (manualCleanup.length > 0) {
     p.log.warn(
       `${manualCleanup.length} region(s) need manual cleanup:\n` +

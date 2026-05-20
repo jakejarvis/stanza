@@ -4,6 +4,26 @@ export const KNOWN_SLOTS = ["framework", "orm", "db", "auth", "styling"] as cons
 
 export type SlotId = (typeof KNOWN_SLOTS)[number];
 
+/**
+ * Slot → internal-package directory under `packages/`. Modules whose slot has
+ * a non-null entry are extracted into their own workspace package
+ * (`packages/<dir>/`, named `@<manifest.name>/<dir>`); the app consumes them
+ * via a `workspace:*` dep. Many-to-one is intentional: `db` and `orm` share a
+ * single `packages/db/` package so the ORM client can sit next to the schema
+ * it queries.
+ *
+ * `null` means "no package — `scope: "package"` is invalid for this slot".
+ * Framework and styling stay app-scoped because they wire the app shell
+ * itself (root layout, global CSS) and have no meaningful separation point.
+ */
+export const SLOT_PACKAGE_DIR: Record<SlotId, string | null> = {
+  framework: null,
+  styling: null,
+  auth: "auth",
+  db: "db",
+  orm: "db",
+};
+
 export type Slot = {
   id: SlotId;
   label: string;
@@ -39,6 +59,14 @@ export type ModuleAdapter = {
   env?: EnvVar[];
   /** package.json `scripts` to merge into the host app. */
   scripts?: Record<string, string>;
+  /**
+   * Other internal-package directories this adapter consumes — referenced by
+   * the same name used in `SLOT_PACKAGE_DIR` values (e.g. `"db"`). The runner
+   * adds `@<manifest.name>/<dir>: workspace:*` to this adapter's package so
+   * cross-package imports resolve. Only meaningful when this adapter's own
+   * slot maps to a package dir.
+   */
+  peerPackages?: string[];
 };
 
 export type TemplateRef = {
@@ -50,8 +78,11 @@ export type TemplateRef = {
    * Where the dest is resolved against:
    *  - "repo": repo root
    *  - "app": the active framework app dir (apps/web by default)
+   *  - "package": the slot's internal package dir under packages/<dir>, where
+   *    `<dir>` is `SLOT_PACKAGE_DIR[module.slot]`. Invalid for slots whose
+   *    entry is `null` (framework, styling).
    */
-  scope?: "repo" | "app";
+  scope?: "repo" | "app" | "package";
   /** If true, run as a template (mustache-style) with the manifest as context. */
   template?: boolean;
   /**
@@ -188,7 +219,7 @@ export const ModuleSchema = z.object({
           z.object({
             src: z.string(),
             dest: z.string(),
-            scope: z.enum(["repo", "app"]).optional(),
+            scope: z.enum(["repo", "app", "package"]).optional(),
             template: z.boolean().optional(),
             content: z.string().optional(),
           }),
@@ -215,6 +246,7 @@ export const ModuleSchema = z.object({
         )
         .optional(),
       scripts: z.record(z.string(), z.string()).optional(),
+      peerPackages: z.array(z.string()).optional(),
     }),
   ),
   homepage: z.string().optional(),

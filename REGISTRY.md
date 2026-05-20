@@ -107,8 +107,17 @@ _Not a slot — a top-level field in `stanza.json` (`packageManager: "pnpm" | "b
 - [x] npm
 - [ ] yarn — needs lockfile/workspace handling that differs from the others
 
+## Slot-package extraction
+
+Generated projects place each slot's output in one of two homes:
+
+- **App-scoped** (`framework`, `styling`) — files land in `manifest.appDir` (e.g. `apps/web/`). These slots wire the app shell itself, so there's no useful extraction boundary.
+- **Package-scoped** (`auth`, `db`, `orm`) — files land in `packages/<dir>/`, named `@<manifest.name>/<dir>`, and the app gets a `workspace:*` dep. `db` and `orm` share a single `packages/db/` package so the ORM client sits next to the schema it queries.
+
+The mapping is hardcoded in [`SLOT_PACKAGE_DIR`](packages/registry/src/module.ts) and applies to every adapter in those slots — module authors don't opt in per-adapter. When you add a new slot, decide upfront whether it extracts (data layer, observability, payments) or wires the shell (router, UI primitives that mount in `<html>`) and add the entry alongside `KNOWN_SLOTS`.
+
 ## Slot taxonomy changes required
 
-The slots `api`, `ai`, `ui`, `payments`, `email`, `tooling`, `testing`, `deploy` don't exist in `KNOWN_SLOTS` yet. Adding them is a manifest-schema bump and a `slotOrder` update in `packages/registry/src/resolver.ts`. Plan the rollout so existing `stanza.json` files don't break — new slots are optional, so adding them is additive.
+The slots `api`, `ai`, `ui`, `payments`, `email`, `tooling`, `testing`, `deploy` don't exist in `KNOWN_SLOTS` yet. Adding them is a manifest-schema bump and a `slotOrder` update in `packages/registry/src/resolver.ts`, plus a `SLOT_PACKAGE_DIR` entry (`null` for shell-wiring slots, a directory name for extracted ones). Plan the rollout so existing `stanza.json` files don't break — new slots are optional, so adding them is additive.
 
 `tooling` and `monorepo` are single-choice within their slot; `testing` is multi-choice (a project can have both vitest and playwright). The current resolver assumes single-choice — `testing` will need an array-valued slot or two sub-slots (`testing-unit`, `testing-e2e`).

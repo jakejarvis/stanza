@@ -20,8 +20,8 @@ export default defineModule({
         "db:studio": "prisma studio",
       },
       templates: [
-        { src: "prisma/schema.postgres.prisma", dest: "prisma/schema.prisma", scope: "app" },
-        { src: "src/db.ts", dest: "src/db.ts", scope: "app" },
+        { src: "prisma/schema.postgres.prisma", dest: "prisma/schema.prisma", scope: "package" },
+        { src: "src/db.ts", dest: "src/index.ts", scope: "package" },
       ],
     },
     {
@@ -35,8 +35,8 @@ export default defineModule({
         "db:studio": "prisma studio",
       },
       templates: [
-        { src: "prisma/schema.sqlite.prisma", dest: "prisma/schema.prisma", scope: "app" },
-        { src: "src/db.ts", dest: "src/db.ts", scope: "app" },
+        { src: "prisma/schema.sqlite.prisma", dest: "prisma/schema.prisma", scope: "package" },
+        { src: "src/db.ts", dest: "src/index.ts", scope: "package" },
       ],
     },
   ],

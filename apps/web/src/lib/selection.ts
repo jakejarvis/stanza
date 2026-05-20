@@ -1,5 +1,11 @@
 import type { Module, ModuleAdapter, SlotId, TemplateRef } from "@stanza/registry";
-import { KNOWN_SLOTS, emptyManifest, resolveAdapter, slotOrder } from "@stanza/registry";
+import {
+  KNOWN_SLOTS,
+  SLOT_PACKAGE_DIR,
+  emptyManifest,
+  resolveAdapter,
+  slotOrder,
+} from "@stanza/registry";
 
 export type Selections = Partial<Record<SlotId, string>>;
 
@@ -80,9 +86,12 @@ export type SelectedFile = {
 
 /**
  * Derive the full file list stanza will write for the current selection.
- * Mirrors codemod-runner's resolution: `scope: "app"` files are prefixed by
- * the active app dir (we default to `apps/web/`); `scope: "repo"` files land
- * at the repo root. Returns a deterministic order grouped by slot order.
+ * Mirrors codemod-runner's resolution:
+ *  - `scope: "repo"`  → repo root
+ *  - `scope: "app"`   → the active app dir (defaults to `apps/web/`)
+ *  - `scope: "package"` → `packages/<SLOT_PACKAGE_DIR[slot]>/`
+ *
+ * Returns a deterministic order grouped by slot order.
  */
 export function selectedFiles(
   resolved: Partial<Record<SlotId, { module: Module; adapter: ModuleAdapter }>>,
@@ -93,11 +102,22 @@ export function selectedFiles(
     const entry = resolved[slot];
     if (!entry) continue;
     for (const tpl of entry.adapter.templates ?? []) {
-      const path = tpl.scope === "repo" ? tpl.dest : `${appDir.replace(/\/$/, "")}/${tpl.dest}`;
+      const path = resolveTemplatePath(tpl, slot, appDir);
       out.push({ path, template: tpl, owner: { slot, module: entry.module.id } });
     }
   }
   return out;
+}
+
+function resolveTemplatePath(tpl: TemplateRef, slot: SlotId, appDir: string): string {
+  if (tpl.scope === "repo") return tpl.dest;
+  if (tpl.scope === "package") {
+    const dir = SLOT_PACKAGE_DIR[slot];
+    // Defensive: if a module declares `scope: "package"` for a slot with no
+    // package dir, the CLI runner would error; the preview just hides it.
+    return dir ? `packages/${dir}/${tpl.dest}` : tpl.dest;
+  }
+  return `${appDir.replace(/\/$/, "")}/${tpl.dest}`;
 }
 
 /**

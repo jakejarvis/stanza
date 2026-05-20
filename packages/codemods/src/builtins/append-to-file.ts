@@ -17,9 +17,22 @@ export type CommentStyle = "line" | "hash" | "block";
  * gives us robust idempotency without parsing the host format.
  */
 export type AppendToFileArgs = {
-  /** Path relative to `projectRoot` or `appRoot` per `scope`. */
+  /** Path relative to the base directory (see `scope` and `base`). */
   file: string;
+  /**
+   * Where `file` resolves against:
+   *  - `"repo"`: `ctx.projectRoot`
+   *  - `"app"` (default): `ctx.appRoot`
+   *
+   * Mutually exclusive with `base` — set one or the other.
+   */
   scope?: "repo" | "app";
+  /**
+   * Alternative to `scope` for targeting an internal workspace package, e.g.
+   * `"package:db"` resolves against `<projectRoot>/packages/db/`. Lets auth
+   * modules append to `packages/db/prisma/schema.prisma` without owning it.
+   */
+  base?: `package:${string}`;
   /** Text content to append. Multi-line strings are common. */
   content: string;
   /**
@@ -106,12 +119,22 @@ const appendToFile: Codemod<AppendToFileArgs> = {
 };
 
 function resolve(ctx: Parameters<Codemod<AppendToFileArgs>["apply"]>[0], args: AppendToFileArgs) {
-  const scope = args.scope ?? "app";
-  const base = scope === "repo" ? ctx.projectRoot : ctx.appRoot;
-  const fileAbs = path.join(base, args.file);
+  const baseAbs = baseDir(ctx, args);
+  const fileAbs = path.join(baseAbs, args.file);
   const fileRel = path.relative(ctx.projectRoot, fileAbs);
   const comment = args.commentStyle ?? inferCommentStyle(args.file);
   return { fileAbs, fileRel, comment };
+}
+
+function baseDir(
+  ctx: Parameters<Codemod<AppendToFileArgs>["apply"]>[0],
+  args: AppendToFileArgs,
+): string {
+  if (args.base && args.base.startsWith("package:")) {
+    return path.join(ctx.projectRoot, "packages", args.base.slice("package:".length));
+  }
+  const scope = args.scope ?? "app";
+  return scope === "repo" ? ctx.projectRoot : ctx.appRoot;
 }
 
 /**

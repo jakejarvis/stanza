@@ -64,8 +64,9 @@ export async function cmdAdd(args: {
   spinner.start(`Adding ${mod.label}`);
 
   const registryRoot = pickRegistryRoot();
+  let result;
   try {
-    await applyModule({
+    result = await applyModule({
       projectRoot,
       manifest,
       module: mod,
@@ -79,6 +80,10 @@ export async function cmdAdd(args: {
   }
 
   spinner.stop(`${kleur.green("✓")} ${mod.label} added`);
+  if (result.bootstrappedPackage) {
+    const { name } = result.bootstrappedPackage;
+    p.log.info(`Run ${kleur.cyan("pnpm install")} to link ${kleur.cyan(name)}.`);
+  }
   if (dryRun) p.log.info(kleur.yellow("[dry-run] no files were written"));
 }
 

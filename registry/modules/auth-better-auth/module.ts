@@ -18,20 +18,27 @@ const env = [
 
 const deps = { "better-auth": "^1.6.11" };
 
-// All four drizzle adapters share the same barrel-re-export step — the auth
-// tables ship as `src/db/auth-schema.ts` and need to be visible through the
-// existing Drizzle barrel at `src/db/schema.ts` for drizzle-kit to see them.
+// All drizzle adapters wire their schema barrel inside the shared db package.
+// The auth tables live in `@<project>/auth/auth-schema` (shipped from the
+// auth package's own templates) and the orm-owned barrel at
+// `packages/db/src/schema.ts` re-exports them so drizzle-kit introspects
+// both schemas as one.
 const drizzleBarrelExport = [
   {
     id: "re-export",
-    args: { file: "src/db/schema.ts", from: "./auth-schema" },
+    args: {
+      file: "src/schema.ts",
+      from: "{{packageName}}/auth-schema",
+      base: "package:db",
+    },
   },
 ] as const;
 
 // Both prisma adapters append the same auth models to the orm-prisma-owned
-// `prisma/schema.prisma`. The models match Better Auth's canonical Prisma
-// schema (user / session / account / verification); the marker wraps the
-// block so re-apply is a no-op and `stanza remove auth` cleans it out.
+// `prisma/schema.prisma` inside `packages/db/`. The models match Better
+// Auth's canonical Prisma schema (user / session / account / verification);
+// the marker wraps the block so re-apply is a no-op and `stanza remove auth`
+// cleans it out.
 const prismaAuthModels = `model User {
   id            String    @id
   name          String
@@ -97,9 +104,58 @@ const prismaAuthModelsAppend = [
       file: "prisma/schema.prisma",
       content: prismaAuthModels,
       marker: "better-auth-models",
+      base: "package:db",
     },
   },
 ] as const;
+
+// Files that go into the auth package itself (`packages/auth/`). The auth
+// barrel is shared across every adapter; the auth.ts implementation varies
+// by ORM/framework.
+const authPackageBarrel = {
+  src: "shared/index.ts",
+  dest: "src/index.ts",
+  scope: "package",
+} as const;
+
+const authClientPackage = (src: string) =>
+  ({
+    src,
+    dest: "src/auth-client.ts",
+    scope: "package",
+  }) as const;
+
+const authImplPackage = (src: string) =>
+  ({
+    src,
+    dest: "src/auth.ts",
+    scope: "package",
+    template: true,
+  }) as const;
+
+const authSchemaPackage = (src: string) =>
+  ({
+    src,
+    dest: "src/auth-schema.ts",
+    scope: "package",
+  }) as const;
+
+// API route files stay app-scoped (framework routing conventions) but they
+// import from the auth package via `{{packageName}}` so the better-auth dep
+// lives only in `packages/auth/`.
+const nextApiRoute = {
+  src: "next/route.ts",
+  dest: "app/api/auth/[...all]/route.ts",
+  scope: "app",
+  template: true,
+} as const;
+
+const tanstackApiRoute = {
+  src: "tanstack/api.ts",
+  dest: "src/routes/api/auth/$.ts",
+  scope: "app",
+  template: true,
+} as const;
 
 export default defineModule({
   id: "better-auth",
@@ -119,15 +175,13 @@ export default defineModule({
       match: { framework: "next", orm: "drizzle", db: "postgres" },
       dependencies: deps,
       env,
+      peerPackages: ["db"],
       templates: [
-        { src: "next/auth.drizzle.ts", dest: "src/lib/auth.ts", scope: "app" },
-        { src: "next/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
-        { src: "next/route.ts", dest: "app/api/auth/[...all]/route.ts", scope: "app" },
-        {
-          src: "shared/auth-schema.drizzle-postgres.ts",
-          dest: "src/db/auth-schema.ts",
-          scope: "app",
-        },
+        authImplPackage("next/auth.drizzle.ts"),
+        authClientPackage("next/auth-client.ts"),
+        authSchemaPackage("shared/auth-schema.drizzle-postgres.ts"),
+        authPackageBarrel,
+        nextApiRoute,
       ],
       codemods: [...drizzleBarrelExport],
     },
@@ -136,15 +190,13 @@ export default defineModule({
       match: { framework: "next", orm: "drizzle", db: "sqlite" },
       dependencies: deps,
       env,
+      peerPackages: ["db"],
       templates: [
-        { src: "next/auth.drizzle.ts", dest: "src/lib/auth.ts", scope: "app" },
-        { src: "next/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
-        { src: "next/route.ts", dest: "app/api/auth/[...all]/route.ts", scope: "app" },
-        {
-          src: "shared/auth-schema.drizzle-sqlite.ts",
-          dest: "src/db/auth-schema.ts",
-          scope: "app",
-        },
+        authImplPackage("next/auth.drizzle.ts"),
+        authClientPackage("next/auth-client.ts"),
+        authSchemaPackage("shared/auth-schema.drizzle-sqlite.ts"),
+        authPackageBarrel,
+        nextApiRoute,
       ],
       codemods: [...drizzleBarrelExport],
     },
@@ -153,10 +205,12 @@ export default defineModule({
       match: { framework: "next", orm: "prisma" },
       dependencies: deps,
       env,
+      peerPackages: ["db"],
       templates: [
-        { src: "next/auth.prisma.ts", dest: "src/lib/auth.ts", scope: "app" },
-        { src: "next/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
-        { src: "next/route.ts", dest: "app/api/auth/[...all]/route.ts", scope: "app" },
+        authImplPackage("next/auth.prisma.ts"),
+        authClientPackage("next/auth-client.ts"),
+        { src: "shared/index.prisma.ts", dest: "src/index.ts", scope: "package" },
+        nextApiRoute,
       ],
       codemods: [...prismaAuthModelsAppend],
     },
@@ -165,15 +219,13 @@ export default defineModule({
       match: { framework: "tanstack-start", orm: "drizzle", db: "postgres" },
       dependencies: deps,
       env,
+      peerPackages: ["db"],
       templates: [
-        { src: "tanstack/auth.drizzle.ts", dest: "src/lib/auth.ts", scope: "app" },
-        { src: "tanstack/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
-        { src: "tanstack/api.ts", dest: "src/routes/api/auth/$.ts", scope: "app" },
-        {
-          src: "shared/auth-schema.drizzle-postgres.ts",
-          dest: "src/db/auth-schema.ts",
-          scope: "app",
-        },
+        authImplPackage("tanstack/auth.drizzle.ts"),
+        authClientPackage("tanstack/auth-client.ts"),
+        authSchemaPackage("shared/auth-schema.drizzle-postgres.ts"),
+        authPackageBarrel,
+        tanstackApiRoute,
       ],
       codemods: [...drizzleBarrelExport],
     },
@@ -182,15 +234,13 @@ export default defineModule({
       match: { framework: "tanstack-start", orm: "drizzle", db: "sqlite" },
       dependencies: deps,
       env,
+      peerPackages: ["db"],
       templates: [
-        { src: "tanstack/auth.drizzle.ts", dest: "src/lib/auth.ts", scope: "app" },
-        { src: "tanstack/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
-        { src: "tanstack/api.ts", dest: "src/routes/api/auth/$.ts", scope: "app" },
-        {
-          src: "shared/auth-schema.drizzle-sqlite.ts",
-          dest: "src/db/auth-schema.ts",
-          scope: "app",
-        },
+        authImplPackage("tanstack/auth.drizzle.ts"),
+        authClientPackage("tanstack/auth-client.ts"),
+        authSchemaPackage("shared/auth-schema.drizzle-sqlite.ts"),
+        authPackageBarrel,
+        tanstackApiRoute,
       ],
       codemods: [...drizzleBarrelExport],
     },
@@ -199,10 +249,12 @@ export default defineModule({
       match: { framework: "tanstack-start", orm: "prisma" },
       dependencies: deps,
       env,
+      peerPackages: ["db"],
       templates: [
-        { src: "tanstack/auth.prisma.ts", dest: "src/lib/auth.ts", scope: "app" },
-        { src: "tanstack/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
-        { src: "tanstack/api.ts", dest: "src/routes/api/auth/$.ts", scope: "app" },
+        authImplPackage("tanstack/auth.prisma.ts"),
+        authClientPackage("tanstack/auth-client.ts"),
+        { src: "shared/index.prisma.ts", dest: "src/index.ts", scope: "package" },
+        tanstackApiRoute,
       ],
       codemods: [...prismaAuthModelsAppend],
     },

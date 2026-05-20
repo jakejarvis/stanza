@@ -1,6 +1,6 @@
 # TODO
 
-State at end of last session: the core architecture is end-to-end functional. `stanza add` composes modules across slots (verified: `framework next` → `db sqlite` → `orm drizzle` → `auth better-auth` produces a working tree with the right adapter selection). 20 unit tests pass. apps/web is a minimal Vite-native TanStack Start scaffold — needs the actual builder UI.
+State at end of last session: declarative slot-package extraction landed — `auth`/`db`/`orm` modules now install into their own internal workspace packages (`packages/auth/`, `packages/db/` named `@<project>/<dir>`); the app consumes via `workspace:*`. Cross-package wiring is declared via `peerPackages` and templated via `{{<dir>PackageName}}` substitution. `stanza add` composes modules across slots (verified: `framework next` → `db postgres` → `orm drizzle` → `auth better-auth` produces a working tree with the right adapter selection and the auth package depending on the db package). 49 unit tests pass. apps/web is a minimal Vite-native TanStack Start scaffold — needs the actual builder UI.
 
 ## Web app (apps/web) — priority
 
@@ -30,9 +30,10 @@ The wizard and verbs work but a few things from the plan are stubbed.
 - [ ] Implement opt-out PostHog telemetry — wire `posthog-node` (already a dep), prompt on first run, store a `telemetryId` in `stanza.json`, respect `--no-telemetry` and `DO_NOT_TRACK=1`
 - [ ] `--yes` flag for non-interactive `init` — pick defaults via flags (`--framework=next` etc.); essential for CI tests
 - [ ] HTTP registry loader path is implemented but unverified — smoke test against the static JSON output
-- [ ] `stanza init`: today's `bootstrapShell` doesn't include `tsconfig.json` at the repo root for the generated project, and doesn't emit `turbo.json`. Decide whether stanza ships those or modules do
+- [ ] `stanza init`: today's `bootstrapShell` doesn't include `tsconfig.json` at the repo root for the generated project, and doesn't emit `turbo.json`. Decide whether stanza ships those or modules do. Also: the root `pnpm-workspace.yaml` must cover `packages/*` so the runner's bootstrapped slot packages link correctly
 - [ ] Better error messages for `RegionConflictError` (current message is technical; should suggest `stanza remove <slot>` or manual cleanup)
 - [ ] `bun build` the CLI for publish — script exists, not yet exercised
+- [ ] `stanza remove` doesn't dispatch to the inverse `revert()` on imperative codemods — regions touched by `wrap-root-layout` and `re-export` get flagged as "needs manual cleanup" even though the codemod ships a working revert. Fix: look up `CODEMOD_CATALOG[id].revert` for region keys that match a codemod-claim pattern (`imports.*`, `providers.*`, `re-exports.*`, `append.*`) and call it
 - [ ] Tests for command handlers (`init`, `add`, `remove`) — current coverage is just codemods + resolver
 
 ## Modules
@@ -40,11 +41,10 @@ The wizard and verbs work but a few things from the plan are stubbed.
 Functional but a few real issues to fix.
 
 - [ ] `auth-better-auth` tanstack-start adapter references `import.meta.env.VITE_BETTER_AUTH_URL` but the env var is declared as `BETTER_AUTH_URL` — either add `VITE_` prefix or read it server-side
-- [ ] `auth-better-auth` auth schema (`shared/auth-schema.drizzle.ts`) is Postgres-only — needs a SQLite variant (different timestamp/boolean handling)
-- [ ] `auth-clerk`: ships `layout-wrapper.tsx` (a `ClerkRootProvider`) but doesn't actually wire it into `app/layout.tsx` — needs an imperative codemod to wrap `<body>` children
+- [ ] `auth-better-auth` drizzle `auth.ts` hardcodes `provider: "pg"` in the `drizzleAdapter` call — wrong for the sqlite peer. Split the template per-db or pass the provider through a substitution var
+- [ ] `auth-better-auth` sqlite schema variant exists (`shared/auth-schema.drizzle-sqlite.ts`); confirm it matches what better-auth actually expects on SQLite end-to-end
 - [ ] `styling-tailwind` + `framework-next` adapter writes `app/globals.css` over the framework's own — confirm the merge order produces the right import (`@import "tailwindcss"`)
-- [ ] First imperative codemod example to validate the codemod-runner's `loadCodemods()` path — try ClerkProvider wrapping
-- [ ] Authoring guide: docs page covering `defineModule`, slot/peer/capability semantics, template vs. codemod choice, region ownership
+- [ ] Authoring guide: docs page covering `defineModule`, slot/peer/capability semantics, template vs. codemod choice, region ownership, and the `scope: "package"` + `peerPackages` story
 
 ## Registry expansion
 
@@ -76,7 +76,7 @@ The full first-party module roadmap lives in [REGISTRY.md](REGISTRY.md). These a
 
 These are real future work but consciously deferred — don't pull them in opportunistically.
 
-- `stanza swap <slot> <to>` — manifest already records `version` + `regions` to support it
+- `stanza swap <slot> <to>` — manifest already records `version` + `regions` to support it; slot-package extraction now means swap can replace the contents of `packages/<dir>/` without touching app imports
 - `stanza update` — pinned-version 3-way merge
 - Third-party registry hosting — the spec exists implicitly; publish it formally later
 - React Native / Expo modules — needs the `native` capability + cross-platform framework slot

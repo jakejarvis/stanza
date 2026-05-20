@@ -20,7 +20,7 @@ import {
  *     so two modules don't silently disagree on how to re-export a peer.
  */
 export type ReExportArgs = {
-  /** Barrel file path, appRoot-relative (e.g. `"src/db/schema.ts"`). */
+  /** Barrel file path, resolved against `base` (default: the app root). */
   file: string;
   /** Module specifier to re-export from (e.g. `"./auth-schema"`). */
   from: string;
@@ -29,6 +29,14 @@ export type ReExportArgs = {
    * named exports emits `export { a, b } from "<from>";`.
    */
   names?: string[] | "all";
+  /**
+   * Where `file` resolves against:
+   *  - `"app"` (default): `ctx.appRoot/<file>` — the active framework app.
+   *  - `"package:<dir>"`: `<projectRoot>/packages/<dir>/<file>` — an internal
+   *    workspace package. Used when auth needs to wire its schema barrel into
+   *    `packages/db/`, which lives outside the app.
+   */
+  base?: "app" | `package:${string}`;
 };
 
 const reExport: Codemod<ReExportArgs> = {
@@ -36,7 +44,7 @@ const reExport: Codemod<ReExportArgs> = {
   description: 'Append an `export ... from "X"` statement to a barrel file.',
 
   apply(ctx, args) {
-    const fileAbs = path.join(ctx.appRoot, args.file);
+    const fileAbs = resolveBase(ctx, args);
     const fileRel = path.relative(ctx.projectRoot, fileAbs);
     const sf = openOrThrow(ctx, fileAbs);
 
@@ -83,7 +91,7 @@ const reExport: Codemod<ReExportArgs> = {
   },
 
   revert(ctx, args) {
-    const fileAbs = path.join(ctx.appRoot, args.file);
+    const fileAbs = resolveBase(ctx, args);
     const fileRel = path.relative(ctx.projectRoot, fileAbs);
     const sf = openOrThrow(ctx, fileAbs);
 
@@ -99,6 +107,17 @@ const reExport: Codemod<ReExportArgs> = {
 
 function regionKey(from: string): string {
   return `re-exports.${from}`;
+}
+
+function resolveBase(
+  ctx: Parameters<Codemod<ReExportArgs>["apply"]>[0],
+  args: ReExportArgs,
+): string {
+  if (args.base && args.base.startsWith("package:")) {
+    const dir = args.base.slice("package:".length);
+    return path.join(ctx.projectRoot, "packages", dir, args.file);
+  }
+  return path.join(ctx.appRoot, args.file);
 }
 
 function openOrThrow(

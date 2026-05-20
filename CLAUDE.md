@@ -24,6 +24,8 @@ Three things differentiate stanza from other scaffolders:
 - `packages/internal/` — Internal maintenance scripts: `registry-build.ts` (emits static CDN JSON), `module-new.ts` (scaffolds a new module)
 - `registry/modules/<slot>-<id>/` — first-party modules: `module.ts` + `templates/` (modules don't ship codemod code; see Architecture rules)
 
+In a **generated project**, `auth`, `db`, and `orm` modules install into their own internal workspace package at `packages/<dir>/` (named `@<manifest.name>/<dir>`); the app consumes them via `workspace:*` deps. `framework` and `styling` stay app-scoped because they wire the app shell itself. The mapping is hardcoded in [`SLOT_PACKAGE_DIR`](packages/registry/src/module.ts) — `auth → "auth"`, both `db` and `orm → "db"` (they share a single `packages/db/` package).
+
 ## Commands
 
 - `bun apps/cli/src/bin.ts <verb>` — run CLI directly without build
@@ -55,8 +57,11 @@ Three things differentiate stanza from other scaffolders:
 - **Adding a generic codemod**: drop `<id>.ts` under [packages/codemods/src/builtins/](packages/codemods/src/builtins/), default-export a `Codemod<TArgs>`, and register it in [packages/codemods/src/builtins/index.ts](packages/codemods/src/builtins/index.ts). Codemods that bake in module-specific identifiers don't belong — factor them into args
 - **Third-party codemods**: deferred. Third-party HTTP-loaded modules can use the existing catalog codemods (pass `{ id, args }` from their manifest) but can't add new ones until we land a proper sandboxed-execution + signing model
 - **apps/web previews are server-rendered**: Shiki runs in `apps/web/src/server/highlighter.ts` (module-singleton, kept warm). The builder loader (`createServerFn` in `apps/web/src/server/builder-state.ts`) computes selected files from URL search params, pre-renders Shiki HTML for each, and ships `Record<path, { light, dark }>` to the client. `shiki` must NEVER be imported from a client component — verified by `vite build` followed by `grep shiki .output/public/assets/*.js` (should return nothing)
-- **Slot taxonomy** is currently `framework | styling | db | orm | auth` (see `KNOWN_SLOTS`); adding a slot is a manifest schema bump — update `KNOWN_SLOTS`, `slotOrder`, and the Zod manifest schema together
+- **Slot taxonomy** is currently `framework | styling | db | orm | auth` (see `KNOWN_SLOTS`); adding a slot is a manifest schema bump — update `KNOWN_SLOTS`, `slotOrder`, the Zod manifest schema, and `SLOT_PACKAGE_DIR` together (decide whether the new slot extracts into its own package or stays app-scoped)
 - **Adapter keys** encode peer choices (e.g., `next+drizzle`); the resolver picks the most specific match
+- **Slot-package extraction**: `auth`/`db`/`orm` modules install into `packages/<dir>/` workspace packages (named `@<manifest.name>/<dir>`); templates `scope: "package"`, deps/devDeps/scripts route there, and the app gets a `workspace:*` dep wired by the runner. `framework`/`styling` stay app-scoped (their `SLOT_PACKAGE_DIR` entry is `null`). The bootstrap files (the package's `package.json` + `tsconfig.json` and the host app's workspace dep) are **system-owned** — not tracked in `regions`. `stanza remove`'s sweep deletes them when no claims remain under `packages/<dir>/`
+- **Generated projects don't share a tsconfig base**: every `apps/*/tsconfig.json` and `packages/*/tsconfig.json` is self-contained. The framework module ships the app's tsconfig; the runner's `ensureSlotPackage` writes a matching self-contained config when bootstrapping a slot package. `tsconfig.base.json` lives in the stanza repo only; do not emit it in generated trees
+- **Cross-package wiring**: when an adapter's source code imports from another internal package (e.g. `better-auth`'s `auth.ts` reads `db` from the orm package), declare `peerPackages: ["db"]` on the adapter. The runner adds `@<project>/db: workspace:*` to the current package's `package.json`. Templates can reference other packages via `{{<dir>PackageName}}` substitution (e.g. `{{dbPackageName}}` → `@my-app/db`) — substitution runs over both template bodies (when `template: true`) and codemod-invocation `args` string values
 - **Region ownership** in `stanza.json` is the source of truth for `remove`/future-`swap`; two modules claiming the same region is a hard error (`RegionConflictError`)
 - **Declarative beats imperative**: prefer `templates`/`dependencies`/`env`/`scripts` over imperative codemods; the runner applies declarative fields generically
 - **Reserved manifest fields**: `modules[slot].version` and `regions` are written today but only fully consumed by the upcoming `swap`/`update` verbs — do not drop them
@@ -64,9 +69,15 @@ Three things differentiate stanza from other scaffolders:
 ## Module authoring
 
 - `module.ts` exports `defineModule({...})` with at least one adapter (use `match: {}` for "default / no peer")
-- Templates go in `templates/`, referenced by `src` path; `scope: "app"` resolves against `manifest.appDir`, `scope: "repo"` against the repo root
-- Framework modules MUST NOT ship a `package.json.tpl` — it collides with `addPackageDependency`. Let the runner merge deps into the host's package.json
-- To invoke an imperative codemod from a module, add `codemods: [{ id: "<catalog-id>", args: {...} }]` to the adapter. Modules never ship code — if no catalog entry matches the need, design a new generic codemod with the right args
+- Templates go in `templates/`, referenced by `src` path. `scope` decides where `dest` lands:
+  - `"app"` (default) → `manifest.appDir` (e.g. `apps/web/`)
+  - `"repo"` → repo root
+  - `"package"` → `packages/<SLOT_PACKAGE_DIR[slot]>/` — only valid for slots with a non-null entry (`auth`, `db`, `orm`)
+- For `auth`/`db`/`orm` modules, default to `scope: "package"` for everything that can live inside the package boundary. Reach for `scope: "app"` only when a framework convention forces the file to sit at the app root (e.g. Next's `middleware.ts`, App Router API routes). App-scoped files should be thin shims that `import` from `{{packageName}}`; set `template: true` and the runner runs mustache substitution
+- For cross-package imports (e.g. `auth` reading `db`), declare `peerPackages: ["<dir>"]` on the adapter so the runner adds the workspace dep, and write the import as `{{<dir>PackageName}}` (e.g. `import { db } from "{{dbPackageName}}";`)
+- Framework modules MUST NOT ship a `package.json.tpl` — it collides with `addPackageDependency`. Let the runner merge deps into the host's package.json. The same rule applies to **package-scoped** modules: don't ship a `packages/<dir>/package.json` template — the runner's `ensureSlotPackage` bootstraps one and merges adapter deps in
+- To invoke an imperative codemod from a module, add `codemods: [{ id: "<catalog-id>", args: {...} }]` to the adapter. Modules never ship code — if no catalog entry matches the need, design a new generic codemod with the right args. String values in `args` go through mustache substitution (same context as template bodies)
+- For codemods that operate on files inside a slot's package (e.g. extending the orm's schema barrel from the auth module), pass `base: "package:<dir>"` to the catalog codemod — `re-export` and `append-to-file` both honor it
 
 ## Gotchas
 
