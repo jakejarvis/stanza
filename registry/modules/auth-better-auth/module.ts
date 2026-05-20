@@ -18,6 +18,89 @@ const env = [
 
 const deps = { "better-auth": "^1.6.11" };
 
+// All four drizzle adapters share the same barrel-re-export step — the auth
+// tables ship as `src/db/auth-schema.ts` and need to be visible through the
+// existing Drizzle barrel at `src/db/schema.ts` for drizzle-kit to see them.
+const drizzleBarrelExport = [
+  {
+    id: "re-export",
+    args: { file: "src/db/schema.ts", from: "./auth-schema" },
+  },
+] as const;
+
+// Both prisma adapters append the same auth models to the orm-prisma-owned
+// `prisma/schema.prisma`. The models match Better Auth's canonical Prisma
+// schema (user / session / account / verification); the marker wraps the
+// block so re-apply is a no-op and `stanza remove auth` cleans it out.
+const prismaAuthModels = `model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  token     String
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verification")
+}`;
+
+const prismaAuthModelsAppend = [
+  {
+    id: "append-to-file",
+    args: {
+      file: "prisma/schema.prisma",
+      content: prismaAuthModels,
+      marker: "better-auth-models",
+    },
+  },
+] as const;
+
 export default defineModule({
   id: "better-auth",
   slot: "auth",
@@ -46,6 +129,7 @@ export default defineModule({
           scope: "app",
         },
       ],
+      codemods: [...drizzleBarrelExport],
     },
     {
       key: "next+drizzle+sqlite",
@@ -62,6 +146,7 @@ export default defineModule({
           scope: "app",
         },
       ],
+      codemods: [...drizzleBarrelExport],
     },
     {
       key: "next+prisma",
@@ -73,6 +158,7 @@ export default defineModule({
         { src: "next/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
         { src: "next/route.ts", dest: "app/api/auth/[...all]/route.ts", scope: "app" },
       ],
+      codemods: [...prismaAuthModelsAppend],
     },
     {
       key: "tanstack-start+drizzle+postgres",
@@ -89,6 +175,7 @@ export default defineModule({
           scope: "app",
         },
       ],
+      codemods: [...drizzleBarrelExport],
     },
     {
       key: "tanstack-start+drizzle+sqlite",
@@ -105,6 +192,7 @@ export default defineModule({
           scope: "app",
         },
       ],
+      codemods: [...drizzleBarrelExport],
     },
     {
       key: "tanstack-start+prisma",
@@ -116,6 +204,7 @@ export default defineModule({
         { src: "tanstack/auth-client.ts", dest: "src/lib/auth-client.ts", scope: "app" },
         { src: "tanstack/api.ts", dest: "src/routes/api/auth/$.ts", scope: "app" },
       ],
+      codemods: [...prismaAuthModelsAppend],
     },
   ],
 });

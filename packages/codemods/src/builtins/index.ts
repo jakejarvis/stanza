@@ -21,13 +21,19 @@
  */
 import type { Codemod } from "../index";
 import addVitePlugin from "./add-vite-plugin";
+import appendToFile from "./append-to-file";
+import reExport from "./re-export";
 import wrapRootLayout from "./wrap-root-layout";
 
 export const CODEMOD_CATALOG: Record<string, Codemod> = {
   [addVitePlugin.id]: addVitePlugin as unknown as Codemod,
+  [appendToFile.id]: appendToFile as unknown as Codemod,
+  [reExport.id]: reExport as unknown as Codemod,
   [wrapRootLayout.id]: wrapRootLayout as unknown as Codemod,
 };
 
-export { addVitePlugin, wrapRootLayout };
+export { addVitePlugin, appendToFile, reExport, wrapRootLayout };
 export type { AddVitePluginArgs } from "./add-vite-plugin";
+export type { AppendToFileArgs } from "./append-to-file";
+export type { ReExportArgs } from "./re-export";
 export type { WrapRootLayoutArgs } from "./wrap-root-layout";

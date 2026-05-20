@@ -2,7 +2,15 @@ export type { CodemodContext, Codemod, CodemodResult } from "./types";
 
 // Re-export common ts-morph types + the SyntaxKind enum so CLI codemods
 // don't need a direct ts-morph dep.
-export type { ExportAssignment, ImportDeclaration, Node, Project, SourceFile } from "ts-morph";
+export type {
+  ExportAssignment,
+  ExportDeclaration,
+  ExportSpecifier,
+  ImportDeclaration,
+  Node,
+  Project,
+  SourceFile,
+} from "ts-morph";
 export { SyntaxKind } from "ts-morph";
 
 export { openProject } from "./project";
