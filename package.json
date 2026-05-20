@@ -14,11 +14,15 @@
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "registry:build": "turbo run registry:build --filter=@stanza/internal",
-    "module:new": "pnpm --filter=@stanza/internal run module:new"
+    "registry:build": "bun scripts/registry-build.ts",
+    "module:new": "bun scripts/module-new.ts"
   },
   "devDependencies": {
+    "@clack/prompts": "^1.4.0",
+    "@stanza/registry": "workspace:*",
     "@types/node": "^25.9.1",
+    "kleur": "^4.1.5",
+    "mri": "^1.2.0",
     "oxfmt": "^0.51.0",
     "oxlint": "^1.66.0",
     "turbo": "^2.9.14",

@@ -7,8 +7,10 @@ import { KNOWN_SLOTS, SLOT_PACKAGE_DIR, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
-import { findProjectRoot, readManifest, writeManifest } from "../manifest";
-import { regionsOwnedBy } from "../region-tracker";
+import { revertCodemods } from "@/lib/codemod-runner";
+import { findProjectRoot, readManifest, writeManifest } from "@/lib/manifest";
+import { regionsOwnedBy } from "@/lib/region-tracker";
+import { loadRegistry } from "@/lib/registry-loader";
 
 export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<void> {
   if (!args.slot) {
@@ -30,21 +32,43 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
     return;
   }
 
-  const manifest = readManifest(projectRoot);
+  let manifest = readManifest(projectRoot);
   const installed = manifest.modules[slot];
   if (!installed) {
     p.log.warn(`Slot "${slot}" is not filled.`);
     return;
   }
 
-  const owned = regionsOwnedBy(manifest, installed.id);
   const dryRun = Boolean(args.argv["dry-run"]);
-
-  // Best-effort reversal: deps, env vars, and whole-file templates revert
-  // cleanly. Regions touched by imperative codemods get reported as "needs
-  // manual cleanup" until proper inverse codemods land.
   const manualCleanup: string[] = [];
 
+  // Step 1: revert imperative codemods first. They modify framework- or
+  // peer-owned files (root layout, schema barrels, vite config) — reverts
+  // need to see those files intact, before any template deletions below.
+  const registry = await loadRegistry();
+  const mod = await registry.loadModule(slot, installed.id).catch(() => null);
+  const adapter = mod?.adapters.find((a) => a.key === installed.adapter);
+  if (mod && adapter) {
+    const revertResult = await revertCodemods({
+      projectRoot,
+      manifest,
+      module: mod,
+      adapter,
+      dryRun,
+    });
+    manifest = revertResult.manifest;
+    for (const id of revertResult.manualCleanup) {
+      manualCleanup.push(`codemod:${id} (no revert or revert threw)`);
+    }
+  } else {
+    p.log.warn(
+      `Couldn't re-load ${installed.id}@${installed.adapter} from the registry — skipping imperative codemod reversal.`,
+    );
+  }
+
+  // Step 2: reverse the declarative side — files, deps, scripts, env vars —
+  // driven by whatever region claims remain after the codemod reverts.
+  const owned = regionsOwnedBy(manifest, installed.id);
   for (const { file, region } of owned) {
     const abs = path.join(projectRoot, file);
     if (file === ".env.example") {
@@ -67,14 +91,19 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
       }
     }
     if (region === "file") {
-      // Whole-file template — safe to delete since stanza wrote it.
       if (!dryRun && fs.existsSync(abs)) fs.unlinkSync(abs);
       continue;
     }
+    // Anything still here is a codemod-claimed region whose revert wasn't
+    // dispatched (no revert defined, or it threw). Surface it for manual
+    // cleanup — but don't drop the claim, since the artifact is still in
+    // the file and an operator may still want to find it.
     manualCleanup.push(`${file}:${region}`);
   }
 
-  // Update manifest: drop module + its regions.
+  // Strip the module record + its remaining region claims (the codemod
+  // reverts already released their own; this picks up the declarative ones
+  // we just processed above).
   const nextRegions = { ...manifest.regions };
   for (const { file, region } of owned) {
     if (nextRegions[file]) {
@@ -86,19 +115,20 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
   }
   const nextModules = { ...manifest.modules };
   delete nextModules[slot];
+  manifest = { ...manifest, modules: nextModules, regions: nextRegions };
 
-  // Sweep: for each slot that maps to an internal package, if nothing remains
-  // claimed under packages/<dir>/, tear down the bootstrap (package.json,
-  // tsconfig.json, the dir itself) and drop the workspace dep from the app.
-  // The system-owned bootstrap files aren't tracked as regions, so they'd
-  // otherwise linger forever.
+  // Step 3: sweep any internal package whose claims have all been released.
+  // The bootstrap files (package.json, tsconfig.json, the workspace dep on
+  // the app) are system-owned — not tracked in regions, so they'd otherwise
+  // linger forever.
   const sweptPackages: string[] = [];
-  const appPkgRel = `${manifest.appDir}/package.json`;
-  const appPkgAbs = path.join(projectRoot, appPkgRel);
+  const appPkgAbs = path.join(projectRoot, manifest.appDir, "package.json");
   for (const dir of new Set(
     Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null),
   )) {
-    const stillUsed = Object.keys(nextRegions).some((file) => file.startsWith(`packages/${dir}/`));
+    const stillUsed = Object.keys(manifest.regions).some((file) =>
+      file.startsWith(`packages/${dir}/`),
+    );
     if (stillUsed) continue;
     const pkgRoot = path.join(projectRoot, "packages", dir);
     if (!fs.existsSync(pkgRoot)) continue;
@@ -111,9 +141,7 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
     sweptPackages.push(dir);
   }
 
-  if (!dryRun) {
-    writeManifest(projectRoot, { ...manifest, modules: nextModules, regions: nextRegions });
-  }
+  if (!dryRun) writeManifest(projectRoot, manifest);
 
   p.log.success(`${kleur.green("✓")} Removed ${installed.id} from ${slot}`);
   if (sweptPackages.length > 0) {
@@ -121,7 +149,7 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
   }
   if (manualCleanup.length > 0) {
     p.log.warn(
-      `${manualCleanup.length} region(s) need manual cleanup:\n` +
+      `${manualCleanup.length} item(s) need manual cleanup:\n` +
         manualCleanup.map((r) => `  • ${r}`).join("\n"),
     );
   }

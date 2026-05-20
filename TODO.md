@@ -19,7 +19,7 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 - [ ] Layout: header (logo, GitHub link, docs link), footer
 - [ ] Dark mode (Tailwind 4 `light-dark()` + system pref)
 - [ ] SEO: meta tags via `head()` on routes, OG image, sitemap
-- [ ] Host the registry on the same domain — wire `packages/internal`'s registry-build output to `apps/web/public/registry/` and serve statically, or via a Vercel route handler
+- [ ] Host the registry on the same domain — wire the registry-build output (`scripts/registry-build.ts` → `dist/registry/`) to `apps/web/public/registry/` and serve statically, or via a Vercel route handler
 - [ ] Vercel deploy config — `vercel.json` if needed, env vars for `STANZA_REGISTRY` (point dev at local FS, prod at the deployed CDN path)
 - [ ] Docs section (could be MDX routes): overview, authoring guide, registry spec
 
@@ -30,10 +30,9 @@ The wizard and verbs work but a few things from the plan are stubbed.
 - [ ] Implement opt-out PostHog telemetry — wire `posthog-node` (already a dep), prompt on first run, store a `telemetryId` in `stanza.json`, respect `--no-telemetry` and `DO_NOT_TRACK=1`
 - [ ] `--yes` flag for non-interactive `init` — pick defaults via flags (`--framework=next` etc.); essential for CI tests
 - [ ] HTTP registry loader path is implemented but unverified — smoke test against the static JSON output
-- [ ] `stanza init`: today's `bootstrapShell` doesn't include `tsconfig.json` at the repo root for the generated project, and doesn't emit `turbo.json`. Decide whether stanza ships those or modules do. Also: the root `pnpm-workspace.yaml` must cover `packages/*` so the runner's bootstrapped slot packages link correctly
+- [ ] `stanza init`: today's `bootstrapShell` doesn't emit `turbo.json`. Decide whether stanza ships that or a tooling module does. Also: the root `pnpm-workspace.yaml` must cover `packages/*` so the runner's bootstrapped slot packages link correctly
 - [ ] Better error messages for `RegionConflictError` (current message is technical; should suggest `stanza remove <slot>` or manual cleanup)
 - [ ] `bun build` the CLI for publish — script exists, not yet exercised
-- [ ] `stanza remove` doesn't dispatch to the inverse `revert()` on imperative codemods — regions touched by `wrap-root-layout` and `re-export` get flagged as "needs manual cleanup" even though the codemod ships a working revert. Fix: look up `CODEMOD_CATALOG[id].revert` for region keys that match a codemod-claim pattern (`imports.*`, `providers.*`, `re-exports.*`, `append.*`) and call it
 - [ ] Tests for command handlers (`init`, `add`, `remove`) — current coverage is just codemods + resolver
 
 ## Modules

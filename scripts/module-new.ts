@@ -3,9 +3,9 @@
  * Scaffold a new first-party module under registry/modules/<slot>-<id>/.
  *
  * Usage:
- *   bun module:new                        — fully interactive
- *   bun module:new <slot> <id>            — positional, prompts for the rest
- *   bun module:new <slot> <id> [flags]    — non-interactive
+ *   bun scripts/module-new.ts                        — fully interactive
+ *   bun scripts/module-new.ts <slot> <id>            — positional, prompts for the rest
+ *   bun scripts/module-new.ts <slot> <id> [flags]    — non-interactive
  *
  * Flags:
  *   --label "Display Name"        Default: title-cased id
@@ -195,7 +195,7 @@ function packageJson(a: Args): string {
 
 function tsconfig(withCodemod: boolean): string {
   const cfg = {
-    extends: "../../../tsconfig.base.json",
+    extends: "../../../tsconfig.json",
     ...(withCodemod ? { compilerOptions: { types: ["node"] } } : {}),
     include: withCodemod ? ["module.ts", "codemods/**/*.ts"] : ["module.ts"],
     exclude: ["templates"],
@@ -286,7 +286,7 @@ function printHelp() {
 ${kleur.bold("module:new")} — scaffold a new first-party stanza module
 
 ${kleur.bold("Usage")}
-  bun module:new [slot] [id] [flags]
+  bun scripts/module-new.ts [slot] [id] [flags]
 
 ${kleur.bold("Flags")}
   --label "Display Name"        Default: title-cased id
@@ -297,9 +297,9 @@ ${kleur.bold("Flags")}
   -h, --help                    Show this help
 
 ${kleur.bold("Examples")}
-  bun module:new                              # fully interactive
-  bun module:new email resend                 # prompt only for label/description
-  bun module:new ui shadcn-radix --yes        # no prompts
-  bun module:new auth workos --with-codemod   # include codemods/index.ts stub
+  bun scripts/module-new.ts                              # fully interactive
+  bun scripts/module-new.ts email resend                 # prompt only for label/description
+  bun scripts/module-new.ts ui shadcn-radix --yes        # no prompts
+  bun scripts/module-new.ts auth workos --with-codemod   # include codemods/index.ts stub
 `);
 }

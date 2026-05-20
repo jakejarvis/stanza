@@ -20,10 +20,6 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": []
-    },
-    "registry:build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/registry/**"]
     }
   }
 }

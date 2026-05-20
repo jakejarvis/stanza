@@ -21,7 +21,7 @@ import type {
 import { SLOT_PACKAGE_DIR } from "@stanza/registry";
 
 import { writeManifest } from "./manifest";
-import { claim, RegionConflictError } from "./region-tracker";
+import { claim, release, RegionConflictError } from "./region-tracker";
 
 export type RunResult = {
   manifest: StanzaManifest;
@@ -86,20 +86,7 @@ export async function applyModule(args: {
     if (created) bootstrappedPackage = { dir: packageDir, name: packageName };
   }
 
-  // Render context provides `{{packageName}}` for the active module's own
-  // package, plus shorthand `{{<dir>PackageName}}` keys for every slot package
-  // so cross-package imports (e.g. better-auth's auth.ts importing `db` from
-  // `@<project>/db`) can be templated declaratively.
-  const renderContext: Record<string, string> = {
-    appDir: manifest.appDir,
-    projectName: manifest.name,
-    packageName,
-  };
-  for (const dir of new Set(
-    Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null),
-  )) {
-    renderContext[`${dir}PackageName`] = `@${manifest.name}/${dir}`;
-  }
+  const renderContext = buildRenderContext(manifest, packageName);
 
   // 1. Templates (claim regions per-template-file).
   for (const tpl of adapter.templates ?? []) {
@@ -413,7 +400,8 @@ function buildContext(args: {
   project: () => Project;
   touchedFiles: Set<string>;
   dryRun: boolean;
-  onClaim: (file: string, region: string) => void;
+  onClaim?: (file: string, region: string) => void;
+  onRelease?: (file: string, region: string) => void;
 }): CodemodContext {
   return {
     projectRoot: args.projectRoot,
@@ -423,12 +411,118 @@ function buildContext(args: {
     owner: { slot: args.module.slot, module: args.module.id },
     adapter: args.adapter.key,
     claimRegion(file, region) {
-      args.onClaim(file, region);
+      args.onClaim?.(file, region);
     },
-    releaseRegion() {
-      // No-op during `add`. The remove path uses regionsOwnedBy() to reverse.
+    releaseRegion(file, region) {
+      args.onRelease?.(file, region);
     },
   };
+}
+
+/**
+ * Build the render context used by both template-body substitution and
+ * codemod-args substitution. Provides:
+ *  - `{{appDir}}`, `{{projectName}}` — project-level
+ *  - `{{packageName}}` — the active module's own package (empty for slots
+ *    without a package mapping)
+ *  - `{{<dir>PackageName}}` (e.g. `{{dbPackageName}}`) — shorthand for every
+ *    slot package, so cross-package imports stay declarative
+ */
+function buildRenderContext(manifest: StanzaManifest, packageName: string): Record<string, string> {
+  const ctx: Record<string, string> = {
+    appDir: manifest.appDir,
+    projectName: manifest.name,
+    packageName,
+  };
+  for (const dir of new Set(
+    Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null),
+  )) {
+    ctx[`${dir}PackageName`] = `@${manifest.name}/${dir}`;
+  }
+  return ctx;
+}
+
+export type RevertResult = {
+  manifest: StanzaManifest;
+  touchedFiles: string[];
+  dryRun: boolean;
+  /**
+   * Codemods that couldn't be reverted automatically — either no `revert()`
+   * is defined or one threw. Each entry is the codemod id; the caller
+   * surfaces this as "needs manual cleanup".
+   */
+  manualCleanup: string[];
+};
+
+/**
+ * Replay an installed module's imperative codemods in reverse via their
+ * `revert()` functions. Each revert releases the regions it claimed, which
+ * we propagate into the manifest. Declarative reversals (files, deps, env)
+ * stay in `commands/remove.ts` — they're region-driven and don't need the
+ * module to be re-loaded.
+ *
+ * Args are reconstructed by running the original `args` template strings
+ * through the same `renderTemplate` substitution used on apply, so reverts
+ * see the same concrete values (e.g. `providerImport: "@my-app/auth"`).
+ */
+export async function revertCodemods(args: {
+  projectRoot: string;
+  manifest: StanzaManifest;
+  module: Module;
+  adapter: ModuleAdapter;
+  dryRun: boolean;
+}): Promise<RevertResult> {
+  const { projectRoot, module, adapter, dryRun } = args;
+  let manifest = args.manifest;
+  const touchedFiles = new Set<string>();
+  const manualCleanup: string[] = [];
+  const appRoot = path.join(projectRoot, manifest.appDir);
+
+  const codemods = adapter.codemods ?? [];
+  if (codemods.length === 0) return { manifest, touchedFiles: [], dryRun, manualCleanup };
+
+  const packageDir = SLOT_PACKAGE_DIR[module.slot];
+  const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
+  const renderContext = buildRenderContext(manifest, packageName);
+
+  const project = lazyProject(appRoot);
+  const ctx = buildContext({
+    projectRoot,
+    appRoot,
+    manifest,
+    module,
+    adapter,
+    project,
+    touchedFiles,
+    dryRun,
+    onRelease: (file, region) => {
+      manifest = release(manifest, file, region);
+    },
+  });
+
+  // Reverse order: if codemod B layered on top of A's output, undo B first.
+  for (const invocation of codemods.toReversed()) {
+    const fn = CODEMOD_CATALOG[invocation.id];
+    if (!fn || !fn.revert) {
+      manualCleanup.push(invocation.id);
+      continue;
+    }
+    if (dryRun) continue;
+    try {
+      const renderedArgs = renderArgs(invocation.args ?? {}, renderContext);
+      const result = await fn.revert(ctx, renderedArgs);
+      result.touchedFiles.forEach((f) => touchedFiles.add(f));
+    } catch {
+      // Don't surface the exception body — the caller already prints a
+      // "manual cleanup" warning with the codemod id; the user can re-run
+      // with stack traces if they need details. Keep going so other codemods
+      // still get a chance to revert.
+      manualCleanup.push(invocation.id);
+    }
+  }
+  if (!dryRun) await project.save?.();
+
+  return { manifest, touchedFiles: [...touchedFiles], dryRun, manualCleanup };
 }
 
 export { RegionConflictError };
