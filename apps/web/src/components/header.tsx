@@ -37,7 +37,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           <SiteSearch index={index} />
           <Button nativeButton={false} render={GITHUB_LINK} variant="outline">
-            <IconBrandGithub data-icon="inline-start" />
+            <IconBrandGithub className="text-muted-foreground" />
             <span className="sr-only">GitHub</span>
           </Button>
           <ModeToggle />
