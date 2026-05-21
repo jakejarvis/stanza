@@ -52,7 +52,19 @@ export function FilePreview({
       return item != null && "isExpanded" in item && item.isExpanded();
     });
     expanded.sort();
+    // Capture the open file before `resetPaths` wipes selection.
+    const previousSelection = model.getSelectedPaths()[0];
     model.resetPaths(filePaths, { initialExpandedPaths: expanded });
+    // `resetPaths` clears selection; without a selected row the tree gives no
+    // indication of which file the preview pane is showing. Re-seed it: keep
+    // the open file if it survived the path change, else fall back to the
+    // default (root package.json / first file) the preview defaults to.
+    const fallback = filePaths.includes("package.json") ? "package.json" : filePaths[0];
+    const next =
+      previousSelection != null && filePaths.includes(previousSelection)
+        ? previousSelection
+        : fallback;
+    if (next) model.getItem(next)?.select();
     prevPathsRef.current = filePaths;
   }, [model, filePaths]);
 
@@ -100,9 +112,19 @@ export function FilePreview({
               // right palette; `model` lives in the parent, so selection holds.
               key={resolvedTheme}
               model={model}
-              // `--trees-bg-override` is the tree's background var (inherits into
-              // its shadow root); transparent lets the card bg show through.
-              className="h-[180px] overflow-auto [--trees-bg-override:transparent] sm:h-full sm:max-h-[480px] lg:max-h-none"
+              // `--trees-*-override` vars inherit through the shadow boundary,
+              // so we map the tree's palette onto the app's design tokens:
+              //  - bg transparent lets the card bg show through;
+              //  - `themeToTreeStyles({ type })` leaves the selected-row bg
+              //    transparent (no `colors` map), so without an override the
+              //    active file has no visual indication — drive it from accent;
+              //  - the tree's accent (focus ring + selected-row border) defaults
+              //    to a hardcoded blue that clashes with our monochrome palette;
+              //    point it at the app's focus-ring token.
+              // The tree's default left/right inset is 16px with no vertical
+              // padding; tighten the inline inset to 8px and mirror it as
+              // top/bottom padding (`py-2`) so the rows sit evenly inset.
+              className="h-[180px] overflow-auto py-2 [--trees-accent-override:var(--ring)] [--trees-bg-override:transparent] [--trees-padding-inline-override:8px] [--trees-selected-bg-override:var(--accent)] [--trees-selected-fg-override:var(--accent-foreground)] sm:h-full sm:max-h-[480px] lg:max-h-none"
               style={treeStyle}
             />
           </div>
