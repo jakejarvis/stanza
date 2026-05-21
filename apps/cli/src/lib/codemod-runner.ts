@@ -27,6 +27,7 @@ import {
 } from "@stanza/registry";
 
 import { writeManifest } from "./manifest";
+import { resolveRanges } from "./npm-version";
 import { claim, release, RegionConflictError } from "./region-tracker";
 
 export type RunResult = {
@@ -139,7 +140,17 @@ export async function applyModule(args: {
     );
   }
   if (hasInstall) {
-    for (const [name, range] of Object.entries(installFields.dependencies)) {
+    // Re-pin declared `^`/`~` ranges to the latest published version that still
+    // satisfies them (e.g. `^1.6.11` → `^1.8.3`), preserving the modifier. Skip
+    // the network on dry-run since nothing is written. `resolveRanges` falls
+    // back to the verbatim range on any lookup failure.
+    const deps = dryRun
+      ? installFields.dependencies
+      : await resolveRanges(installFields.dependencies);
+    const devDeps = dryRun
+      ? installFields.devDependencies
+      : await resolveRanges(installFields.devDependencies);
+    for (const [name, range] of Object.entries(deps)) {
       manifest = claim(
         manifest,
         path.relative(projectRoot, pkgJsonPath),
@@ -148,7 +159,7 @@ export async function applyModule(args: {
       );
       if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
     }
-    for (const [name, range] of Object.entries(installFields.devDependencies)) {
+    for (const [name, range] of Object.entries(devDeps)) {
       manifest = claim(
         manifest,
         path.relative(projectRoot, pkgJsonPath),

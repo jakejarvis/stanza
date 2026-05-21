@@ -76,6 +76,11 @@ Current add-on categories are `testing`, `tooling`, `deploy`, `email`, and `mono
 
 `--yes` never chooses defaults for omitted slots or add-ons. Missing selections are skipped.
 
+## Dependency Versions
+
+- `init`/`add` bump each `^`/`~` dep range to the latest npm version satisfying it (keeping the modifier); other ranges and `workspace:*` are written as-is. Falls back to the declared range when offline.
+- `STANZA_NO_NPM_LOOKUP=1` skips lookups (verbatim ranges); `STANZA_NPM_REGISTRY=<url>` overrides the npm registry.
+
 ## Safety Flags
 
 - Use `--dry-run` before a mutating command when the user wants a preview. It writes nothing.

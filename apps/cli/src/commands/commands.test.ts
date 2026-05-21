@@ -23,6 +23,9 @@ beforeEach(() => {
   // Point the registry loader at this repo's dev-mode registry so tests
   // exercise the real first-party modules instead of hitting the network.
   process.env.STANZA_REGISTRY = path.join(REPO_ROOT, "registry");
+  // Keep the apply path hermetic: skip npm version lookups so deps land at the
+  // manifest's verbatim ranges and no real network calls happen.
+  process.env.STANZA_NO_NPM_LOOKUP = "1";
 });
 
 afterEach(() => {
@@ -30,6 +33,7 @@ afterEach(() => {
   process.exitCode = prevExitCode;
   fs.rmSync(tmp, { recursive: true, force: true });
   delete process.env.STANZA_REGISTRY;
+  delete process.env.STANZA_NO_NPM_LOOKUP;
 });
 
 /**
