@@ -1,6 +1,17 @@
 # TODO
 
-State at end of last session: pre-1.0 architectural cleanup landed.
+State at end of last session: web-app QA polish + server-route refactor landed.
+Fixed: CMD+K palette crash (missing `<Command>` wrapper), file-tree going stale
+on selection change, file-tree ignoring light theme, OG cards inverting brand
+logos, unstyled 404, and a Base UI native-`<button>` warning. Converted the
+`/og`, `/og/$slot/$id`, and `/sitemap.xml` endpoints from a standalone Nitro
+`server/` dir to TanStack Start server routes in `src/routes/`, and adopted the
+framework's server-fn file-organization convention under `apps/web/src/server/`:
+`*.functions.ts` for `createServerFn` wrappers (safe to import anywhere),
+`*.server.ts(x)` for server-only code (Shiki, `@vercel/og` cards, fs registry
+reads), and plain `*.ts` for client-safe types (the `Preview` type).
+
+Prior session: pre-1.0 architectural cleanup landed.
 
 - **B1–B6** (mechanical cleanup): `SLOTS` array is now the source of truth (was 5 hardcoded copies); `pickRegistryRoot` deduped; dead `telemetryId` removed; codemod-not-found error now includes module/adapter context; orphan HTTP-bundle comment dropped; `lazyProject` returns a clean `{ get, save }` object.
 - **A3**: deleted `Module.provides`/`Module.requires`/`Capability` — they were declared but never read by the resolver. Peer constraints already encode the same info more precisely.
@@ -19,14 +30,14 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 - [ ] Show _why_ a module is filtered out (e.g. "needs `framework: next`, you picked tanstack-start") instead of just dropping it — partly covered by the tooltip in `slot-cards.tsx`, could expand to inline why-disabled copy on the card itself
 - [x] Deep linking: encode selections in URL search params (`?framework=next&orm=drizzle&...`) — typed `validateSearch` on `routes/index.tsx`, parser in `lib/selection.ts`
 - [x] Copy-to-clipboard for the generated `pnpm create stanza ...` command — `command-bar.tsx`
-- [x] Preview pane: list of files stanza will write — `file-preview.tsx` with `@pierre/trees` + Shiki-rendered server-side preview
+- [x] Preview pane: list of files stanza will write — `file-preview.tsx` with `@pierre/trees` + Shiki-rendered server-side preview. The tree re-seeds via `model.resetPaths()` on selection change (the `useFileTree` model is created once and isn't path-reactive on its own) and follows the app theme via `themeToTreeStyles()` so the shadow-DOM tree matches light/dark instead of `prefers-color-scheme`
 - [x] Show pinned npm versions per selected module — `apps/web/src/components/detail/deps-table.tsx` on `/m/$slot/$id` (also covers devDeps + scripts + env). Builder cards stay clean per the design call; versions surface on the detail page
 - [x] Module detail route at `/m/$slot/$id` — full description, adapter switcher (peer chip rows), deps tables, env table, templates list with click-to-expand Shiki preview, "Try it" command. `apps/web/src/routes/m.$slot.$id.tsx`
 - [x] Search route — implemented as a header-only popover (`apps/web/src/components/search/site-search.tsx`) bound to ⌘K, mirrors the CLI's id/label/description/slot match (`lib/module-search.ts`)
 - [x] Layout: header (logo, GitHub link, search), footer — `apps/web/src/components/header.tsx`, `footer.tsx`
 - [x] Dark mode — Tailwind 4 `.dark` variant + ThemeProvider, system pref aware
-- [x] SEO: meta tags via `head()` on routes, OG image, sitemap — `apps/web/src/lib/seo.ts` builds `head()` output with title/og:\*/twitter:\*/canonical for every route. Dynamic OG via `@vercel/og` at `/og/$slot/$id` and `/og` (Nitro server routes under `apps/web/server/routes/`). `sitemap.xml` server route enumerates the index; `public/robots.txt` is static
-- [x] Host the registry on the same domain — `prebuild` script copies `dist/registry/` into `apps/web/public/registry/`. CLI's `DEFAULT_REGISTRY_URL` points at the same path. Server-side reads use the filesystem directly (`apps/web/src/server/registry-base.ts`) to avoid the SSR loopback-fetch deadlock
+- [x] SEO: meta tags via `head()` on routes, OG image, sitemap — `apps/web/src/lib/seo.ts` builds `head()` output with title/og:\*/twitter:\*/canonical for every route. Dynamic OG via `@vercel/og` at `/og/$slot/$id` and `/og`, and `sitemap.xml`, are TanStack Start **server routes** colocated in `apps/web/src/routes/` (`og.index.ts`, `og.$slot.$id.ts`, `sitemap[.]xml.ts`) via `createFileRoute(...).server.handlers.GET` — no separate Nitro `server/` dir or `serverDir` config. OG image URLs are extensionless (`/og/$slot/$id`, not `.png`) so they aren't swallowed by Vite/Nitro static-asset handling; crawlers read the `image/png` content-type. `public/robots.txt` is static
+- [x] Host the registry on the same domain — `prebuild` script copies `dist/registry/` into `apps/web/public/registry/`. CLI's `DEFAULT_REGISTRY_URL` points at the same path. Server-side reads use the filesystem directly (`apps/web/src/server/registry-base.server.ts`) to avoid the SSR loopback-fetch deadlock
 - [ ] Vercel deploy config — Vercel auto-detects TanStack Start's `.output/` directory, no `vercel.json` needed. Env vars (`STANZA_REGISTRY`) optional override
 - [ ] Docs section (could be MDX routes): overview, authoring guide, registry spec
 

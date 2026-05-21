@@ -9,12 +9,30 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OgIndexRouteImport } from './routes/og.index'
+import { Route as OgSlotIdRouteImport } from './routes/og.$slot.$id'
 import { Route as MSlotIdRouteImport } from './routes/m.$slot.$id'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgIndexRoute = OgIndexRouteImport.update({
+  id: '/og/',
+  path: '/og/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgSlotIdRoute = OgSlotIdRouteImport.update({
+  id: '/og/$slot/$id',
+  path: '/og/$slot/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MSlotIdRoute = MSlotIdRouteImport.update({
@@ -25,37 +43,76 @@ const MSlotIdRoute = MSlotIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/og/': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
+  '/og/$slot/$id': typeof OgSlotIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/og': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
+  '/og/$slot/$id': typeof OgSlotIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/og/': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
+  '/og/$slot/$id': typeof OgSlotIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/m/$slot/$id'
+  fullPaths: '/' | '/sitemap.xml' | '/og/' | '/m/$slot/$id' | '/og/$slot/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/m/$slot/$id'
-  id: '__root__' | '/' | '/m/$slot/$id'
+  to: '/' | '/sitemap.xml' | '/og' | '/m/$slot/$id' | '/og/$slot/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/sitemap.xml'
+    | '/og/'
+    | '/m/$slot/$id'
+    | '/og/$slot/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  OgIndexRoute: typeof OgIndexRoute
   MSlotIdRoute: typeof MSlotIdRoute
+  OgSlotIdRoute: typeof OgSlotIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og/': {
+      id: '/og/'
+      path: '/og'
+      fullPath: '/og/'
+      preLoaderRoute: typeof OgIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og/$slot/$id': {
+      id: '/og/$slot/$id'
+      path: '/og/$slot/$id'
+      fullPath: '/og/$slot/$id'
+      preLoaderRoute: typeof OgSlotIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/m/$slot/$id': {
@@ -70,7 +127,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  OgIndexRoute: OgIndexRoute,
   MSlotIdRoute: MSlotIdRoute,
+  OgSlotIdRoute: OgSlotIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

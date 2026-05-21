@@ -1,6 +1,7 @@
+import { themeToTreeStyles } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelection } from "@pierre/trees/react";
 import type { Module, ModuleAdapter, SlotId } from "@stanza/registry";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
@@ -15,19 +16,34 @@ export function FilePreview({
   previews: Record<string, Preview>;
   resolved: Partial<Record<SlotId, { module: Module; adapter: ModuleAdapter }>>;
 }) {
-  // @pierre/trees is path-driven. We pass our derived file list straight in.
-  // When the parent's loader reruns with new selections, this component
-  // re-mounts and the tree model rebuilds with the fresh paths.
+  // @pierre/trees is path-driven. `useFileTree` builds the model once (lazy
+  // `useState` init), so it does NOT react to later `paths` changes on its own.
   const { model } = useFileTree({
     paths: filePaths,
     search: false,
   });
+
+  // The parent's loader reruns on every selection change, handing us a fresh
+  // `filePaths`. Re-seed the existing model so the tree reflects the new set.
+  useEffect(() => {
+    model.resetPaths(filePaths);
+  }, [model, filePaths]);
 
   // The model owns selection internally; `useFileTreeSelection` exposes the
   // currently-selected paths as a stable readonly array we subscribe to.
   const selectedPaths = useFileTreeSelection(model);
   const activePath = selectedPaths[0] ?? filePaths[0];
   const preview = activePath ? previews[activePath] : undefined;
+
+  // Drive the tree's shadow-root palette from the app theme — otherwise it
+  // auto-detects via `prefers-color-scheme` and mismatches when the user picks
+  // a theme different from their OS setting.
+  const { theme } = useTheme();
+  const resolvedTheme = useResolvedTheme(theme);
+  const treeStyle = useMemo(
+    () => themeToTreeStyles({ type: resolvedTheme }),
+    [resolvedTheme],
+  );
 
   const slotCount = Object.keys(resolved).length;
 
@@ -46,7 +62,11 @@ export function FilePreview({
       ) : (
         <div className="grid min-h-[420px] grid-cols-1 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
           <div className="border-b border-border sm:border-r sm:border-b-0">
-            <FileTree model={model} className="h-full max-h-[420px] overflow-auto" />
+            <FileTree
+              model={model}
+              className="h-full max-h-[420px] overflow-auto"
+              style={treeStyle}
+            />
           </div>
           <PreviewPane preview={preview} path={activePath} />
         </div>

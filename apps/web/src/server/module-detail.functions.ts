@@ -10,8 +10,9 @@ import type {
 import { KNOWN_SLOTS, emptyManifest, resolveAdapter } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import { renderPreview, type Preview } from "@/server/highlighter";
-import { loadRegistryFile } from "@/server/registry-base";
+import type { Preview } from "@/server/highlighter";
+import { renderPreview } from "@/server/highlighter.server";
+import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type ModuleDetailInput = {
   slot: SlotId;

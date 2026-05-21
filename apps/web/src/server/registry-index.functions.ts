@@ -1,7 +1,7 @@
 import type { RegistryIndex } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import { loadRegistryFile } from "@/server/registry-base";
+import { loadRegistryFile } from "@/server/registry-base.server";
 
 /**
  * Lightweight read of just the registry index (`index.json`). Wired into the

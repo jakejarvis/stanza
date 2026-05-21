@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
 import { buildHead } from "@/lib/seo";
-import { getBuilderState } from "@/server/builder-state";
+import { getBuilderState } from "@/server/builder-state.functions";
 
 function validateSearch(input: Record<string, unknown>): BuilderSearch {
   const out: BuilderSearch = {};

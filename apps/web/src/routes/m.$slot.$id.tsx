@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { buildCommand } from "@/lib/selection";
 import { buildHead } from "@/lib/seo";
-import { getModuleDetail } from "@/server/module-detail";
+import { getModuleDetail } from "@/server/module-detail.functions";
 
 type DetailSearch = Partial<Record<SlotId, string>>;
 
@@ -38,13 +38,18 @@ export const Route = createFileRoute("/m/$slot/$id")({
     return detail;
   },
   head: ({ loaderData, params }) =>
-    buildHead({
-      title: loaderData?.module.label ?? params.id,
-      description: loaderData?.module.description,
-      path: `/m/${params.slot}/${params.id}`,
-      ogImage: `/og/${params.slot}/${params.id}.png`,
-      type: "article",
-    }),
+    loaderData
+      ? buildHead({
+          title: loaderData.module.label,
+          description: loaderData.module.description,
+          path: `/m/${params.slot}/${params.id}`,
+          ogImage: `/og/${params.slot}/${params.id}`,
+          type: "article",
+        })
+      : buildHead({
+          title: "Not found",
+          path: `/m/${params.slot}/${params.id}`,
+        }),
   component: ModuleDetailPage,
 });
 

@@ -19,6 +19,7 @@ export function Header() {
         <div className="flex items-center gap-2">
           <SiteSearch index={index} />
           <Button
+            nativeButton={false}
             render={
               <a
                 href="https://github.com/jakejarvis/stanza"

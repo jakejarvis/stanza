@@ -1,13 +1,14 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Link, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getRegistryIndex } from "@/server/registry-index";
+import { getRegistryIndex } from "@/server/registry-index.functions";
 
 import appCss from "../styles.css?url";
 
@@ -23,7 +24,53 @@ export const Route = createRootRoute({
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   component: RootComponent,
+  notFoundComponent: NotFound,
+  errorComponent: ErrorState,
 });
+
+function CenteredMessage({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center sm:py-32">
+      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <div className="mt-6 flex items-center gap-3">{children}</div>
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <CenteredMessage
+      title="Page not found"
+      description="That page doesn’t exist. It may have moved, or the URL might be wrong."
+    >
+      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
+        ← Back to builder
+      </Button>
+    </CenteredMessage>
+  );
+}
+
+function ErrorState({ error }: { error: Error }) {
+  return (
+    <CenteredMessage
+      title="Something went wrong"
+      description={error?.message || "An unexpected error occurred while rendering this page."}
+    >
+      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
+        ← Back to builder
+      </Button>
+    </CenteredMessage>
+  );
+}
 
 function RootComponent() {
   return (

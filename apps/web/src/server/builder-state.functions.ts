@@ -3,8 +3,9 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { parseSelections, resolveSelectedAdapters, selectedFiles } from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
-import { renderPreview, type Preview } from "@/server/highlighter";
-import { loadRegistryFile } from "@/server/registry-base";
+import type { Preview } from "@/server/highlighter";
+import { renderPreview } from "@/server/highlighter.server";
+import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type BuilderState = {
   index: RegistryIndex;

@@ -13,7 +13,7 @@ import {
   resolveSelectedAdapters,
   toSearchParams,
 } from "@/lib/selection";
-import type { BuilderState } from "@/server/builder-state";
+import type { BuilderState } from "@/server/builder-state.functions";
 
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });

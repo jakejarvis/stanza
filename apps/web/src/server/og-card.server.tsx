@@ -11,7 +11,11 @@ import type { ReactElement } from "react";
  */
 export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
   const logo = summary.logo;
-  const logoSrc = typeof logo === "string" ? logo : logo?.light;
+  // The OG card is always dark-background. For a theme pair, use the `dark`
+  // variant (designed for dark surfaces); for a single theme-agnostic mark,
+  // use it as-is. Either way we render it untouched — inverting mangles
+  // colored brand marks (Tailwind blue→orange, Clerk purple→lime, etc).
+  const logoSrc = typeof logo === "string" ? logo : (logo?.dark ?? logo?.light);
   return (
     <div
       style={{
@@ -55,13 +59,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
               }}
             >
               {/* Satori renders <img> with `src` set to a data URI for SVGs */}
-              <img
-                src={svgToDataUri(logoSrc)}
-                width={64}
-                height={64}
-                alt=""
-                style={{ filter: "invert(1)" }}
-              />
+              <img src={svgToDataUri(logoSrc)} width={64} height={64} alt="" />
             </div>
           ) : (
             <div
