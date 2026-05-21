@@ -1,5 +1,10 @@
 import type { Module, RegistryIndex } from "@stanza/registry";
-import { moduleGroup, synthesizePackageJsons } from "@stanza/registry";
+import {
+  moduleGroup,
+  synthesizeEnvExample,
+  synthesizeManifest,
+  synthesizePackageJsons,
+} from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
 import {
@@ -51,11 +56,12 @@ export const getBuilderState = createServerFn({ method: "GET" })
     const resolvedAddons = resolveSelectedAddons(modules, selections, addons);
     const files = selectedFiles(resolved, resolvedAddons);
 
-    // Templates carry their own content; package.json files are synthesized
-    // (the CLI never ships them as templates — it merges deps/scripts into them
-    // at apply time). Surface the same resolved package.json files in the
-    // preview so the tree matches what stanza actually writes. Only when
-    // something is selected, so an empty builder still shows the empty state.
+    // Templates carry their own content; package.json, stanza.json, and
+    // .env.example are synthesized — the CLI never ships them as templates, it
+    // assembles them at apply time (merging deps/scripts/env, pinning the
+    // manifest). Surface the same resolved files in the preview so the tree
+    // matches what stanza actually writes. Only when something is selected, so
+    // an empty builder still shows the empty state.
     const hasSelection =
       Object.keys(resolved).length > 0 ||
       Object.values(resolvedAddons).some((entries) => (entries?.length ?? 0) > 0);
@@ -68,6 +74,15 @@ export const getBuilderState = createServerFn({ method: "GET" })
       for (const [path, pkg] of Object.entries(pkgJsons)) {
         previewFiles.push({ path, content: JSON.stringify(pkg, null, 2) + "\n" });
       }
+      const manifest = synthesizeManifest(resolved, resolvedAddons, { name });
+      previewFiles.push({
+        path: "stanza.json",
+        content: JSON.stringify(manifest, null, 2) + "\n",
+      });
+      previewFiles.push({
+        path: ".env.example",
+        content: synthesizeEnvExample(resolved, resolvedAddons),
+      });
     }
 
     const previewEntries = await Promise.all(

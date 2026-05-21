@@ -6,6 +6,7 @@ import type { AddonCategoryId, SlotId } from "@stanza/registry";
 import {
   addonOrder,
   appPackageJsonBase,
+  ENV_EXAMPLE_HEADER,
   KNOWN_ADDONS,
   KNOWN_SLOTS,
   resolveAdapter,
@@ -158,10 +159,7 @@ function bootstrapShell(
     "node_modules/\ndist/\n.output/\n.vercel/\n.turbo/\n.env\n.env.local\n.env.*.local\n*.log\n",
   );
 
-  fs.writeFileSync(
-    path.join(projectRoot, ".env.example"),
-    `# Stanza-managed environment variables.\n`,
-  );
+  fs.writeFileSync(path.join(projectRoot, ".env.example"), ENV_EXAMPLE_HEADER);
 
   // App shell — empty but layout-correct. The framework module fills it in.
   // The package.json must exist before any module runs: the runner appends

@@ -59,3 +59,10 @@ export {
   slotPackageJsonBase,
   synthesizePackageJsons,
 } from "./package-json";
+
+export {
+  ENV_EXAMPLE_HEADER,
+  appendEnvVar,
+  synthesizeEnvExample,
+  synthesizeManifest,
+} from "./synthesize";
