@@ -1,4 +1,5 @@
 import { IconCopy } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,24 @@ export function CommandBar({
   command: string;
   onNameChange: (name: string) => void;
 }) {
+  // Keep the field responsive locally and debounce the upward push: each
+  // `onNameChange` navigates, reruns the loader, and rebuilds the file tree, so
+  // firing it per keystroke is wasteful. External `name` changes (history nav,
+  // reset) flow back into the draft.
+  const [draft, setDraft] = useState(name);
+  const onNameChangeRef = useRef(onNameChange);
+  onNameChangeRef.current = onNameChange;
+
+  useEffect(() => {
+    setDraft(name);
+  }, [name]);
+
+  useEffect(() => {
+    if (draft === name) return;
+    const timer = setTimeout(() => onNameChangeRef.current(draft), 300);
+    return () => clearTimeout(timer);
+  }, [draft, name]);
+
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(command);
@@ -34,9 +53,9 @@ export function CommandBar({
         </label>
         <Input
           id="stanza-project-name"
-          value={name}
+          value={draft}
           placeholder={defaultName}
-          onChange={(e) => onNameChange(e.target.value)}
+          onChange={(e) => setDraft(e.target.value)}
         />
       </div>
 

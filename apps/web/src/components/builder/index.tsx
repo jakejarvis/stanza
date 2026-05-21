@@ -25,6 +25,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
     void navigate({
       search: toSearchParams({ name: next, selections }),
       replace: true,
+      resetScroll: false,
     });
   };
 
@@ -35,6 +36,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
     void navigate({
       search: toSearchParams({ name, selections: next }),
       replace: true,
+      resetScroll: false,
     });
   };
 
@@ -56,7 +58,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           onSelect={setSelection}
         />
       </section>
-      <section className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+      <section className="space-y-6 lg:sticky lg:top-20 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:gap-6 lg:space-y-0 lg:self-start">
         <div className="hidden lg:block">{commandBar}</div>
         <FilePreview filePaths={state.filePaths} previews={state.previews} resolved={resolved} />
       </section>
