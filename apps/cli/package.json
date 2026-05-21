@@ -19,9 +19,6 @@
     "url": "git+https://github.com/jakejarvis/stanza.git",
     "directory": "apps/cli"
   },
-  "bin": {
-    "stanza": "./dist/bin.mjs"
-  },
   "files": [
     "dist"
   ],
@@ -32,6 +29,9 @@
     ".": "./src/index.ts"
   },
   "publishConfig": {
+    "bin": {
+      "stanza": "./dist/bin.mjs"
+    },
     "main": "./dist/index.mjs",
     "types": "./dist/index.d.mts",
     "exports": {

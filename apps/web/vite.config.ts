@@ -17,5 +17,11 @@ export default defineConfig({
   ],
   resolve: {
     tsconfigPaths: true,
+    alias: {
+      // tslib's CJS UMD sets __esModule: true without providing a default
+      // export, which breaks Vite 8 / Rolldown's consistent CJS interop.
+      // Alias to the native ESM build to avoid the interop entirely.
+      tslib: "tslib/tslib.es6.mjs",
+    },
   },
 });

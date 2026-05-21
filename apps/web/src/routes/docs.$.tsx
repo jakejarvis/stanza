@@ -2,13 +2,13 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import browserCollections from "collections/browser";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import { DocsBody } from "fumadocs-ui/layouts/docs/page";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
 import { Suspense } from "react";
 
+import { DocsSidebar } from "@/components/docs/docs-sidebar";
+import { DocsToc } from "@/components/docs/docs-toc";
 import { useMDXComponents } from "@/components/mdx";
-import { baseOptions } from "@/lib/layout.shared";
 import { buildHead } from "@/lib/seo";
 import { source } from "@/lib/source";
 
@@ -31,13 +31,18 @@ const clientLoader = browserCollections.docs.createClientLoader({
   id: "docs",
   component({ toc, frontmatter, default: MDX }) {
     return (
-      <DocsPage toc={toc}>
-        <DocsTitle>{frontmatter.title}</DocsTitle>
-        <DocsDescription>{frontmatter.description}</DocsDescription>
-        <DocsBody>
-          <MDX components={useMDXComponents()} />
-        </DocsBody>
-      </DocsPage>
+      <div className="xl:flex xl:gap-8">
+        <article className="min-w-0 flex-1 py-8">
+          <h1 className="text-2xl font-semibold tracking-tight">{frontmatter.title}</h1>
+          {frontmatter.description && (
+            <p className="mt-2 text-sm text-muted-foreground">{frontmatter.description}</p>
+          )}
+          <DocsBody className="mt-8">
+            <MDX components={useMDXComponents()} />
+          </DocsBody>
+        </article>
+        <DocsToc toc={toc} />
+      </div>
     );
   },
 });
@@ -65,9 +70,14 @@ function Page() {
 
   return (
     <RootProvider theme={{ enabled: false }} search={{ enabled: false }}>
-      <DocsLayout {...baseOptions()} tree={data.pageTree}>
-        <Suspense>{clientLoader.useContent(data.path)}</Suspense>
-      </DocsLayout>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="md:flex md:gap-8">
+          <DocsSidebar tree={data.pageTree} />
+          <div className="min-w-0 flex-1">
+            <Suspense>{clientLoader.useContent(data.path)}</Suspense>
+          </div>
+        </div>
+      </div>
     </RootProvider>
   );
 }

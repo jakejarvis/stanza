@@ -8,12 +8,10 @@
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
 
 /* Remap Fumadocs' own design tokens onto the stanza (shadcn) palette so the
- * docs chrome inherits the site's exact colors. The `#nd-sidebar` selector is
- * included to override fumadocs' neutral.css sidebar tweaks at equal
- * specificity; values follow stanza's `:root`/`.dark` tokens automatically. */
+ * docs content (prose, code blocks, callouts) inherits the site's exact colors.
+ * Values follow stanza's `:root`/`.dark` tokens automatically. */
 :root,
-.dark,
-.dark #nd-sidebar {
+.dark {
   --color-fd-background: var(--background);
   --color-fd-foreground: var(--foreground);
   --color-fd-muted: var(--muted);

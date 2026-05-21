@@ -18,14 +18,14 @@
     "url": "git+https://github.com/jakejarvis/stanza.git",
     "directory": "packages/create-stanza"
   },
-  "bin": {
-    "create-stanza": "./dist/bin.mjs"
-  },
   "files": [
     "dist"
   ],
   "type": "module",
   "publishConfig": {
+    "bin": {
+      "create-stanza": "./dist/bin.mjs"
+    },
     "access": "public"
   },
   "scripts": {

@@ -114,7 +114,7 @@ export function FilePreview({
               <FileTree
                 key={resolvedTheme}
                 model={model}
-                className="h-full overflow-auto py-2 [--trees-accent-override:var(--ring)] [--trees-bg-override:transparent] [--trees-padding-inline-override:8px] [--trees-selected-bg-override:var(--accent)] [--trees-selected-fg-override:var(--accent-foreground)]"
+                className="h-full overflow-auto py-2 [--trees-accent-override:var(--ring)] [--trees-bg-override:transparent] [--trees-border-radius-override:0px] [--trees-padding-inline-override:8px] [--trees-selected-bg-override:var(--accent)] [--trees-selected-fg-override:var(--accent-foreground)]"
                 style={treeStyle}
               />
             </ResizablePanel>
