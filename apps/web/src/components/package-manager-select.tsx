@@ -99,7 +99,12 @@ export function PackageManagerSelect({
           onValueChange={(next) => onValueChange(next as PackageManager)}
         >
           {PACKAGE_MANAGERS.map((pm) => (
-            <DropdownMenuRadioItem key={pm.id} value={pm.id} className="cursor-pointer">
+            <DropdownMenuRadioItem
+              key={pm.id}
+              value={pm.id}
+              closeOnClick
+              className="cursor-pointer"
+            >
               {PM_LOGOS[pm.id]}
               {pm.label}
             </DropdownMenuRadioItem>

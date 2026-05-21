@@ -1,3 +1,4 @@
+import { IconChevronRight } from "@tabler/icons-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { Node, Root } from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
@@ -20,7 +21,7 @@ function NavLink({ url, name, pathname }: { url: string; name: ReactNode; pathna
         to="/docs/$"
         params={{ _splat: toSplat(url) }}
         className={cn(
-          "block px-2 py-1.5 text-muted-foreground transition-colors hover:text-foreground",
+          "block rounded px-2 py-1 text-muted-foreground transition-colors hover:text-foreground",
           active && "bg-accent font-medium text-accent-foreground",
         )}
       >
@@ -33,7 +34,7 @@ function NavLink({ url, name, pathname }: { url: string; name: ReactNode; pathna
 function NavNode({ node, pathname }: { node: Node; pathname: string }) {
   if (node.type === "separator") {
     return (
-      <li className="px-2 pt-4 pb-1 text-xs font-medium tracking-wide text-muted-foreground/70">
+      <li className="px-2 pt-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground/70">
         {node.name}
       </li>
     );
@@ -77,9 +78,12 @@ export function DocsSidebar({ tree }: { tree: Root }) {
   return (
     <>
       {/* Mobile: a disclosure above the content so docs stay navigable < md. */}
-      <details className="mb-6 border-b border-border pb-4 md:hidden">
-        <summary className="cursor-pointer px-2 py-1 text-sm font-medium">Documentation</summary>
-        <div className="mt-3">{list}</div>
+      <details className="group my-4 md:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent [&::-webkit-details-marker]:hidden">
+          Documentation
+          <IconChevronRight className="size-4 text-muted-foreground transition-transform group-open:rotate-90" />
+        </summary>
+        <div className="mt-2 border-t border-border pt-2">{list}</div>
       </details>
 
       {/* Desktop: sticky left rail aligned to the page frame. */}

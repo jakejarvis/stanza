@@ -32,7 +32,7 @@ const clientLoader = browserCollections.docs.createClientLoader({
   component({ toc, frontmatter, default: MDX }) {
     return (
       <div className="xl:flex xl:gap-8">
-        <article className="min-w-0 flex-1 py-8">
+        <article className="min-w-0 flex-1 pt-2 pb-8 md:pt-8">
           <h1 className="text-2xl font-semibold tracking-tight">{frontmatter.title}</h1>
           {frontmatter.description && (
             <p className="mt-2 text-sm text-muted-foreground">{frontmatter.description}</p>

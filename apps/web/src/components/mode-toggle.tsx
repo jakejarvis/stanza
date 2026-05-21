@@ -26,13 +26,13 @@ export function ModeToggle() {
       <DropdownMenuTrigger render={TOGGLE_BUTTON} />
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light" className="cursor-pointer">
+          <DropdownMenuRadioItem value="light" closeOnClick className="cursor-pointer">
             Light
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark" className="cursor-pointer">
+          <DropdownMenuRadioItem value="dark" closeOnClick className="cursor-pointer">
             Dark
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system" className="cursor-pointer">
+          <DropdownMenuRadioItem value="system" closeOnClick className="cursor-pointer">
             System
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

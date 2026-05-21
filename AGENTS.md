@@ -1,13 +1,6 @@
 # Stanza
 
-Shadcn-style CLI for assembling modular full-stack TS monorepos. Currently
-ships `init`, `add`, `remove`, `list`, `search` against five slots:
-`framework`, `styling`, `db`, `orm`, `auth`. `swap` + `update` verbs and
-additional categories (api, ai, ui, payments, plus add-ons for testing,
-tooling, deploy, email) are planned — the manifest already reserves the
-fields they'll need (`modules[slot].version`, `regions`). See
-[REGISTRY.md](REGISTRY.md) for the module roadmap and [TODO.md](TODO.md) for
-active work.
+Shadcn-style CLI for assembling modular full-stack TS monorepos. Currently ships `init`, `add`, `remove`, `list`, `search` against five slots: `framework`, `styling`, `db`, `orm`, `auth`. `swap` + `update` verbs and additional categories (api, ai, ui, payments, plus add-ons for testing, tooling, deploy, email) are planned — the manifest already reserves the fields they'll need (`modules[slot].version`, `regions`). See [REGISTRY.md](REGISTRY.md) for the module roadmap and [TODO.md](TODO.md) for active work.
 
 Three things differentiate stanza from other scaffolders:
 
@@ -40,6 +33,17 @@ In a **generated project**, `auth`, `db`, and `orm` modules install into their o
 - E2E smoke: seed `$TMPDIR/x` with `stanza.json` + `apps/web/package.json`, then `tsx apps/cli/src/bin.ts add <slot> <module>`
 - `pnpm changeset` — create a new changeset describing what changed (run after a substantive PR)
 - `pnpm release` — build CLI/create-stanza and publish to npm (only runs in CI; locally use `pnpm pack` to inspect tarballs)
+
+## Browser Automation
+
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands.
+
+Core workflow:
+
+1. `agent-browser open <url>` - Navigate to page
+2. `agent-browser snapshot -i` - Get interactive elements with refs (@e1, @e2)
+3. `agent-browser click @e1` / `fill @e2 "text"` - Interact using refs
+4. Re-snapshot after page changes
 
 ## Distributed Skill
 

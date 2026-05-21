@@ -169,7 +169,7 @@ function PreviewPane({
         {path}
       </div>
       <div
-        className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_pre]:bg-transparent! [&_pre]:p-4!"
+        className="min-h-0 flex-1 overflow-auto text-xs leading-relaxed [&_.line]:pr-0! [&_.line]:pl-0! [&_pre]:bg-transparent! [&_pre]:p-4!"
         // Shiki HTML is server-rendered from our trusted registry payload.
         dangerouslySetInnerHTML={inner}
       />

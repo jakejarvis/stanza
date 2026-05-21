@@ -199,9 +199,6 @@ function SearchResult({
         <div className="truncate font-medium">{summary.label}</div>
         <div className="truncate text-[11px] text-muted-foreground">{summary.description}</div>
       </div>
-      <span className="shrink-0 font-mono text-[10px] text-muted-foreground/60">
-        {moduleGroup(summary)}/{summary.id}
-      </span>
     </button>
   );
 }
