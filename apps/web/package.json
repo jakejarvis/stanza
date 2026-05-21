@@ -27,6 +27,7 @@
     "@tanstack/react-router-ssr-query": "^1.167.0",
     "@tanstack/react-start": "^1.168.7",
     "@tanstack/router-plugin": "^1.168.7",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/og": "^0.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
