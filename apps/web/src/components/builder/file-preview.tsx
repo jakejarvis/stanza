@@ -38,12 +38,8 @@ export function FilePreview({
   // Drive the tree's shadow-root palette from the app theme — otherwise it
   // auto-detects via `prefers-color-scheme` and mismatches when the user picks
   // a theme different from their OS setting.
-  const { theme } = useTheme();
-  const resolvedTheme = useResolvedTheme(theme);
-  const treeStyle = useMemo(
-    () => themeToTreeStyles({ type: resolvedTheme }),
-    [resolvedTheme],
-  );
+  const { resolvedTheme } = useTheme();
+  const treeStyle = useMemo(() => themeToTreeStyles({ type: resolvedTheme }), [resolvedTheme]);
 
   const slotCount = Object.keys(resolved).length;
 
@@ -60,11 +56,17 @@ export function FilePreview({
       {filePaths.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid min-h-[420px] grid-cols-1 sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 sm:min-h-[420px] sm:grid-cols-[minmax(0,260px)_minmax(0,1fr)]">
           <div className="border-b border-border sm:border-r sm:border-b-0">
             <FileTree
+              // The shadow-DOM tree captures `style` only at mount, so a
+              // post-hydration light→dark flip (theme: "system" resolves to
+              // "light" during SSR) would otherwise leave a light tree on a
+              // dark page. Re-key on the resolved theme to remount with the
+              // right palette; `model` lives in the parent, so selection holds.
+              key={resolvedTheme}
               model={model}
-              className="h-full max-h-[420px] overflow-auto"
+              className="h-[180px] overflow-auto sm:h-full sm:max-h-[480px]"
               style={treeStyle}
             />
           </div>
@@ -90,12 +92,11 @@ function PreviewPane({
   preview: Preview | undefined;
   path: string | undefined;
 }) {
-  const { theme } = useTheme();
-  const resolved = useResolvedTheme(theme);
+  const { resolvedTheme } = useTheme();
   const html = useMemo(() => {
     if (!preview) return "";
-    return resolved === "dark" ? preview.dark : preview.light;
-  }, [preview, resolved]);
+    return resolvedTheme === "dark" ? preview.dark : preview.light;
+  }, [preview, resolvedTheme]);
 
   if (!preview || !path) {
     return (
@@ -111,19 +112,10 @@ function PreviewPane({
         {path}
       </div>
       <div
-        className="overflow-auto text-xs leading-relaxed [&_pre]:bg-transparent! [&_pre]:p-4!"
+        className="max-h-[360px] overflow-auto text-xs leading-relaxed sm:max-h-[480px] [&_pre]:bg-transparent! [&_pre]:p-4!"
         // Shiki HTML is server-rendered from our trusted registry payload.
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>
   );
-}
-
-function useResolvedTheme(theme: string): "light" | "dark" {
-  // Match the same `light` / `dark` / `system` semantics the ThemeProvider
-  // applies to <html>, without re-reading the DOM (this runs server-side too).
-  if (theme === "dark") return "dark";
-  if (theme === "light") return "light";
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }

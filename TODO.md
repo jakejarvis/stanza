@@ -1,6 +1,17 @@
 # TODO
 
-State at end of last session: web-app QA polish + server-route refactor landed.
+State at end of last session: mobile/responsive pass on the web builder landed.
+Command bar now surfaces above the slot cards below `lg`; file-preview tree is a
+fixed height on mobile (it was collapsing to 0 since `@pierre/trees` needs a
+definite height); command `<pre>`s wrap; header search collapses to an icon
+below `sm`; disabled slot cards show a specific inline why-disabled reason. Also
+fixed a theme bug: the file tree + Shiki previews rendered `github-light` on a
+dark page for `system`/dark users — `ThemeProvider` now exposes a reactive
+`resolvedTheme` and `FileTree` re-keys on it. Confirmed the TanStack devtools
+button is stripped from the production build (no source gating needed). Details
+under "UI polish / responsiveness" below.
+
+Prior session: web-app QA polish + server-route refactor landed.
 Fixed: CMD+K palette crash (missing `<Command>` wrapper), file-tree going stale
 on selection change, file-tree ignoring light theme, OG cards inverting brand
 logos, unstyled 404, and a Base UI native-`<button>` warning. Converted the
@@ -11,7 +22,7 @@ framework's server-fn file-organization convention under `apps/web/src/server/`:
 `*.server.ts(x)` for server-only code (Shiki, `@vercel/og` cards, fs registry
 reads), and plain `*.ts` for client-safe types (the `Preview` type).
 
-Prior session: pre-1.0 architectural cleanup landed.
+Session before that: pre-1.0 architectural cleanup landed.
 
 - **B1–B6** (mechanical cleanup): `SLOTS` array is now the source of truth (was 5 hardcoded copies); `pickRegistryRoot` deduped; dead `telemetryId` removed; codemod-not-found error now includes module/adapter context; orphan HTTP-bundle comment dropped; `lazyProject` returns a clean `{ get, save }` object.
 - **A3**: deleted `Module.provides`/`Module.requires`/`Capability` — they were declared but never read by the resolver. Peer constraints already encode the same info more precisely.
@@ -27,52 +38,53 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 - [x] Add Tailwind 4 to `apps/web` — `@tailwindcss/vite` v4 wired in `vite.config.ts`, theme variables in `styles.css` via `@theme` (OKLCH), dark mode via `.dark` class
 - [x] Hand-roll a small component layer or pull in shadcn (web variant) — shadcn-style primitives at `apps/web/src/components/ui/` (Card, Button, Input, Badge, Tooltip, Tabs, DropdownMenu, Separator, Sonner). All use base-ui under the hood
 - [x] Replace the radio-list `Builder` with a card grid per slot — `apps/web/src/components/builder/slot-cards.tsx`
-- [ ] Show _why_ a module is filtered out (e.g. "needs `framework: next`, you picked tanstack-start") instead of just dropping it — partly covered by the tooltip in `slot-cards.tsx`, could expand to inline why-disabled copy on the card itself
+- [x] Show _why_ a module is filtered out (e.g. "needs `framework: next`, you picked tanstack-start") instead of just dropping it — disabled cards now render a specific inline reason from the resolver error (`describeError` in `slot-cards.tsx`): `missing-peer` → "Pick a {Slot} module first.", `incompatible-peer` → "Doesn't pair with {peer} (your {Slot} pick).", `no-adapter` → generic. Inline (not just a `title` tooltip) so it works on touch
 - [x] Deep linking: encode selections in URL search params (`?framework=next&orm=drizzle&...`) — typed `validateSearch` on `routes/index.tsx`, parser in `lib/selection.ts`
 - [x] Copy-to-clipboard for the generated `pnpm create stanza ...` command — `command-bar.tsx`
-- [x] Preview pane: list of files stanza will write — `file-preview.tsx` with `@pierre/trees` + Shiki-rendered server-side preview. The tree re-seeds via `model.resetPaths()` on selection change (the `useFileTree` model is created once and isn't path-reactive on its own) and follows the app theme via `themeToTreeStyles()` so the shadow-DOM tree matches light/dark instead of `prefers-color-scheme`
+- [x] Preview pane: list of files stanza will write — `file-preview.tsx` with `@pierre/trees` + Shiki-rendered server-side preview. The tree re-seeds via `model.resetPaths()` on selection change (the `useFileTree` model is created once and isn't path-reactive on its own) and follows the app theme via `themeToTreeStyles()`. Theme now comes from a reactive `resolvedTheme` exposed by `ThemeProvider` (computed post-mount) — the old per-component `useResolvedTheme` returned `"light"` during SSR and never re-rendered, so for `system`/dark users the tree + Shiki blocks rendered `github-light` on a dark page. The shadow-DOM tree captures `style` only at mount, so `FileTree` is also re-keyed on `resolvedTheme` to remount with the right palette (selection survives — `model` lives in the parent). Same fix applied to the detail page's `templates-list.tsx`
 - [x] Show pinned npm versions per selected module — `apps/web/src/components/detail/deps-table.tsx` on `/m/$slot/$id` (also covers devDeps + scripts + env). Builder cards stay clean per the design call; versions surface on the detail page
 - [x] Module detail route at `/m/$slot/$id` — full description, adapter switcher (peer chip rows), deps tables, env table, templates list with click-to-expand Shiki preview, "Try it" command. `apps/web/src/routes/m.$slot.$id.tsx`
 - [x] Search route — implemented as a header-only popover (`apps/web/src/components/search/site-search.tsx`) bound to ⌘K, mirrors the CLI's id/label/description/slot match (`lib/module-search.ts`)
 - [x] Layout: header (logo, GitHub link, search), footer — `apps/web/src/components/header.tsx`, `footer.tsx`
 - [x] Dark mode — Tailwind 4 `.dark` variant + ThemeProvider, system pref aware
 - [x] SEO: meta tags via `head()` on routes, OG image, sitemap — `apps/web/src/lib/seo.ts` builds `head()` output with title/og:\*/twitter:\*/canonical for every route. Dynamic OG via `@vercel/og` at `/og/$slot/$id` and `/og`, and `sitemap.xml`, are TanStack Start **server routes** colocated in `apps/web/src/routes/` (`og.index.ts`, `og.$slot.$id.ts`, `sitemap[.]xml.ts`) via `createFileRoute(...).server.handlers.GET` — no separate Nitro `server/` dir or `serverDir` config. OG image URLs are extensionless (`/og/$slot/$id`, not `.png`) so they aren't swallowed by Vite/Nitro static-asset handling; crawlers read the `image/png` content-type. `public/robots.txt` is static
-- [x] Host the registry on the same domain — `prebuild` script copies `dist/registry/` into `apps/web/public/registry/`. CLI's `DEFAULT_REGISTRY_URL` points at the same path. Server-side reads use the filesystem directly (`apps/web/src/server/registry-base.server.ts`) to avoid the SSR loopback-fetch deadlock
+- [x] Host the registry on the same domain — `prebuild` script copies `dist/registry/` into `apps/web/public/registry/`. CLI's `DEFAULT_REGISTRY_URL` points at the same path. `public/registry/` is also registered as a Nitro `serverAssets` dir (vite.config.ts), so its JSON is embedded in the server bundle and SSR reads it via `useStorage("assets:registry")` (`apps/web/src/server/registry-base.server.ts`) — works on serverless where `public/` is CDN-only, and avoids the SSR loopback-fetch deadlock
 - [ ] Vercel deploy config — Vercel auto-detects TanStack Start's `.output/` directory, no `vercel.json` needed. Env vars (`STANZA_REGISTRY`) optional override
 - [ ] Docs section (could be MDX routes): overview, authoring guide, registry spec
 
 ### UI polish / responsiveness
 
-Functional + verified across desktop/tablet/mobile (375/768/1440) with
-agent-browser, but a mobile pass is outstanding. The builder's two-column split
-(`builder/index.tsx`) only kicks in at `lg`; below that the whole right column
-(command bar + file preview) drops to the bottom of the page.
+Mobile pass landed and verified with agent-browser at 360/375/1440 in both
+light and dark. The builder's two-column split (`builder/index.tsx`) still
+only kicks in at `lg`, but the command bar now surfaces above the cards below
+`lg` so output is reachable without scrolling past every slot.
 
-- [ ] Builder layout on small/medium screens — below `lg` the file preview sits
-  under every slot card, so a phone user scrolls past all 5 slots before seeing
-  any generated output. Consider surfacing the command bar (and a collapsed
-  preview) above the cards on mobile, or a sticky bottom "preview" affordance.
-- [ ] File-preview height on mobile (`file-preview.tsx`) — below `sm` the tree
-  and code pane stack, giving two `max-h-[420px]` blocks back-to-back (~840px
-  tall). Cap the combined height, make the tree collapsible, or shrink the tree
-  pane to a file dropdown on phones.
-- [ ] Command `<pre>` overflow (`command-bar.tsx`) — the `pnpm create stanza …`
-  string scrolls horizontally inside the card on narrow viewports. Consider
-  wrapping (`whitespace-pre-wrap break-all`) or a slightly smaller mono size on
-  mobile so the full command is visible at a glance.
-- [ ] Header density on phones (`header.tsx`) — the search trigger is
-  `min-w-[180px]`; with the logo, GitHub button, and theme toggle it gets tight
-  under ~360px. Collapse the search button to an icon-only trigger below `sm`.
-- [ ] Slot-card touch targets / wrapping (`slot-cards.tsx`) — single column below
-  `sm` is fine, but verify the logo + label + check-icon row and the
-  `slot/id · vX` footer don't wrap awkwardly at the smallest widths; bump tap
-  target padding for touch.
-- [ ] Confirm the TanStack devtools floating button is dev-only (it overlaps
-  cards/preview on small screens in `pnpm dev`) — it's mounted in `__root.tsx`;
-  make sure it's stripped from the production build.
-- [ ] Module detail page (`m.$slot.$id.tsx`) mobile pass — adapter-switcher chip
-  rows and the deps/env tables are comfortable at `max-w-3xl`; spot-check the
-  table key/value columns and the long "Try it" command don't overflow on phones.
+- [x] Builder layout on small/medium screens — the command bar is rendered
+      twice in `builder/index.tsx`: a `lg:hidden` instance above the slot cards
+      (so phones see the copy-able command first) and the original inside the
+      `lg:sticky` right column (`hidden lg:block`). It's stateless (props from the
+      URL), so duplicating it is cheap; the heavy `FilePreview` stays single.
+- [x] File-preview height on mobile (`file-preview.tsx`) — tree pane is a fixed
+      `h-[180px]` below `sm` (the virtualized `@pierre/trees` tree needs a definite
+      height — `h-full` collapsed to 0 once the mobile `min-h` was dropped) and
+      `sm:h-full` on desktop; code pane capped `max-h-[360px]` mobile /
+      `sm:max-h-[480px]`. No more ~840px back-to-back blocks.
+- [x] Command `<pre>` overflow (`command-bar.tsx` + detail `try-it.tsx`) — both
+      use `whitespace-pre-wrap break-words` + `text-[11px] sm:text-xs` so the full
+      `pnpm create stanza …` command wraps at spaces and is visible at a glance.
+- [x] Header density on phones (`site-search.tsx`) — search trigger collapses to
+      an icon-only button below `sm` (label + `⌘K` hint `hidden sm:inline`,
+      `min-w` and wider padding gated to `sm:`).
+- [x] Slot-card touch targets / wrapping (`slot-cards.tsx`) — verified clean at
+      360px: single-column full-width cards, `p-4` tap targets, footer
+      (`slot/id · vX`) and label/check row don't wrap.
+- [x] Confirm the TanStack devtools floating button is dev-only — the TanStack
+      Start plugin strips it from the production build automatically. Verified:
+      `grep TanStackDevtools .output/public/assets/*.js` returns nothing after
+      `pnpm --filter @stanza/web build` (so does `grep shiki`). No source gating
+      needed.
+- [x] Module detail page (`m.$slot.$id.tsx`) mobile pass — adapter chip rows,
+      deps/env tables, and the (now-wrapping) "Try it" command all fit at 375px.
 
 ## CLI (apps/cli)
 

@@ -1,9 +1,8 @@
-import type { Module, ModuleSummary, SlotId } from "@stanza/registry";
-import { KNOWN_SLOTS, emptyManifest, resolveAdapter } from "@stanza/registry";
+import type { Module, ModuleSummary, ResolveError, SlotId } from "@stanza/registry";
+import { KNOWN_SLOTS, emptyManifest, resolveAdapter, slotLabel } from "@stanza/registry";
 import { IconCheck } from "@tabler/icons-react";
 
 import { ModuleLogo } from "@/components/module-logo";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Selections } from "@/lib/selection";
 import { cn } from "@/lib/utils";
 
@@ -82,12 +81,10 @@ function SlotSection({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {modules.map((m) => {
           const full = modulesById[`${m.slot}:${m.id}`];
-          const result = full
-            ? resolveAdapter(full, { manifest, pending })
-            : { ok: false, error: { kind: "no-adapter" as const } };
-          const disabled = !result.ok;
+          const result = full ? resolveAdapter(full, { manifest, pending }) : undefined;
+          const disabled = !result?.ok;
           const selected = selections[slot] === m.id;
-          const reason = !result.ok ? describeError(result.error.kind) : undefined;
+          const reason = result && !result.ok ? describeError(result.error) : undefined;
           return (
             <ModuleCard
               key={m.id}
@@ -120,18 +117,19 @@ function ModuleCard({
   reason?: string;
   onClick: () => void;
 }) {
-  const card = (
+  return (
     <button
       type="button"
       disabled={disabled}
       aria-pressed={selected}
+      title={disabled ? reason : undefined}
       onClick={onClick}
       className={cn(
-        "relative flex flex-col gap-3 rounded-xl border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors",
+        "relative flex flex-col gap-3 rounded-none border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors",
         "outline-none focus-visible:ring-2 focus-visible:ring-ring",
         !disabled && "cursor-pointer hover:bg-accent/40",
         selected && "border-foreground ring-1 ring-foreground",
-        disabled && "cursor-not-allowed opacity-50",
+        disabled && "cursor-not-allowed opacity-60",
       )}
     >
       <div className="flex items-start gap-3">
@@ -144,30 +142,26 @@ function ModuleCard({
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
         </div>
       </div>
-      <p className="font-mono text-[10px] text-muted-foreground/70">
-        {m.slot}/{m.id} <span className="text-muted-foreground/50">·</span> v{m.version}
-      </p>
+      {disabled && reason ? (
+        <p className="rounded-none bg-muted/60 px-2 py-1 text-[11px] leading-snug text-muted-foreground">
+          {reason}
+        </p>
+      ) : (
+        <p className="font-mono text-[10px] text-muted-foreground/70">
+          {m.slot}/{m.id} <span className="text-muted-foreground/50">·</span> v{m.version}
+        </p>
+      )}
     </button>
-  );
-
-  if (!disabled || !reason) return card;
-  return (
-    <Tooltip>
-      <TooltipTrigger render={card} />
-      <TooltipContent side="top">{reason}</TooltipContent>
-    </Tooltip>
   );
 }
 
-function describeError(kind: string): string {
-  switch (kind) {
+function describeError(error: ResolveError): string {
+  switch (error.kind) {
     case "missing-peer":
-      return "Needs another slot filled in first.";
+      return `Pick a ${slotLabel(error.slot)} module first.`;
     case "incompatible-peer":
-      return "Doesn't pair with one of your current picks.";
+      return `Doesn't pair with ${error.peer} (your ${slotLabel(error.slot)} pick).`;
     case "no-adapter":
       return "No adapter matches your current stack.";
-    default:
-      return "Not compatible with the current stack.";
   }
 }

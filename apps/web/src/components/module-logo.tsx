@@ -29,7 +29,7 @@ export function ModuleLogo({
       <div
         aria-hidden
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 font-semibold text-muted-foreground",
+          "flex shrink-0 items-center justify-center rounded-none border border-border bg-muted/40 font-semibold text-muted-foreground",
           sizeClass,
           textSize,
         )}

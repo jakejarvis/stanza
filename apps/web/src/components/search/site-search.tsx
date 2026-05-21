@@ -48,14 +48,15 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        aria-label="Search modules"
         className={cn(
-          "inline-flex h-8 items-center gap-2 rounded-none border border-border bg-background px-2.5 text-xs text-muted-foreground transition-colors",
+          "inline-flex h-8 items-center gap-2 rounded-none border border-border bg-background px-2 text-xs text-muted-foreground transition-colors sm:px-2.5",
           "hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-          "min-w-[180px]",
+          "sm:min-w-[180px]",
         )}
       >
         <IconSearch className="size-3.5" />
-        <span className="flex-1 text-left">Search modules…</span>
+        <span className="hidden flex-1 text-left sm:inline">Search modules…</span>
         <kbd className="hidden font-mono text-[10px] text-muted-foreground/60 sm:inline">⌘K</kbd>
       </button>
       <CommandDialog open={open} onOpenChange={setOpen}>

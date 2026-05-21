@@ -6,7 +6,13 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [nitro(), devtools(), tailwindcss(), tanstackStart(), react()],
+  plugins: [
+    nitro({ serverAssets: [{ baseName: "registry", dir: "public/registry" }] }),
+    devtools(),
+    tailwindcss(),
+    tanstackStart(),
+    react(),
+  ],
   resolve: {
     tsconfigPaths: true,
   },

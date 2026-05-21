@@ -38,8 +38,16 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
     });
   };
 
+  const commandBar = (
+    <CommandBar name={name} defaultName={DEFAULT_NAME} command={command} onNameChange={setName} />
+  );
+
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      {/* Mobile: the command (the thing to copy) sits above the slot cards so a
+          phone user isn't forced to scroll past all five slots to reach it. On
+          lg the right column owns it instead. */}
+      <div className="lg:hidden">{commandBar}</div>
       <section className="space-y-8">
         <SlotCards
           modules={state.modules}
@@ -49,12 +57,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         />
       </section>
       <section className="space-y-6 lg:sticky lg:top-20 lg:self-start">
-        <CommandBar
-          name={name}
-          defaultName={DEFAULT_NAME}
-          command={command}
-          onNameChange={setName}
-        />
+        <div className="hidden lg:block">{commandBar}</div>
         <FilePreview filePaths={state.filePaths} previews={state.previews} resolved={resolved} />
       </section>
     </div>

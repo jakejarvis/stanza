@@ -9,15 +9,25 @@ type ThemeProviderProps = {
   storageKey?: string;
 };
 
+type ResolvedTheme = "light" | "dark";
+
 type ThemeProviderState = {
   theme: Theme;
+  /** Concrete theme after resolving `"system"`. Known only post-mount. */
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
 };
 
 const ThemeProviderContext = createContext<ThemeProviderState>({
   theme: "system",
+  resolvedTheme: "light",
   setTheme: () => {},
 });
+
+function resolveTheme(theme: Theme): ResolvedTheme {
+  if (theme === "dark" || theme === "light") return theme;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
 function getThemeScript(storageKey: string, defaultTheme: Theme) {
   const key = JSON.stringify(storageKey);
@@ -27,17 +37,13 @@ function getThemeScript(storageKey: string, defaultTheme: Theme) {
   return `(function(){try{var t=localStorage.getItem(${key});if(t!=='light'&&t!=='dark'&&t!=='system'){t=${fallback}}var d=matchMedia('(prefers-color-scheme: dark)').matches;var r=t==='system'?(d?'dark':'light'):t;var e=document.documentElement;e.classList.add(r);e.style.colorScheme=r}catch(e){}})();`;
 }
 
-function applyTheme(theme: Theme) {
+function applyTheme(theme: Theme): ResolvedTheme {
   const root = document.documentElement;
   root.classList.remove("light", "dark");
-  const resolved =
-    theme === "system"
-      ? window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light"
-      : theme;
+  const resolved = resolveTheme(theme);
   root.classList.add(resolved);
   root.style.colorScheme = resolved;
+  return resolved;
 }
 
 export function ThemeProvider({
@@ -46,6 +52,7 @@ export function ThemeProvider({
   storageKey = "theme",
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(defaultTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -58,13 +65,13 @@ export function ThemeProvider({
 
   useEffect(() => {
     if (!mounted) return;
-    applyTheme(theme);
+    setResolvedTheme(applyTheme(theme));
   }, [theme, mounted]);
 
   useEffect(() => {
     if (!mounted || theme !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyTheme("system");
+    const onChange = () => setResolvedTheme(applyTheme("system"));
     media.addEventListener("change", onChange);
     return () => media.removeEventListener("change", onChange);
   }, [theme, mounted]);
@@ -77,7 +84,10 @@ export function ThemeProvider({
     [storageKey],
   );
 
-  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+  const value = useMemo(
+    () => ({ theme, resolvedTheme, setTheme }),
+    [theme, resolvedTheme, setTheme],
+  );
 
   return (
     <ThemeProviderContext value={value}>

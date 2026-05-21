@@ -59,11 +59,10 @@ function TemplateRow({
 }
 
 function PreviewBlock({ preview }: { preview: Preview }) {
-  const { theme } = useTheme();
-  const resolved = useResolvedTheme(theme);
+  const { resolvedTheme } = useTheme();
   const html = useMemo(
-    () => (resolved === "dark" ? preview.dark : preview.light),
-    [preview, resolved],
+    () => (resolvedTheme === "dark" ? preview.dark : preview.light),
+    [preview, resolvedTheme],
   );
   return (
     <div
@@ -77,11 +76,4 @@ function scopeLabel(scope: TemplateRef["scope"]): string {
   if (scope === "repo") return "repo";
   if (scope === "package") return "package";
   return "app";
-}
-
-function useResolvedTheme(theme: string): "light" | "dark" {
-  if (theme === "dark") return "dark";
-  if (theme === "light") return "light";
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }

@@ -43,7 +43,7 @@ export function CommandBar({
       <div className="space-y-1.5">
         <span className="text-xs font-medium text-muted-foreground">Run this</span>
         <div className="flex items-stretch gap-2">
-          <pre className="flex-1 overflow-x-auto rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs">
+          <pre className="flex-1 overflow-x-auto rounded-none border border-border bg-muted/50 px-3 py-2 font-mono text-[11px] break-words whitespace-pre-wrap sm:text-xs">
             <code>{command}</code>
           </pre>
           <Tooltip>

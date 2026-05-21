@@ -65,12 +65,7 @@ _New **slot** (single-choice, constraint-bearing)._
 
 ## styling
 
-- [x] **tailwind** — Tailwind v4, adapters per framework
-
-## ui
-
-_New **slot** (single-choice, constraint-bearing)._ Layered on top of `styling`; provides component primitives.
-
+- [x] **tailwind** — Vanilla Tailwind v4, adapters per framework
 - [ ] **shadcn-radix** — classic shadcn/ui (Radix primitives)
 - [ ] **shadcn-base** — shadcn on react-base-ui
 
