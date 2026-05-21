@@ -22,9 +22,18 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <Link to="/" className="font-semibold tracking-tight">
-          stanza
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="font-semibold tracking-tight">
+            stanza
+          </Link>
+          <Link
+            to="/docs/$"
+            params={{ _splat: "" }}
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Docs
+          </Link>
+        </div>
         <div className="flex items-center gap-2">
           <SiteSearch index={index} />
           <Button nativeButton={false} render={GITHUB_LINK} variant="outline">

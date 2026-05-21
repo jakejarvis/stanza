@@ -8,7 +8,8 @@
     "verbatimModuleSyntax": false,
     "noEmit": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "collections/*": ["./.source/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

@@ -59,9 +59,7 @@ export async function resolveRange(name: string, range: string): Promise<string>
 }
 
 /** Resolve a whole `name -> range` map in parallel; failures fall back per-entry. */
-export async function resolveRanges(
-  deps: Record<string, string>,
-): Promise<Record<string, string>> {
+export async function resolveRanges(deps: Record<string, string>): Promise<Record<string, string>> {
   const entries = await Promise.all(
     Object.entries(deps).map(
       async ([name, range]) => [name, await resolveRange(name, range)] as const,

@@ -1,0 +1,21 @@
+---
+title: CLI reference
+description: The stanza command-line verbs at a glance.
+---
+
+stanza currently ships five verbs against the slot taxonomy. More (`swap`,
+`update`) are planned.
+
+| Verb     | What it does                                  |
+| -------- | --------------------------------------------- |
+| `init`   | Scaffold a new monorepo from a stack          |
+| `add`    | Add a module to an existing project           |
+| `remove` | Remove a module and sweep its claimed regions |
+| `list`   | List installed modules                        |
+| `search` | Search the registry                           |
+
+Run any verb with `--help` for its flags:
+
+```bash
+stanza add --help
+```

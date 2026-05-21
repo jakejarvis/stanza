@@ -1,0 +1,24 @@
+---
+title: Getting started
+description: Create your first stanza project and add modules.
+---
+
+Scaffold a new monorepo, then layer in modules as you go.
+
+## Create a project
+
+```bash
+pnpm create stanza my-app
+```
+
+## Add a module
+
+Every slot — `framework`, `styling`, `db`, `orm`, `auth` — is one command away:
+
+```bash
+stanza add auth better-auth
+```
+
+stanza resolves peer constraints, picks the right adapter for your stack, and
+writes the module's templates, dependencies, and environment variables into the
+appropriate workspace package.
