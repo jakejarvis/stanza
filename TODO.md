@@ -41,6 +41,39 @@ The builder is functionally wired but visually unfinished. It's inline-styled ra
 - [ ] Vercel deploy config — Vercel auto-detects TanStack Start's `.output/` directory, no `vercel.json` needed. Env vars (`STANZA_REGISTRY`) optional override
 - [ ] Docs section (could be MDX routes): overview, authoring guide, registry spec
 
+### UI polish / responsiveness
+
+Functional + verified across desktop/tablet/mobile (375/768/1440) with
+agent-browser, but a mobile pass is outstanding. The builder's two-column split
+(`builder/index.tsx`) only kicks in at `lg`; below that the whole right column
+(command bar + file preview) drops to the bottom of the page.
+
+- [ ] Builder layout on small/medium screens — below `lg` the file preview sits
+  under every slot card, so a phone user scrolls past all 5 slots before seeing
+  any generated output. Consider surfacing the command bar (and a collapsed
+  preview) above the cards on mobile, or a sticky bottom "preview" affordance.
+- [ ] File-preview height on mobile (`file-preview.tsx`) — below `sm` the tree
+  and code pane stack, giving two `max-h-[420px]` blocks back-to-back (~840px
+  tall). Cap the combined height, make the tree collapsible, or shrink the tree
+  pane to a file dropdown on phones.
+- [ ] Command `<pre>` overflow (`command-bar.tsx`) — the `pnpm create stanza …`
+  string scrolls horizontally inside the card on narrow viewports. Consider
+  wrapping (`whitespace-pre-wrap break-all`) or a slightly smaller mono size on
+  mobile so the full command is visible at a glance.
+- [ ] Header density on phones (`header.tsx`) — the search trigger is
+  `min-w-[180px]`; with the logo, GitHub button, and theme toggle it gets tight
+  under ~360px. Collapse the search button to an icon-only trigger below `sm`.
+- [ ] Slot-card touch targets / wrapping (`slot-cards.tsx`) — single column below
+  `sm` is fine, but verify the logo + label + check-icon row and the
+  `slot/id · vX` footer don't wrap awkwardly at the smallest widths; bump tap
+  target padding for touch.
+- [ ] Confirm the TanStack devtools floating button is dev-only (it overlaps
+  cards/preview on small screens in `pnpm dev`) — it's mounted in `__root.tsx`;
+  make sure it's stripped from the production build.
+- [ ] Module detail page (`m.$slot.$id.tsx`) mobile pass — adapter-switcher chip
+  rows and the deps/env tables are comfortable at `max-w-3xl`; spot-check the
+  table key/value columns and the long "Try it" command don't overflow on phones.
+
 ## CLI (apps/cli)
 
 The wizard and verbs work but a few things from the plan are stubbed.
