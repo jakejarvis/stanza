@@ -41,6 +41,10 @@ In a **generated project**, `auth`, `db`, and `orm` modules install into their o
 - `pnpm changeset` — create a new changeset describing what changed (run after a substantive PR)
 - `pnpm release` — build CLI/create-stanza and publish to npm (only runs in CI; locally use `pnpm pack` to inspect tarballs)
 
+## Distributed Skill
+
+- `skills/stanza-cli/SKILL.md` is the installable agent skill for using Stanza through the npm-distributed CLI. Keep it accurate whenever CLI flags, command behavior, slot/add-on names, registry resolution, or published package names change; agents using the skill may not have access to this source repo and will rely on the public CLI contract alone.
+
 ## Toolchain invariants
 
 - **Node-only at runtime.** The CLI source uses node APIs and is dev-run via `tsx`; the published binary is plain ESM JS (`#!/usr/bin/env node`). The only place bun appears is the shebang on root maintainer scripts (`scripts/*.ts`) for our own convenience — those scripts don't use any `Bun.*` APIs and run fine under tsx/node

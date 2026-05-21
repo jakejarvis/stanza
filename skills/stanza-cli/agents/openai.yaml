@@ -1,0 +1,3 @@
+display_name: Stanza CLI
+short_description: Use the Stanza CLI non-interactively.
+default_prompt: Use the Stanza CLI skill to scaffold or modify a Stanza project via the npm-distributed binary.
