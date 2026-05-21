@@ -1,5 +1,5 @@
 import type { ModuleSummary, RegistryIndex, SlotId } from "@stanza/registry";
-import { slotLabel } from "@stanza/registry";
+import { moduleGroup, slotLabel } from "@stanza/registry";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -44,7 +44,7 @@ export function AdapterSwitcher({
               }}
             >
               {options.map((id) => {
-                const summary = index.modules.find((m) => m.slot === slot && m.id === id);
+                const summary = index.modules.find((m) => moduleGroup(m) === slot && m.id === id);
                 const label = summary?.label ?? id;
                 return (
                   <ToggleGroupItem
@@ -69,5 +69,5 @@ export function summaryFor(
   slot: SlotId,
   id: string,
 ): ModuleSummary | undefined {
-  return index.modules.find((m) => m.slot === slot && m.id === id);
+  return index.modules.find((m) => moduleGroup(m) === slot && m.id === id);
 }

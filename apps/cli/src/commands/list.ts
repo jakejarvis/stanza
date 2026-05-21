@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import { slotOrder, type SlotId } from "@stanza/registry";
+import { addonOrder, slotOrder, type SlotId } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -20,6 +20,15 @@ export async function cmdList(_args: { argv: Argv }): Promise<void> {
       ? `${kleur.cyan(slot.padEnd(10))} ${m.id} ${kleur.dim(`@${m.version}`)} ${kleur.dim(`[${m.adapter}]`)}`
       : `${kleur.cyan(slot.padEnd(10))} ${kleur.dim("(empty)")}`;
   });
+
+  // Add-on rows after the slots — a category can list several.
+  for (const category of addonOrder) {
+    for (const m of manifest.addons[category] ?? []) {
+      rows.push(
+        `${kleur.cyan(category.padEnd(10))} ${m.id} ${kleur.dim(`@${m.version}`)} ${kleur.dim(`[${m.adapter}]`)}`,
+      );
+    }
+  }
 
   console.log(rows.join("\n"));
 }

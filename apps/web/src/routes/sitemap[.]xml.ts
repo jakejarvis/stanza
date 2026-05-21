@@ -1,4 +1,5 @@
 import type { RegistryIndex } from "@stanza/registry";
+import { moduleGroup } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { loadRegistryFile } from "@/server/registry-base.server";
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const urls = [
           { loc: `${origin}/`, changefreq: "weekly", priority: "1.0" },
           ...index.modules.map((m) => ({
-            loc: `${origin}/m/${m.slot}/${m.id}`,
+            loc: `${origin}/m/${moduleGroup(m)}/${m.id}`,
             changefreq: "monthly",
             priority: "0.7",
           })),

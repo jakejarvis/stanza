@@ -1,5 +1,5 @@
-import type { SlotId } from "@stanza/registry";
-import { KNOWN_SLOTS, slotLabel } from "@stanza/registry";
+import type { AddonCategoryId, SlotId } from "@stanza/registry";
+import { groupLabel, isAddon, KNOWN_ADDONS, KNOWN_SLOTS, moduleGroup } from "@stanza/registry";
 import { IconExternalLink } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/m/$slot/$id")({
   validateSearch,
   loaderDeps: ({ search }) => search,
   loader: async ({ params, deps }) => {
-    if (!isSlotId(params.slot)) throw notFound();
+    if (!isGroup(params.slot)) throw notFound();
     const detail = await getModuleDetail({
       data: { slot: params.slot, id: params.id, peers: deps },
     });
@@ -54,8 +54,11 @@ export const Route = createFileRoute("/m/$slot/$id")({
   component: ModuleDetailPage,
 });
 
-function isSlotId(slot: string): slot is SlotId {
-  return (KNOWN_SLOTS as readonly string[]).includes(slot);
+function isGroup(group: string): group is SlotId | AddonCategoryId {
+  return (
+    (KNOWN_SLOTS as readonly string[]).includes(group) ||
+    (KNOWN_ADDONS as readonly string[]).includes(group)
+  );
 }
 
 function ModuleDetailPage() {
@@ -79,11 +82,18 @@ function ModuleDetailPage() {
   const templates = useMemo(() => adapter.templates ?? [], [adapter.templates]);
 
   // Build a "Try it" command using the same builder helper, treating the
-  // current module + resolved peers as a complete-enough selection.
-  const command = buildCommand({
-    name: "my-app",
-    selections: { ...resolvedPeers, [module.slot]: module.id },
-  });
+  // current module + resolved peers as a complete-enough selection. Add-ons
+  // go through the addons map (→ `--testing=vitest`); slots through selections.
+  const command = isAddon(module)
+    ? buildCommand({
+        name: "my-app",
+        selections: resolvedPeers,
+        addons: { [module.category]: [module.id] },
+      })
+    : buildCommand({
+        name: "my-app",
+        selections: { ...resolvedPeers, [module.slot]: module.id },
+      });
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -101,7 +111,7 @@ function ModuleDetailPage() {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{module.label}</h1>
-            <Badge variant="outline">{slotLabel(module.slot)}</Badge>
+            <Badge variant="outline">{groupLabel(moduleGroup(module))}</Badge>
             <span className="font-mono text-xs text-muted-foreground/60">v{module.version}</span>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">{module.description}</p>
@@ -118,7 +128,7 @@ function ModuleDetailPage() {
             )}
             {module.author && <span className="text-muted-foreground">by {module.author}</span>}
             <span className="font-mono text-muted-foreground/70">
-              {module.slot}/{module.id}
+              {moduleGroup(module)}/{module.id}
             </span>
           </div>
         </div>

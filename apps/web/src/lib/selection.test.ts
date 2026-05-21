@@ -35,13 +35,37 @@ describe("parseSelections", () => {
   });
 });
 
+describe("parseSelections — add-ons", () => {
+  it("splits comma-joined add-on categories into id lists", () => {
+    const { addons } = parseSelections({ testing: "vitest,playwright" });
+    expect(addons.testing).toEqual(["vitest", "playwright"]);
+  });
+
+  it("drops empty add-on categories", () => {
+    const { addons } = parseSelections({ testing: "" });
+    expect(addons.testing).toBeUndefined();
+  });
+});
+
 describe("toSearchParams", () => {
   it("round-trips a populated state", () => {
     const input = {
       name: "my-app",
       selections: { framework: "next" as const, orm: "drizzle" as const },
+      addons: {},
     };
     const search = toSearchParams(input);
+    expect(parseSelections(search)).toEqual(input);
+  });
+
+  it("round-trips add-on selections as comma-joined params", () => {
+    const input = {
+      name: DEFAULT_NAME,
+      selections: { framework: "next" as const },
+      addons: { testing: ["vitest", "playwright"] },
+    };
+    const search = toSearchParams(input);
+    expect(search.testing).toBe("vitest,playwright");
     expect(parseSelections(search)).toEqual(input);
   });
 
@@ -58,6 +82,16 @@ describe("buildCommand", () => {
         selections: { framework: "next", db: "sqlite" },
       }),
     ).toBe("pnpm create stanza my-app --framework=next --db=sqlite");
+  });
+
+  it("appends add-on flags after slot flags", () => {
+    expect(
+      buildCommand({
+        name: "my-app",
+        selections: { framework: "next" },
+        addons: { testing: ["vitest", "playwright"] },
+      }),
+    ).toBe("pnpm create stanza my-app --framework=next --testing=vitest,playwright");
   });
 
   it("keeps the bare command when nothing is selected", () => {
@@ -125,6 +159,31 @@ describe("selectedFiles", () => {
     });
     // framework comes before orm in slotOrder, so its files should appear first
     expect(files[0]!.path).toBe("apps/web/app/layout.tsx");
+  });
+
+  it("appends add-on templates after slot templates", () => {
+    const vitest: Module = defineModule({
+      kind: "addon",
+      id: "vitest",
+      category: "testing",
+      label: "Vitest",
+      description: "",
+      version: "0.1.0",
+      adapters: [
+        {
+          key: "default",
+          match: {},
+          templates: [{ src: "vitest.config.ts", dest: "vitest.config.ts", scope: "app" }],
+        },
+      ],
+    });
+    const files = selectedFiles(
+      { orm: { module: drizzle, adapter: drizzle.adapters[0]! } },
+      { testing: [{ module: vitest, adapter: vitest.adapters[0]! }] },
+    );
+    // Slot files come first, the add-on's config last.
+    expect(files.at(-1)!.path).toBe("apps/web/vitest.config.ts");
+    expect(files.at(-1)!.owner.group).toBe("testing");
   });
 });
 

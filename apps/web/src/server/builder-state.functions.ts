@@ -1,7 +1,13 @@
 import type { Module, RegistryIndex } from "@stanza/registry";
+import { moduleGroup } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import { parseSelections, resolveSelectedAdapters, selectedFiles } from "@/lib/selection";
+import {
+  parseSelections,
+  resolveSelectedAdapters,
+  resolveSelectedAddons,
+  selectedFiles,
+} from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { renderPreview } from "@/server/highlighter.server";
@@ -9,7 +15,7 @@ import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type BuilderState = {
   index: RegistryIndex;
-  /** Keyed by `${slot}:${id}` for direct lookup. */
+  /** Keyed by `${slotOrCategory}:${id}` for direct lookup. */
   modules: Record<string, Module>;
   /** Pre-rendered Shiki HTML, keyed by file path (relative to repo root). */
   previews: Record<string, Preview>;
@@ -33,15 +39,17 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // per-selection — recomputed each loader run.
     const fullModules = await Promise.all(
       index.modules.map(async (summary) => {
-        const mod = await loadRegistryFile<Module>(`modules/${summary.slot}-${summary.id}.json`);
-        return [`${mod.slot}:${mod.id}`, mod] as const;
+        const group = moduleGroup(summary);
+        const mod = await loadRegistryFile<Module>(`modules/${group}-${summary.id}.json`);
+        return [`${moduleGroup(mod)}:${mod.id}`, mod] as const;
       }),
     );
     const modules: Record<string, Module> = Object.fromEntries(fullModules);
 
-    const { selections } = parseSelections(data);
+    const { selections, addons } = parseSelections(data);
     const resolved = resolveSelectedAdapters(modules, selections);
-    const files = selectedFiles(resolved);
+    const resolvedAddons = resolveSelectedAddons(modules, selections, addons);
+    const files = selectedFiles(resolved, resolvedAddons);
 
     const previewEntries = await Promise.all(
       files.map(async (file) => {

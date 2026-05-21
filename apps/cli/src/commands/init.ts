@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import { KNOWN_SLOTS, resolveAdapter, type SlotId, slotOrder } from "@stanza/registry";
+import type { AddonCategoryId, SlotId } from "@stanza/registry";
+import { addonOrder, KNOWN_ADDONS, KNOWN_SLOTS, resolveAdapter, slotOrder } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -73,6 +74,31 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
     });
     manifest = r.manifest;
     spinner.stop(`${kleur.green("✓")} ${mod.label}`);
+  }
+
+  // Add-ons apply after all slots, so framework-varying adapters resolve
+  // against the now-populated manifest.
+  for (const category of addonOrder) {
+    for (const mod of result.addons[category] ?? []) {
+      spinner.start(`Installing ${mod.label}`);
+      const adapter = resolveAdapter(mod, { manifest, pending: {} });
+      if (!adapter.ok) {
+        spinner.stop(`${mod.label} ${kleur.red("failed")}`);
+        throw new Error(
+          `Could not resolve adapter for ${category}/${mod.id}: ${adapter.error.kind}`,
+        );
+      }
+      const r = await applyModule({
+        projectRoot,
+        manifest,
+        module: mod,
+        adapter: adapter.adapter,
+        registryRoot,
+        dryRun,
+      });
+      manifest = r.manifest;
+      spinner.stop(`${kleur.green("✓")} ${mod.label}`);
+    }
   }
 
   p.outro(
@@ -167,10 +193,23 @@ function overridesFromArgv(name: string | undefined, argv: Argv): WizardOverride
     const value = argv[slot];
     if (typeof value === "string" && value.length > 0) modules[slot] = value;
   }
+  // Add-on flags are comma-separated lists (e.g. `--testing vitest,playwright`).
+  const addons: Partial<Record<AddonCategoryId, string[]>> = {};
+  for (const category of KNOWN_ADDONS) {
+    const value = argv[category];
+    if (typeof value === "string" && value.length > 0) {
+      const ids = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (ids.length > 0) addons[category] = ids;
+    }
+  }
   const pm = argv.pm;
   return {
     name,
     packageManager: pm === "pnpm" || pm === "bun" || pm === "npm" ? pm : undefined,
     modules,
+    addons,
   };
 }

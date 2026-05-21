@@ -1,6 +1,5 @@
 import { themeToTreeStyles } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelection } from "@pierre/trees/react";
-import type { Module, ModuleAdapter, SlotId } from "@stanza/registry";
 import { IconLoader2 } from "@tabler/icons-react";
 import { useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef } from "react";
@@ -27,11 +26,12 @@ function directoryPaths(paths: readonly string[]): string[] {
 export function FilePreview({
   filePaths,
   previews,
-  resolved,
+  moduleCount,
 }: {
   filePaths: string[];
   previews: Record<string, Preview>;
-  resolved: Partial<Record<SlotId, { module: Module; adapter: ModuleAdapter }>>;
+  /** Number of selected modules (slots + add-ons) contributing files. */
+  moduleCount: number;
 }) {
   // @pierre/trees is path-driven. `useFileTree` builds the model once (lazy
   // `useState` init), so it does NOT react to later `paths` changes on its own.
@@ -68,8 +68,6 @@ export function FilePreview({
   const { resolvedTheme } = useTheme();
   const treeStyle = useMemo(() => themeToTreeStyles({ type: resolvedTheme }), [resolvedTheme]);
 
-  const slotCount = Object.keys(resolved).length;
-
   // The route loader reruns its server fn on every selection change; surface
   // that as a subtle overlay so the preview reads as "refreshing" rather than
   // flashing stale content.
@@ -80,7 +78,7 @@ export function FilePreview({
       <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
         <span className="text-xs font-medium text-muted-foreground">
           {filePaths.length > 0
-            ? `${filePaths.length} file${filePaths.length === 1 ? "" : "s"} from ${slotCount} module${slotCount === 1 ? "" : "s"}`
+            ? `${filePaths.length} file${filePaths.length === 1 ? "" : "s"} from ${moduleCount} module${moduleCount === 1 ? "" : "s"}`
             : "Pick a module to preview generated files"}
         </span>
       </div>

@@ -1,5 +1,5 @@
-import type { ModuleSummary, RegistryIndex, SlotId } from "@stanza/registry";
-import { slotLabel } from "@stanza/registry";
+import type { ModuleSummary, RegistryIndex } from "@stanza/registry";
+import { groupLabel, moduleGroup } from "@stanza/registry";
 import { IconSearch } from "@tabler/icons-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -43,7 +43,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
   const go = useCallback(
     (summary: ModuleSummary) => {
       setOpen(false);
-      void navigate({ to: "/m/$slot/$id", params: { slot: summary.slot, id: summary.id } });
+      void navigate({ to: "/m/$slot/$id", params: { slot: moduleGroup(summary), id: summary.id } });
     },
     [navigate],
   );
@@ -64,10 +64,10 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
         <CommandInput placeholder="Search modules…" />
         <CommandList>
           <CommandEmpty>No matches.</CommandEmpty>
-          {groups.map(({ slot, modules }) => (
-            <CommandGroup key={slot} heading={slotLabel(slot as SlotId)}>
+          {groups.map(({ group, modules }) => (
+            <CommandGroup key={group} heading={groupLabel(group)}>
               {modules.map((m) => (
-                <SearchResult key={`${m.slot}:${m.id}`} summary={m} onGo={go} />
+                <SearchResult key={`${moduleGroup(m)}:${m.id}`} summary={m} onGo={go} />
               ))}
             </CommandGroup>
           ))}
@@ -87,7 +87,7 @@ function SearchResult({
   const onSelect = useCallback(() => onGo(summary), [onGo, summary]);
   return (
     <CommandItem
-      value={`${summary.slot} ${summary.id} ${summary.label} ${summary.description}`}
+      value={`${moduleGroup(summary)} ${summary.id} ${summary.label} ${summary.description}`}
       onSelect={onSelect}
       className="cursor-pointer"
     >
@@ -97,7 +97,7 @@ function SearchResult({
         <div className="truncate text-[11px] text-muted-foreground">{summary.description}</div>
       </div>
       <span className="shrink-0 font-mono text-[10px] text-muted-foreground/60">
-        {summary.slot}/{summary.id}
+        {moduleGroup(summary)}/{summary.id}
       </span>
     </CommandItem>
   );

@@ -13,7 +13,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Logo, Module, RegistryIndex } from "@stanza/registry";
-import { SLOTS } from "@stanza/registry";
+import { ADDON_CATEGORIES, isAddon, SLOTS } from "@stanza/registry";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = findRepoRoot(here);
@@ -54,8 +54,12 @@ async function main() {
       })),
     };
 
+    // Add-on dirs/files are keyed by `<category>-<id>` (e.g. testing-vitest);
+    // slot modules by `<slot>-<id>`. The CLI's HTTP loader builds the same
+    // filename from the category/slot it's asked for.
+    const categoryKey = isAddon(mod) ? mod.category : mod.slot;
     fs.writeFileSync(
-      path.join(outDir, "modules", `${mod.slot}-${mod.id}.json`),
+      path.join(outDir, "modules", `${categoryKey}-${mod.id}.json`),
       JSON.stringify(inlined, null, 2),
     );
 
@@ -73,6 +77,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
     slots: [...SLOTS],
+    addons: [...ADDON_CATEGORIES],
     modules: summaries,
   };
 

@@ -194,3 +194,93 @@ describe("cmdRemove", () => {
     expect(process.exitCode).toBe(1);
   });
 });
+
+describe("add-ons (multi-choice testing slot)", () => {
+  it("init --yes installs two add-ons in one category without a region conflict", async () => {
+    await cmdInit({
+      name: "app",
+      argv: argv({
+        yes: true,
+        framework: "next",
+        testing: "vitest,playwright",
+      }) as never,
+    });
+    expect(process.exitCode).toBeFalsy();
+
+    const projectRoot = path.join(tmp, "app");
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(manifest.addons.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
+      "playwright",
+      "vitest",
+    ]);
+
+    // Both config files landed.
+    expect(fs.existsSync(path.join(projectRoot, "apps/web/vitest.config.ts"))).toBe(true);
+    expect(fs.existsSync(path.join(projectRoot, "apps/web/playwright.config.ts"))).toBe(true);
+
+    // Disjoint scripts coexist on the app package.json (no RegionConflictError).
+    const appPkg = JSON.parse(
+      fs.readFileSync(path.join(projectRoot, "apps/web/package.json"), "utf8"),
+    );
+    expect(appPkg.scripts.test).toBe("vitest run");
+    expect(appPkg.scripts["test:e2e"]).toBe("playwright test");
+    expect(appPkg.devDependencies.vitest).toBeTruthy();
+    expect(appPkg.devDependencies["@playwright/test"]).toBeTruthy();
+  });
+
+  describe("add / remove", () => {
+    beforeEach(async () => {
+      await cmdInit({ name: "app", argv: argv({ yes: true, framework: "next" }) as never });
+      process.chdir(path.join(tmp, "app"));
+    });
+
+    it("accepts a second add-on in a category that already has one", async () => {
+      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      expect(process.exitCode).toBeFalsy();
+      await cmdAdd({ slot: "testing", moduleId: "playwright", argv: argv({}) as never });
+      expect(process.exitCode).toBeFalsy();
+
+      const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+      expect(manifest.addons.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
+        "playwright",
+        "vitest",
+      ]);
+    });
+
+    it("rejects re-adding the same add-on id", async () => {
+      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      process.exitCode = undefined;
+      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      expect(process.exitCode).toBe(1);
+    });
+
+    it("removes only the named add-on, leaving siblings intact", async () => {
+      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      await cmdAdd({ slot: "testing", moduleId: "playwright", argv: argv({}) as never });
+
+      await cmdRemove({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      expect(process.exitCode).toBeFalsy();
+
+      const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+      expect(manifest.addons.testing.map((r: { id: string }) => r.id)).toEqual(["playwright"]);
+      // vitest's config gone, playwright's remains.
+      expect(fs.existsSync("apps/web/vitest.config.ts")).toBe(false);
+      expect(fs.existsSync("apps/web/playwright.config.ts")).toBe(true);
+      const appPkg = JSON.parse(fs.readFileSync("apps/web/package.json", "utf8"));
+      expect(appPkg.scripts.test).toBeUndefined();
+      expect(appPkg.scripts["test:e2e"]).toBe("playwright test");
+
+      // Removing the last one drops the category key.
+      await cmdRemove({ slot: "testing", moduleId: "playwright", argv: argv({}) as never });
+      const after = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+      expect(after.addons.testing).toBeUndefined();
+    });
+
+    it("errors when removing an add-on category without an id", async () => {
+      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      process.exitCode = undefined;
+      await cmdRemove({ slot: "testing", argv: argv({}) as never });
+      expect(process.exitCode).toBe(1);
+    });
+  });
+});

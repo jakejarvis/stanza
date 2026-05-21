@@ -97,3 +97,63 @@ describe("resolveAdapter", () => {
     expect(result.adapter.key).toBe("default");
   });
 });
+
+const next: Module = defineModule({
+  id: "next",
+  slot: "framework",
+  label: "Next.js",
+  description: "",
+  version: "0.1.0",
+  adapters: [{ key: "default", match: {} }],
+});
+
+const vitest: Module = defineModule({
+  kind: "addon",
+  id: "vitest",
+  category: "testing",
+  label: "Vitest",
+  description: "",
+  version: "0.1.0",
+  peers: { framework: ["next", "tanstack-start"] },
+  adapters: [
+    { key: "next", match: { framework: "next" } },
+    { key: "tanstack-start", match: { framework: "tanstack-start" } },
+  ],
+});
+
+describe("resolveAdapter — add-ons", () => {
+  it("dispatches an add-on adapter on the chosen framework", () => {
+    const result = resolveAdapter(vitest, {
+      manifest: emptyManifest({ name: "t" }),
+      pending: { framework: next },
+    });
+    expect(result.ok).toBe(true);
+    assert(result.ok);
+    expect(result.adapter.key).toBe("next");
+  });
+
+  it("reports a missing framework peer like any slot module", () => {
+    const result = resolveAdapter(vitest, {
+      manifest: emptyManifest({ name: "t" }),
+      pending: {},
+    });
+    expect(result.ok).toBe(false);
+    assert(!result.ok);
+    expect(result.error.kind).toBe("missing-peer");
+  });
+
+  it("never becomes a peer candidate — installed add-ons don't affect slot resolution", () => {
+    // A manifest where the testing category is populated must not change how a
+    // slot module (better-auth) resolves: add-ons aren't in KNOWN_SLOTS, so
+    // activePeerIds never surfaces them.
+    const manifest = {
+      ...emptyManifest({ name: "t" }),
+      addons: { testing: [{ id: "vitest", version: "0.1.0", adapter: "next" }] },
+    };
+    const result = resolveAdapter(betterAuth, { manifest, pending: {} });
+    expect(result.ok).toBe(false);
+    assert(!result.ok);
+    // Still missing-peer for orm — the add-on did not satisfy or interfere.
+    expect(result.error.kind).toBe("missing-peer");
+  });
+});

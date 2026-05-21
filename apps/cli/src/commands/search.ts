@@ -1,3 +1,4 @@
+import { moduleGroup } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -13,7 +14,7 @@ export async function cmdSearch(args: { query?: string; argv: Argv }): Promise<v
       m.id.toLowerCase().includes(q) ||
       m.label.toLowerCase().includes(q) ||
       m.description.toLowerCase().includes(q) ||
-      m.slot.includes(q)
+      moduleGroup(m).includes(q)
     );
   });
 
@@ -23,7 +24,7 @@ export async function cmdSearch(args: { query?: string; argv: Argv }): Promise<v
   }
 
   for (const m of results) {
-    const head = `${kleur.bold(m.label)} ${kleur.dim(`(${m.slot}/${m.id})`)}`;
+    const head = `${kleur.bold(m.label)} ${kleur.dim(`(${moduleGroup(m)}/${m.id})`)}`;
     const desc = m.description ? `  ${kleur.dim(m.description)}` : "";
     console.log(`${head}\n${desc}`);
   }

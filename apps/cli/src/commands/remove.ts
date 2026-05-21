@@ -3,7 +3,8 @@ import path from "node:path";
 
 import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
-import { KNOWN_SLOTS, SLOT_PACKAGE_DIR, type SlotId } from "@stanza/registry";
+import type { AddonCategoryId, SlotId, StanzaModuleRecord } from "@stanza/registry";
+import { KNOWN_ADDONS, KNOWN_SLOTS, SLOT_PACKAGE_DIR } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -12,18 +13,24 @@ import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regionsOwnedBy } from "../lib/region-tracker";
 import { loadRegistry } from "../lib/registry-loader";
 
-export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<void> {
+export async function cmdRemove(args: {
+  slot?: string;
+  moduleId?: string;
+  argv: Argv;
+}): Promise<void> {
   if (!args.slot) {
-    p.log.error("Usage: stanza remove <slot>");
+    p.log.error("Usage: stanza remove <slot|category> [id]");
     process.exitCode = 1;
     return;
   }
-  if (!(KNOWN_SLOTS as readonly string[]).includes(args.slot)) {
-    p.log.error(`Unknown slot: ${args.slot}`);
+  const isSlot = (KNOWN_SLOTS as readonly string[]).includes(args.slot);
+  const isCategory = (KNOWN_ADDONS as readonly string[]).includes(args.slot);
+  if (!isSlot && !isCategory) {
+    p.log.error(`Unknown slot or category: ${args.slot}`);
     process.exitCode = 1;
     return;
   }
-  const slot = args.slot as SlotId;
+  const group = args.slot;
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -33,10 +40,34 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
   }
 
   let manifest = readManifest(projectRoot);
-  const installed = manifest.modules[slot];
-  if (!installed) {
-    p.log.warn(`Slot "${slot}" is not filled.`);
-    return;
+
+  // Resolve which record we're removing — one-per-slot, or a named add-on.
+  let installed: StanzaModuleRecord;
+  if (isSlot) {
+    const slot = group as SlotId;
+    const record = manifest.modules[slot];
+    if (!record) {
+      p.log.warn(`Slot "${slot}" is not filled.`);
+      return;
+    }
+    installed = record;
+  } else {
+    const category = group as AddonCategoryId;
+    if (!args.moduleId) {
+      const present = (manifest.addons[category] ?? []).map((r) => r.id).join(", ");
+      p.log.error(
+        `Add-on category "${category}" can hold several modules — specify which: ` +
+          `\`stanza remove ${category} <id>\`${present ? ` (installed: ${present})` : ""}.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    const record = manifest.addons[category]?.find((r) => r.id === args.moduleId);
+    if (!record) {
+      p.log.warn(`"${category}/${args.moduleId}" is not installed.`);
+      return;
+    }
+    installed = record;
   }
 
   const dryRun = Boolean(args.argv["dry-run"]);
@@ -46,7 +77,7 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
   // peer-owned files (root layout, schema barrels, vite config) — reverts
   // need to see those files intact, before any template deletions below.
   const registry = await loadRegistry();
-  const mod = await registry.loadModule(slot, installed.id).catch(() => null);
+  const mod = await registry.loadModule(group, installed.id).catch(() => null);
   const adapter = mod?.adapters.find((a) => a.key === installed.adapter);
   if (mod && adapter) {
     const revertResult = await revertCodemods({
@@ -113,9 +144,18 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
       else nextRegions[file] = copy;
     }
   }
-  const nextModules = { ...manifest.modules };
-  delete nextModules[slot];
-  manifest = { ...manifest, modules: nextModules, regions: nextRegions };
+  if (isSlot) {
+    const nextModules = { ...manifest.modules };
+    delete nextModules[group as SlotId];
+    manifest = { ...manifest, modules: nextModules, regions: nextRegions };
+  } else {
+    const category = group as AddonCategoryId;
+    const remaining = (manifest.addons[category] ?? []).filter((r) => r.id !== installed.id);
+    const nextAddons = { ...manifest.addons };
+    if (remaining.length > 0) nextAddons[category] = remaining;
+    else delete nextAddons[category];
+    manifest = { ...manifest, addons: nextAddons, regions: nextRegions };
+  }
 
   // Step 3: sweep any internal package whose claims have all been released.
   // The bootstrap files (package.json, tsconfig.json, the workspace dep on
@@ -143,7 +183,7 @@ export async function cmdRemove(args: { slot?: string; argv: Argv }): Promise<vo
 
   if (!dryRun) writeManifest(projectRoot, manifest);
 
-  p.log.success(`${kleur.green("✓")} Removed ${installed.id} from ${slot}`);
+  p.log.success(`${kleur.green("✓")} Removed ${installed.id} from ${group}`);
   if (sweptPackages.length > 0) {
     p.log.info(`Swept packages/${sweptPackages.join(", packages/")} (no remaining slot owns it).`);
   }

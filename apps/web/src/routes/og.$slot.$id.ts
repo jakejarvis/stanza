@@ -1,4 +1,5 @@
 import type { RegistryIndex } from "@stanza/registry";
+import { moduleGroup } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { ImageResponse } from "@vercel/og";
 
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/og/$slot/$id")({
           return new Response("Registry unavailable", { status: 502 });
         }
 
-        const summary = index.modules.find((m) => m.slot === slot && m.id === id);
+        const summary = index.modules.find((m) => moduleGroup(m) === slot && m.id === id);
         if (!summary) {
           return new Response("Not found", { status: 404 });
         }

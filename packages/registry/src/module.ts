@@ -84,6 +84,68 @@ export function slotLabel(slot: SlotId): string {
   return SLOT_BY_ID[slot].label;
 }
 
+/**
+ * Ordered tuple of add-on category ids. Deliberately DISJOINT from
+ * `KNOWN_SLOTS`: keeping these out of the slot tuple is what makes add-ons
+ * invisible to peer resolution — `activePeerIds` and the peer-check loop in
+ * `resolveAdapter` both iterate `KNOWN_SLOTS` only, so an add-on never blocks
+ * anyone and never becomes a peer candidate. Add-ons are processed *after*
+ * all slots (see `addonOrder`), so a framework/orm/db pick is already in the
+ * manifest when an add-on resolves its framework-varying adapter.
+ *
+ * Unlike slots, an add-on category holds 0..n modules (vitest + playwright
+ * coexist).
+ */
+export const KNOWN_ADDONS = ["testing", "tooling", "deploy", "email", "monorepo"] as const;
+
+export type AddonCategoryId = (typeof KNOWN_ADDONS)[number];
+
+export type AddonCategory = {
+  id: AddonCategoryId;
+  label: string;
+  description: string;
+  /**
+   * Same semantics as `Slot.packageDir`. Add-ons are overwhelmingly app- or
+   * repo-scoped (test/lint configs, deploy manifests), so this is `null` for
+   * every first-party add-on today. Kept for symmetry and future extraction.
+   */
+  packageDir: string | null;
+};
+
+/** Single source of truth for add-on category metadata — parallel to `SLOTS`. */
+export const ADDON_CATEGORIES: readonly AddonCategory[] = [
+  { id: "testing", label: "Testing", description: "Test runners (unit, e2e).", packageDir: null },
+  { id: "tooling", label: "Tooling", description: "Lint / format toolchain.", packageDir: null },
+  { id: "deploy", label: "Deploy", description: "Deploy targets.", packageDir: null },
+  { id: "email", label: "Email", description: "Transactional email.", packageDir: null },
+  {
+    id: "monorepo",
+    label: "Monorepo",
+    description: "Monorepo build tooling.",
+    packageDir: null,
+  },
+];
+
+export const ADDON_PACKAGE_DIR: Record<AddonCategoryId, string | null> = Object.fromEntries(
+  ADDON_CATEGORIES.map((c) => [c.id, c.packageDir]),
+) as Record<AddonCategoryId, string | null>;
+
+const ADDON_BY_ID: Record<AddonCategoryId, AddonCategory> = Object.fromEntries(
+  ADDON_CATEGORIES.map((c) => [c.id, c]),
+) as Record<AddonCategoryId, AddonCategory>;
+
+/** Display name for an add-on category — used by the wizard and CLI list output. */
+export function addonLabel(category: AddonCategoryId): string {
+  return ADDON_BY_ID[category].label;
+}
+
+/** Display name for a slot OR add-on category — used by surfaces that mix both. */
+export function groupLabel(group: SlotId | AddonCategoryId): string {
+  return (KNOWN_ADDONS as readonly string[]).includes(group)
+    ? addonLabel(group as AddonCategoryId)
+    : slotLabel(group as SlotId);
+}
+
 export type ModuleId = string;
 
 export type PeerRequirement = {
@@ -189,9 +251,9 @@ export type EnvVar = {
  */
 export type Logo = string | { light: string; dark: string };
 
-export type Module = ModuleInstallFields & {
+/** Fields shared by both slot and add-on modules. */
+type ModuleCommon = ModuleInstallFields & {
   id: ModuleId;
-  slot: SlotId;
   /** Display name in the wizard / web builder. */
   label: string;
   description: string;
@@ -224,11 +286,47 @@ export type Module = ModuleInstallFields & {
   logo?: Logo;
 };
 
+/** A single-choice, constraint-bearing module that fills exactly one slot. */
+export type SlotModule = ModuleCommon & {
+  /** Discriminator. Optional so existing modules (no `kind`) parse as slots. */
+  kind?: "slot";
+  slot: SlotId;
+};
+
+/**
+ * A multi-choice add-on. Several add-ons coexist in one category and none
+ * constrains another module's adapter dispatch. An add-on CAN still declare
+ * `peers` (e.g. `{ framework: ["next"] }`) and framework-varying adapters —
+ * that's a one-way constraint (framework → add-on); the add-on never appears
+ * in anyone else's `peers`/`match`.
+ */
+export type AddonModule = ModuleCommon & {
+  kind: "addon";
+  category: AddonCategoryId;
+};
+
+export type Module = SlotModule | AddonModule;
+
+/** Narrowing guard — the runner, loader, and builder branch on this. */
+export function isAddon(module: Module): module is AddonModule {
+  return module.kind === "addon";
+}
+
+/**
+ * The grouping key for a module: its slot id (slot modules) or category id
+ * (add-ons). Used wherever code keys modules by their bucket — the registry
+ * filename (`<group>-<id>`), the web builder's `${group}:${id}` map, CLI list
+ * rows, etc. Works on both full `Module`s and the trimmed `ModuleSummary`.
+ */
+export function moduleGroup(m: Module | ModuleSummary): SlotId | AddonCategoryId {
+  return "category" in m ? m.category : m.slot;
+}
+
 /**
  * Lightweight summary suitable for the registry index — strips the codemod
  * implementations but keeps everything needed for the wizard / search UI.
  */
-export type ModuleSummary = Omit<Module, "adapters"> & {
+export type ModuleSummary = (Omit<SlotModule, "adapters"> | Omit<AddonModule, "adapters">) & {
   adapters: Pick<ModuleAdapter, "key" | "match">[];
 };
 
@@ -236,6 +334,7 @@ export type RegistryIndex = {
   generatedAt: string;
   schemaVersion: 1;
   slots: Slot[];
+  addons: AddonCategory[];
   modules: ModuleSummary[];
 };
 
@@ -277,9 +376,35 @@ const installFieldsSchema = {
   scripts: z.record(z.string(), z.string()).optional(),
 };
 
-export const ModuleSchema = z.object({
+const adapterSchema = z.object({
+  key: z.string(),
+  match: z.record(z.string(), z.string()),
+  templates: z
+    .array(
+      z.object({
+        src: z.string(),
+        dest: z.string(),
+        scope: z.enum(["repo", "app", "package"]).optional(),
+        template: z.boolean().optional(),
+        content: z.string().optional(),
+      }),
+    )
+    .optional(),
+  codemods: z
+    .array(
+      z.object({
+        id: z.string(),
+        args: z.record(z.string(), jsonValueSchema).optional(),
+      }),
+    )
+    .optional(),
+  ...installFieldsSchema,
+});
+
+// Fields shared by both module variants. Spread into each branch of the
+// discriminated union below.
+const sharedModuleFields = {
   id: z.string(),
-  slot: z.enum(KNOWN_SLOTS),
   label: z.string(),
   description: z.string(),
   version: z.string(),
@@ -289,33 +414,30 @@ export const ModuleSchema = z.object({
     .optional(),
   consumesPackages: z.array(z.string()).optional(),
   ...installFieldsSchema,
-  adapters: z.array(
-    z.object({
-      key: z.string(),
-      match: z.record(z.string(), z.string()),
-      templates: z
-        .array(
-          z.object({
-            src: z.string(),
-            dest: z.string(),
-            scope: z.enum(["repo", "app", "package"]).optional(),
-            template: z.boolean().optional(),
-            content: z.string().optional(),
-          }),
-        )
-        .optional(),
-      codemods: z
-        .array(
-          z.object({
-            id: z.string(),
-            args: z.record(z.string(), jsonValueSchema).optional(),
-          }),
-        )
-        .optional(),
-      ...installFieldsSchema,
-    }),
-  ),
+  adapters: z.array(adapterSchema),
   homepage: z.string().optional(),
   author: z.string().optional(),
   logo: z.union([z.string(), z.object({ light: z.string(), dark: z.string() })]).optional(),
-}) satisfies z.ZodType<Module>;
+};
+
+const slotModuleSchema = z.object({
+  kind: z.literal("slot"),
+  slot: z.enum(KNOWN_SLOTS),
+  ...sharedModuleFields,
+});
+
+const addonModuleSchema = z.object({
+  kind: z.literal("addon"),
+  category: z.enum(KNOWN_ADDONS),
+  ...sharedModuleFields,
+});
+
+// Existing module manifests omit `kind` — default it to "slot" before
+// discriminating so first-party (and pre-add-on third-party) JSON validates.
+export const ModuleSchema = z.preprocess(
+  (value) =>
+    value && typeof value === "object" && !("kind" in value)
+      ? { ...(value as object), kind: "slot" }
+      : value,
+  z.discriminatedUnion("kind", [slotModuleSchema, addonModuleSchema]),
+) satisfies z.ZodType<Module>;

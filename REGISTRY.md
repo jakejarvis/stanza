@@ -19,11 +19,14 @@ constrain anything).
 | **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma     |
 | **Add-ons** (no constraints, many allowed)      | `testing`, `tooling`, `deploy`, `email`, `monorepo`                        | vitest + playwright together; eslint or biome |
 
-Today's CLI/manifest only models slots. The add-on schema (likely a
-`manifest.addons[]` array + `kind` discriminator on `Module`) is
-intentionally deferred — it should be designed around real add-on modules,
-not in a vacuum. The first add-on (probably `testing-vitest`) will force the
-schema decisions.
+The add-on schema is **live** as of the `testing` modules. Add-ons are
+modeled with a `kind: "addon"` discriminator on `Module` (carrying a
+`category` instead of a `slot`) and a `manifest.addons` record keyed by
+category, each holding a list of records (`Partial<Record<AddonCategoryId,
+StanzaAddonRecord[]>>`). Add-on categories live in `KNOWN_ADDONS` /
+`ADDON_CATEGORIES`, deliberately disjoint from `KNOWN_SLOTS` so they never
+participate in peer resolution — yet they can still declare a one-way
+`peers` (e.g. `{ framework: [...] }`) and framework-varying adapters.
 
 ## framework
 
@@ -94,8 +97,8 @@ _New **add-on**._ Lint/format toolchain. Conventionally one per project but does
 
 _New **add-on**._ Vitest and Playwright are independent and routinely coexist.
 
-- [ ] **vitest** — unit + integration
-- [ ] **playwright** — e2e
+- [x] **vitest** — unit + integration; per-framework adapters (next, tanstack-start), `jsdom` + RTL, `test`/`test:watch` scripts
+- [x] **playwright** — e2e; per-framework `webServer` (`next dev` / `vite dev`), `test:e2e`/`test:e2e:ui` scripts (disjoint from vitest's)
 
 ## deploy
 
@@ -134,4 +137,4 @@ The mapping lives in the canonical [`SLOTS`](packages/registry/src/module.ts) ar
 
 Adding a new slot is now a **two-line edit**: append the id to `KNOWN_SLOTS` (the `as const` tuple Zod needs) and append a `Slot` entry to `SLOTS` with `{ id, label, description, packageDir }`. Order is topological — earlier slots become peer candidates for later ones. Existing `stanza.json` files don't break: new slots are optional, so adding them is additive.
 
-Adding an add-on category is a larger lift because the manifest schema doesn't model add-ons yet. When the first add-on lands, expect to introduce `manifest.addons[]` and a discriminator on `Module`. See the category table at the top of this file for which planned modules are add-ons vs slots.
+Adding an add-on **category** is the same two-line edit against `KNOWN_ADDONS` + `ADDON_CATEGORIES`. Authoring an add-on **module** sets `kind: "addon"` + `category` (instead of `slot`) on `defineModule`; the manifest's `addons` record and the runner/CLI/web surfaces already handle multi-choice. See the category table at the top of this file for which planned modules are add-ons vs slots.

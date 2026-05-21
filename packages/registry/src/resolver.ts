@@ -1,11 +1,27 @@
 import type { StanzaManifest } from "./manifest";
-import { KNOWN_SLOTS, type Module, type ModuleAdapter, type SlotId } from "./module";
+import {
+  type AddonCategoryId,
+  KNOWN_ADDONS,
+  KNOWN_SLOTS,
+  type Module,
+  type ModuleAdapter,
+  type SlotId,
+} from "./module";
 
 /**
  * Topological order slots are processed in. Derived from `SLOTS` array order;
  * earlier slots become peer candidates for later ones.
  */
 export const slotOrder: readonly SlotId[] = KNOWN_SLOTS;
+
+/**
+ * Order add-on categories are processed in — *after* every slot, so the
+ * framework/orm/db picks are already in the manifest when an add-on resolves
+ * its framework-varying adapter. Add-ons never participate in peer resolution
+ * (they're not in `KNOWN_SLOTS`), so this order is purely about processing,
+ * not about exposing earlier add-ons as peer candidates.
+ */
+export const addonOrder: readonly AddonCategoryId[] = KNOWN_ADDONS;
 
 export type ResolveContext = {
   /** Manifest state at the moment of resolution (post any pending picks). */

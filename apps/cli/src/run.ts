@@ -16,8 +16,8 @@ ${kleur.bold("Usage")}
 
 ${kleur.bold("Commands")}
   init [name]                  Scaffold a new monorepo via the interactive wizard.
-  add <slot> <module>          Add a module to the current project.
-  remove <slot>                Remove the module currently filling a slot.
+  add <slot|category> <module> Add a slot module or an add-on to the current project.
+  remove <slot|category> [id]  Remove a slot module, or a specific add-on (id required).
   list                         List installed modules.
   search [query]               Search the registry.
 
@@ -26,13 +26,17 @@ ${kleur.bold("Options")}
   -v, --version                Print the CLI version.
   --yes                        Non-interactive mode. With \`init\`, takes picks
                                from --framework / --styling / --db / --orm /
-                               --auth / --pm flags. Missing slots are skipped.
+                               --auth / --pm flags, plus add-ons via
+                               --testing / --tooling / --deploy / --email
+                               (comma-separated). Missing slots are skipped.
   --dry-run                    Print the actions that would be taken; write nothing.
   --no-telemetry               Disable telemetry for this invocation.
 
 ${kleur.bold("Examples")}
-  stanza init my-app --yes --framework=next --orm=drizzle --db=postgres
+  stanza init my-app --yes --framework=next --orm=drizzle --db=postgres --testing=vitest,playwright
   stanza add auth better-auth
+  stanza add testing vitest
+  stanza remove testing vitest
   stanza remove styling
 
 ${kleur.dim("Docs: https://stanza.tools")}
@@ -58,7 +62,7 @@ export async function run(argv: Argv): Promise<void> {
       await cmdAdd({ slot: rest[0], moduleId: rest[1], argv });
       return;
     case "remove":
-      await cmdRemove({ slot: rest[0], argv });
+      await cmdRemove({ slot: rest[0], moduleId: rest[1], argv });
       return;
     case "list":
       await cmdList({ argv });

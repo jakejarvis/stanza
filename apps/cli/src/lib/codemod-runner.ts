@@ -18,7 +18,7 @@ import type {
   StanzaManifest,
   TemplateRef,
 } from "@stanza/registry";
-import { SLOT_PACKAGE_DIR } from "@stanza/registry";
+import { ADDON_PACKAGE_DIR, isAddon, SLOT_PACKAGE_DIR } from "@stanza/registry";
 
 import { writeManifest } from "./manifest";
 import { claim, release, RegionConflictError } from "./region-tracker";
@@ -56,16 +56,22 @@ export async function applyModule(args: {
   const appRoot = path.join(projectRoot, manifest.appDir);
 
   const owner = module.id;
-  const moduleDir = path.join(registryRoot, "modules", `${module.slot}-${module.id}`);
+  // Add-on dirs are named `<category>-<id>` (e.g. `testing-vitest`); slot dirs
+  // `<slot>-<id>`. `categoryKey` is also the manifest write key below.
+  const categoryKey = isAddon(module) ? module.category : module.slot;
+  const moduleDir = path.join(registryRoot, "modules", `${categoryKey}-${module.id}`);
 
   // Module-level install fields (shared across adapters) are merged with the
   // adapter-level ones (variation per peer combination). Adapter wins per-key
   // on conflicts; env merges by `name`.
   const installFields = mergeInstallFields(module, adapter);
 
-  // Slot → package mapping. When non-null, this slot's templates/deps/scripts
-  // are routed into `packages/<packageDir>/` instead of into the active app.
-  const packageDir = SLOT_PACKAGE_DIR[module.slot];
+  // Slot/category → package mapping. When non-null, this module's
+  // templates/deps/scripts are routed into `packages/<packageDir>/` instead of
+  // into the active app. Add-ons are all app/repo-scoped today (null).
+  const packageDir = isAddon(module)
+    ? ADDON_PACKAGE_DIR[module.category]
+    : SLOT_PACKAGE_DIR[module.slot];
   const packageRoot = packageDir ? path.join(projectRoot, "packages", packageDir) : null;
   const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
 
@@ -95,7 +101,7 @@ export async function applyModule(args: {
 
   // 1. Templates (claim regions per-template-file).
   for (const tpl of adapter.templates ?? []) {
-    const dest = resolveTemplateDest({ tpl, projectRoot, appRoot, packageRoot, slot: module.slot });
+    const dest = resolveTemplateDest({ tpl, projectRoot, appRoot, packageRoot, slot: categoryKey });
     const rel = path.relative(projectRoot, dest);
 
     manifest = claim(manifest, rel, "file", owner);
@@ -186,7 +192,7 @@ export async function applyModule(args: {
       const fn = CODEMOD_CATALOG[invocation.id];
       if (!fn) {
         throw new Error(
-          `Codemod "${invocation.id}" referenced by ${module.slot}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
+          `Codemod "${invocation.id}" referenced by ${categoryKey}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
         );
       }
       if (!dryRun) {
@@ -199,17 +205,24 @@ export async function applyModule(args: {
   }
 
   if (!dryRun) {
-    manifest = {
-      ...manifest,
-      modules: {
-        ...manifest.modules,
-        [module.slot]: {
-          id: module.id,
-          version: module.version,
-          adapter: adapter.key,
+    const record = { id: module.id, version: module.version, adapter: adapter.key };
+    if (isAddon(module)) {
+      // Push into the category array, replacing any same-id record so re-adds
+      // are idempotent. Other add-ons in the category are preserved.
+      const existing = manifest.addons[module.category] ?? [];
+      manifest = {
+        ...manifest,
+        addons: {
+          ...manifest.addons,
+          [module.category]: [...existing.filter((r) => r.id !== module.id), record],
         },
-      },
-    };
+      };
+    } else {
+      manifest = {
+        ...manifest,
+        modules: { ...manifest.modules, [module.slot]: record },
+      };
+    }
     writeManifest(projectRoot, manifest);
   }
 
@@ -221,7 +234,7 @@ function resolveTemplateDest(args: {
   projectRoot: string;
   appRoot: string;
   packageRoot: string | null;
-  slot: SlotId;
+  slot: SlotId | string;
 }): string {
   const { tpl, projectRoot, appRoot, packageRoot, slot } = args;
   if (tpl.scope === "repo") return path.join(projectRoot, tpl.dest);
@@ -455,7 +468,9 @@ function buildContext(args: {
     appRoot: args.appRoot,
     project: args.project,
     manifest: args.manifest,
-    owner: { slot: args.module.slot, module: args.module.id },
+    owner: isAddon(args.module)
+      ? { category: args.module.category, module: args.module.id }
+      : { slot: args.module.slot, module: args.module.id },
     adapter: args.adapter.key,
     claimRegion(file, region) {
       args.onClaim?.(file, region);
@@ -528,7 +543,9 @@ export async function revertCodemods(args: {
   const codemods = adapter.codemods ?? [];
   if (codemods.length === 0) return { manifest, touchedFiles: [], dryRun, manualCleanup };
 
-  const packageDir = SLOT_PACKAGE_DIR[module.slot];
+  const packageDir = isAddon(module)
+    ? ADDON_PACKAGE_DIR[module.category]
+    : SLOT_PACKAGE_DIR[module.slot];
   const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
   const renderContext = buildRenderContext(manifest, packageName);
 

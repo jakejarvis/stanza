@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
-import { resolveAdapter, type SlotId, KNOWN_SLOTS } from "@stanza/registry";
+import type { AddonCategoryId, SlotId } from "@stanza/registry";
+import { KNOWN_ADDONS, KNOWN_SLOTS, resolveAdapter } from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -13,17 +14,21 @@ export async function cmdAdd(args: {
   argv: Argv;
 }): Promise<void> {
   if (!args.slot || !args.moduleId) {
-    p.log.error("Usage: stanza add <slot> <module>");
+    p.log.error("Usage: stanza add <slot|category> <module>");
     process.exitCode = 1;
     return;
   }
 
-  if (!(KNOWN_SLOTS as readonly string[]).includes(args.slot)) {
-    p.log.error(`Unknown slot: ${args.slot}. Known: ${KNOWN_SLOTS.join(", ")}`);
+  const isSlot = (KNOWN_SLOTS as readonly string[]).includes(args.slot);
+  const isCategory = (KNOWN_ADDONS as readonly string[]).includes(args.slot);
+  if (!isSlot && !isCategory) {
+    p.log.error(
+      `Unknown slot or category: ${args.slot}. Slots: ${KNOWN_SLOTS.join(", ")}. Add-ons: ${KNOWN_ADDONS.join(", ")}`,
+    );
     process.exitCode = 1;
     return;
   }
-  const slot = args.slot as SlotId;
+  const group = args.slot;
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -33,18 +38,29 @@ export async function cmdAdd(args: {
   }
 
   const manifest = readManifest(projectRoot);
-  if (manifest.modules[slot]) {
-    p.log.error(
-      `Slot "${slot}" is already filled by "${manifest.modules[slot]!.id}". Run \`stanza remove ${slot}\` first.`,
-    );
-    process.exitCode = 1;
-    return;
+  if (isSlot) {
+    const slot = group as SlotId;
+    if (manifest.modules[slot]) {
+      p.log.error(
+        `Slot "${slot}" is already filled by "${manifest.modules[slot]!.id}". Run \`stanza remove ${slot}\` first.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+  } else {
+    // Add-on categories hold many modules. Only reject re-adding the same id.
+    const category = group as AddonCategoryId;
+    if (manifest.addons[category]?.some((r) => r.id === args.moduleId)) {
+      p.log.error(`"${category}/${args.moduleId}" is already added.`);
+      process.exitCode = 1;
+      return;
+    }
   }
 
   const registry = await loadRegistry();
-  const mod = await registry.loadModule(slot, args.moduleId).catch(() => null);
+  const mod = await registry.loadModule(group, args.moduleId).catch(() => null);
   if (!mod) {
-    p.log.error(`Module not found: ${slot}/${args.moduleId}`);
+    p.log.error(`Module not found: ${group}/${args.moduleId}`);
     process.exitCode = 1;
     return;
   }

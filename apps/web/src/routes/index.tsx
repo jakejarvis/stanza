@@ -1,3 +1,4 @@
+import { KNOWN_ADDONS, KNOWN_SLOTS } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Builder } from "@/components/builder";
@@ -5,9 +6,14 @@ import type { BuilderSearch } from "@/lib/selection";
 import { buildHead } from "@/lib/seo";
 import { getBuilderState } from "@/server/builder-state.functions";
 
+// Keys are derived from the canonical slot + add-on tuples so this never
+// drifts when a slot or category is added. `parseSelections` splits the
+// comma-joined add-on values downstream.
+const SEARCH_KEYS = ["name", ...KNOWN_SLOTS, ...KNOWN_ADDONS] as const;
+
 function validateSearch(input: Record<string, unknown>): BuilderSearch {
   const out: BuilderSearch = {};
-  for (const key of ["name", "framework", "styling", "db", "orm", "auth"] as const) {
+  for (const key of SEARCH_KEYS) {
     const v = input[key];
     if (typeof v === "string" && v.length > 0) out[key] = v;
   }

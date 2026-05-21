@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { KNOWN_SLOTS, type ModuleId, type SlotId } from "./module";
+import {
+  type AddonCategoryId,
+  KNOWN_ADDONS,
+  KNOWN_SLOTS,
+  type ModuleId,
+  type SlotId,
+} from "./module";
 
 export const CURRENT_MANIFEST_VERSION = "0.1" as const;
 
@@ -12,6 +18,16 @@ export type StanzaModuleRecord = {
    */
   version: string;
   /** Adapter key chosen at install time (function of peer slots). */
+  adapter: string;
+};
+
+/**
+ * One installed add-on. Same shape as `StanzaModuleRecord`, but stored in a
+ * per-category array (a category holds 0..n) rather than one-per-slot.
+ */
+export type StanzaAddonRecord = {
+  id: ModuleId;
+  version: string;
   adapter: string;
 };
 
@@ -34,6 +50,8 @@ export type StanzaManifest = {
   /** Path of the primary web/native app inside the monorepo. */
   appDir: string;
   modules: Partial<Record<SlotId, StanzaModuleRecord>>;
+  /** Multi-choice add-ons, keyed by category. Each category holds 0..n records. */
+  addons: Partial<Record<AddonCategoryId, StanzaAddonRecord[]>>;
   regions: RegionOwnership;
 };
 
@@ -53,6 +71,20 @@ export const StanzaManifestSchema = z.object({
       adapter: z.string(),
     }),
   ),
+  // `.default({})` keeps pre-add-on `stanza.json` files (which have no `addons`
+  // key) valid — they parse to an empty record.
+  addons: z
+    .partialRecord(
+      z.enum(KNOWN_ADDONS),
+      z.array(
+        z.object({
+          id: z.string(),
+          version: z.string(),
+          adapter: z.string(),
+        }),
+      ),
+    )
+    .default({}),
   regions: z.record(z.string(), z.record(z.string(), z.string())),
 }) satisfies z.ZodType<StanzaManifest>;
 
@@ -68,6 +100,7 @@ export function emptyManifest(input: {
     name: input.name,
     appDir: input.appDir ?? "apps/web",
     modules: {},
+    addons: {},
     regions: {},
   };
 }

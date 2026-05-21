@@ -1,74 +1,106 @@
-import type { Module, ModuleSummary, ResolveError, SlotId } from "@stanza/registry";
-import { KNOWN_SLOTS, emptyManifest, resolveAdapter, slotLabel } from "@stanza/registry";
+import type {
+  AddonCategoryId,
+  Module,
+  ModuleSummary,
+  ResolveError,
+  SlotId,
+} from "@stanza/registry";
+import {
+  emptyManifest,
+  groupLabel,
+  KNOWN_ADDONS,
+  KNOWN_SLOTS,
+  moduleGroup,
+  resolveAdapter,
+  slotLabel,
+} from "@stanza/registry";
 import { IconCheck } from "@tabler/icons-react";
 import { useCallback } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
-import type { Selections } from "@/lib/selection";
+import type { AddonSelections, Selections } from "@/lib/selection";
 import { cn } from "@/lib/utils";
-
-const SLOT_LABELS: Record<SlotId, string> = {
-  framework: "Framework",
-  styling: "Styling",
-  db: "Database",
-  orm: "ORM",
-  auth: "Auth",
-};
 
 export function SlotCards({
   modules,
   summaries,
   selections,
+  addonSelections,
   onSelect,
+  onToggleAddon,
 }: {
   modules: Record<string, Module>;
   summaries: ModuleSummary[];
   selections: Selections;
+  addonSelections: AddonSelections;
   onSelect: (slot: SlotId, id: string | undefined) => void;
+  onToggleAddon: (category: AddonCategoryId, id: string) => void;
 }) {
+  // Shared peer context: the chosen slot modules. Both slot and add-on cards
+  // resolve compatibility against this.
+  const pending: Partial<Record<SlotId, Module>> = {};
+  for (const s of KNOWN_SLOTS) {
+    const id = selections[s];
+    if (id && modules[`${s}:${id}`]) pending[s] = modules[`${s}:${id}`];
+  }
+
+  // Only render add-on categories that actually have modules in the registry.
+  const addonCategories = KNOWN_ADDONS.filter((c) => summaries.some((m) => moduleGroup(m) === c));
+
   return (
     <div className="space-y-8">
       {KNOWN_SLOTS.map((slot, index) => (
-        <SlotSection
+        <ModuleSection
           key={slot}
-          slot={slot}
-          label={SLOT_LABELS[slot]}
+          group={slot}
           summaries={summaries}
           modulesById={modules}
-          selections={selections}
+          pending={pending}
           index={index + 1}
-          onSelect={onSelect}
+          multi={false}
+          isSelected={(m) => selections[slot] === m.id}
+          onActivate={(m, selected) => onSelect(slot, selected ? undefined : m.id)}
+        />
+      ))}
+      {addonCategories.map((category, i) => (
+        <ModuleSection
+          key={category}
+          group={category}
+          summaries={summaries}
+          modulesById={modules}
+          pending={pending}
+          index={KNOWN_SLOTS.length + i + 1}
+          multi
+          isSelected={(m) => Boolean(addonSelections[category]?.includes(m.id))}
+          onActivate={(m) => onToggleAddon(category, m.id)}
         />
       ))}
     </div>
   );
 }
 
-function SlotSection({
-  slot,
-  label,
+function ModuleSection({
+  group,
   summaries,
   modulesById,
-  selections,
+  pending,
   index,
-  onSelect,
+  multi,
+  isSelected,
+  onActivate,
 }: {
-  slot: SlotId;
-  label: string;
+  group: SlotId | AddonCategoryId;
   summaries: ModuleSummary[];
   modulesById: Record<string, Module>;
-  selections: Selections;
+  pending: Partial<Record<SlotId, Module>>;
   index: number;
-  onSelect: (slot: SlotId, id: string | undefined) => void;
+  multi: boolean;
+  isSelected: (m: ModuleSummary) => boolean;
+  onActivate: (m: ModuleSummary, selected: boolean) => void;
 }) {
-  const modules = summaries.filter((m) => m.slot === slot);
+  const modules = summaries.filter((m) => moduleGroup(m) === group);
   if (modules.length === 0) return null;
 
-  const pending: Partial<Record<SlotId, Module>> = {};
-  for (const s of KNOWN_SLOTS) {
-    const id = selections[s];
-    if (id && modulesById[`${s}:${id}`]) pending[s] = modulesById[`${s}:${id}`];
-  }
   const manifest = emptyManifest({ name: "t" });
   return (
     <div>
@@ -76,24 +108,24 @@ function SlotSection({
         <span className="font-mono text-xs text-muted-foreground tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h2 className="text-lg font-semibold tracking-tight">{label}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{groupLabel(group)}</h2>
+        {multi && <span className="text-xs text-muted-foreground">{"· choose any"}</span>}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {modules.map((m) => {
-          const full = modulesById[`${m.slot}:${m.id}`];
+          const full = modulesById[`${moduleGroup(m)}:${m.id}`];
           const result = full ? resolveAdapter(full, { manifest, pending }) : undefined;
           const disabled = !result?.ok;
-          const selected = selections[slot] === m.id;
+          const selected = isSelected(m);
           const reason = result && !result.ok ? describeError(result.error) : undefined;
           return (
             <ModuleCard
               key={m.id}
               module={m}
-              slot={slot}
               selected={selected}
               disabled={disabled}
               reason={reason}
-              onSelect={onSelect}
+              onActivate={() => onActivate(m, selected)}
             />
           );
         })}
@@ -104,23 +136,21 @@ function SlotSection({
 
 function ModuleCard({
   module: m,
-  slot,
   selected,
   disabled,
   reason,
-  onSelect,
+  onActivate,
 }: {
   module: ModuleSummary;
-  slot: SlotId;
   selected: boolean;
   disabled: boolean;
   reason?: string;
-  onSelect: (slot: SlotId, id: string | undefined) => void;
+  onActivate: () => void;
 }) {
   const onClick = useCallback(() => {
     if (disabled) return;
-    onSelect(slot, selected ? undefined : m.id);
-  }, [disabled, onSelect, slot, selected, m.id]);
+    onActivate();
+  }, [disabled, onActivate]);
 
   return (
     <button
@@ -153,7 +183,7 @@ function ModuleCard({
         </p>
       ) : (
         <p className="font-mono text-[10px] text-muted-foreground/70">
-          {m.slot}/{m.id} <span className="text-muted-foreground/50">·</span> v{m.version}
+          {moduleGroup(m)}/{m.id} <span className="text-muted-foreground/50">·</span> v{m.version}
         </p>
       )}
     </button>

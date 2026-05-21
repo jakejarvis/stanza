@@ -1,4 +1,5 @@
 import type {
+  AddonCategoryId,
   EnvVar,
   Module,
   ModuleAdapter,
@@ -7,7 +8,7 @@ import type {
   RegistryIndex,
   SlotId,
 } from "@stanza/registry";
-import { KNOWN_SLOTS, emptyManifest, resolveAdapter } from "@stanza/registry";
+import { KNOWN_SLOTS, emptyManifest, moduleGroup, resolveAdapter } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
 import type { Preview } from "@/server/highlighter";
@@ -15,7 +16,7 @@ import { renderPreview } from "@/server/highlighter.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type ModuleDetailInput = {
-  slot: SlotId;
+  slot: SlotId | AddonCategoryId;
   id: string;
   /**
    * Explicit peer choices from the URL search params. Any peer not present
@@ -57,7 +58,7 @@ export const getModuleDetail = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ModuleDetail | null> => {
     const index = await loadRegistryFile<RegistryIndex>("index.json");
 
-    const summary = index.modules.find((m) => m.slot === data.slot && m.id === data.id);
+    const summary = index.modules.find((m) => moduleGroup(m) === data.slot && m.id === data.id);
     if (!summary) return null;
 
     const module = await loadRegistryFile<Module>(`modules/${data.slot}-${data.id}.json`);
@@ -109,7 +110,7 @@ function computePeerOptions(
       out[slot] = constraint;
     } else {
       // "any" or undefined — list every module that lives in this slot.
-      out[slot] = index.modules.filter((m) => m.slot === slot).map((m) => m.id);
+      out[slot] = index.modules.filter((m) => moduleGroup(m) === slot).map((m) => m.id);
     }
     // De-dup and keep declaration order. Also union in any ids referenced by
     // adapters that weren't in the declared list — defensive against authors
