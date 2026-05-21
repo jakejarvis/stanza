@@ -9,6 +9,7 @@ import kleur from "kleur";
 import type { Argv } from "mri";
 
 import { revertCodemods } from "../lib/codemod-runner";
+import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regionsOwnedBy } from "../lib/region-tracker";
 import { loadRegistry } from "../lib/registry-loader";
@@ -35,6 +36,12 @@ export async function cmdRemove(args: {
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
     p.log.error("No stanza.json found.");
+    process.exitCode = 1;
+    return;
+  }
+
+  const dryRun = Boolean(args.argv["dry-run"]);
+  if (!dryRun && !ensureCleanWorktree(projectRoot, Boolean(args.argv["dangerously-allow-dirty"]))) {
     process.exitCode = 1;
     return;
   }
@@ -70,7 +77,6 @@ export async function cmdRemove(args: {
     installed = record;
   }
 
-  const dryRun = Boolean(args.argv["dry-run"]);
   const manualCleanup: string[] = [];
 
   // Step 1: revert imperative codemods first. They modify framework- or

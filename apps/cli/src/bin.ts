@@ -5,7 +5,7 @@ import { run } from "./run";
 
 const argv = mri(process.argv.slice(2), {
   alias: { h: "help", v: "version" },
-  boolean: ["help", "version", "yes", "dry-run", "no-telemetry"],
+  boolean: ["help", "version", "yes", "dry-run", "no-telemetry", "dangerously-allow-dirty"],
 });
 
 run(argv).catch((err: unknown) => {

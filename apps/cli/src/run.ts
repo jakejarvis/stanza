@@ -30,6 +30,8 @@ ${kleur.bold("Options")}
                                --testing / --tooling / --deploy / --email
                                (comma-separated). Missing slots are skipped.
   --dry-run                    Print the actions that would be taken; write nothing.
+  --dangerously-allow-dirty    Allow mutating commands to run with a dirty git
+                               working tree (by default they refuse).
   --no-telemetry               Disable telemetry for this invocation.
 
 ${kleur.bold("Examples")}

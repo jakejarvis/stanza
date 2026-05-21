@@ -16,6 +16,7 @@ import kleur from "kleur";
 import type { Argv } from "mri";
 
 import { applyModule } from "../lib/codemod-runner";
+import { ensureCleanWorktree } from "../lib/git";
 import { initManifest } from "../lib/manifest";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
@@ -23,6 +24,17 @@ import { runInitWizard, type WizardOverrides } from "../lib/wizard";
 export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
   const registry = await loadRegistry();
   const defaultName = args.name ?? path.basename(process.cwd());
+
+  const dryRun = Boolean(args.argv["dry-run"]);
+  // Guard the cwd's repo (init scaffolds into a new subdir of it). Skipped in
+  // dry-run, which writes nothing. Fails fast — before the interactive wizard.
+  if (
+    !dryRun &&
+    !ensureCleanWorktree(process.cwd(), Boolean(args.argv["dangerously-allow-dirty"]))
+  ) {
+    process.exitCode = 1;
+    return;
+  }
 
   // --yes turns CLI flags into the wizard's answers (each `--<slot>=<id>` picks
   // a module for that slot; `--pm=<...>` picks the package manager). Missing
@@ -58,7 +70,6 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
 
   const registryRoot = pickRegistryRoot();
 
-  const dryRun = Boolean(args.argv["dry-run"]);
   if (dryRun) p.log.info(kleur.yellow("[dry-run] no files will be written"));
 
   const spinner = p.spinner();

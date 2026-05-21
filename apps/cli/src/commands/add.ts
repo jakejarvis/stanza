@@ -5,6 +5,7 @@ import kleur from "kleur";
 import type { Argv } from "mri";
 
 import { applyModule } from "../lib/codemod-runner";
+import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest } from "../lib/manifest";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
 
@@ -33,6 +34,12 @@ export async function cmdAdd(args: {
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
     p.log.error("No stanza.json found in this or any parent directory.");
+    process.exitCode = 1;
+    return;
+  }
+
+  const dryRun = Boolean(args.argv["dry-run"]);
+  if (!dryRun && !ensureCleanWorktree(projectRoot, Boolean(args.argv["dangerously-allow-dirty"]))) {
     process.exitCode = 1;
     return;
   }
@@ -72,7 +79,6 @@ export async function cmdAdd(args: {
     return;
   }
 
-  const dryRun = Boolean(args.argv["dry-run"]);
   const spinner = p.spinner();
   spinner.start(`Adding ${mod.label}`);
 
