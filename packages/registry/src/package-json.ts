@@ -1,4 +1,3 @@
-import { addonOrder, slotOrder } from "./resolver";
 import {
   ADDON_PACKAGE_DIR,
   type AddonCategoryId,
@@ -8,6 +7,7 @@ import {
   SLOT_PACKAGE_DIR,
   type SlotId,
 } from "./module";
+import { addonOrder, slotOrder } from "./resolver";
 
 export type PackageManager = "pnpm" | "bun" | "npm";
 
@@ -69,7 +69,10 @@ function baseName(dir: string): string {
  * Root `package.json`. pnpm reads its workspace globs from `pnpm-workspace.yaml`,
  * so the `workspaces` field is emitted only for bun/npm.
  */
-export function rootPackageJson(opts: { name: string; packageManager: PackageManager }): PackageJson {
+export function rootPackageJson(opts: {
+  name: string;
+  packageManager: PackageManager;
+}): PackageJson {
   const { name, packageManager } = opts;
   const pkg: PackageJson = {
     name,
@@ -125,7 +128,8 @@ function addDep(pkg: PackageJson, name: string, range: string, dev = false): voi
 
 function applyFields(pkg: PackageJson, fields: MergedInstallFields): void {
   for (const [name, range] of Object.entries(fields.dependencies)) addDep(pkg, name, range);
-  for (const [name, range] of Object.entries(fields.devDependencies)) addDep(pkg, name, range, true);
+  for (const [name, range] of Object.entries(fields.devDependencies))
+    addDep(pkg, name, range, true);
   for (const [name, command] of Object.entries(fields.scripts)) {
     const scripts = (pkg.scripts ??= {});
     if (scripts[name] === undefined) scripts[name] = command;

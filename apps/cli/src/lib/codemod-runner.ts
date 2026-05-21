@@ -290,8 +290,11 @@ function ensureSlotPackage(args: {
       fs.mkdirSync(packageRoot, { recursive: true });
       fs.writeFileSync(
         pkgPath,
-        JSON.stringify(slotPackageJsonBase({ name: args.manifest.name, dir: packageDir }), null, 2) +
-          "\n",
+        JSON.stringify(
+          slotPackageJsonBase({ name: args.manifest.name, dir: packageDir }),
+          null,
+          2,
+        ) + "\n",
         "utf8",
       );
     }

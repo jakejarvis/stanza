@@ -181,11 +181,7 @@ function ModuleCard({
         <p className="rounded-none bg-muted/60 px-2 py-1 text-[11px] leading-snug text-muted-foreground">
           {reason}
         </p>
-      ) : (
-        <p className="font-mono text-[10px] text-muted-foreground/70">
-          {moduleGroup(m)}/{m.id} <span className="text-muted-foreground/50">·</span> v{m.version}
-        </p>
-      )}
+      ) : null}
     </button>
   );
 }

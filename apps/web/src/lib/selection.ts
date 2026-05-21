@@ -10,6 +10,8 @@ import {
   slotOrder,
 } from "@stanza/registry";
 
+import type { PackageManager } from "@/lib/package-manager";
+
 export type Selections = Partial<Record<SlotId, string>>;
 /** Add-ons are multi-choice — each category holds a list of selected ids. */
 export type AddonSelections = Partial<Record<AddonCategoryId, string[]>>;
@@ -196,14 +198,18 @@ function resolveTemplatePath(tpl: TemplateRef, packageDir: string | null, appDir
 }
 
 /**
- * Build the `pnpm create stanza` command from the current state. Used both by
- * the project-setup display and by the copy-to-clipboard action.
+ * Build the `<pm> create stanza` command from the current state. Used both by
+ * the command preview display and by the copy-to-clipboard action. npm needs a
+ * `--` separator to forward flags to the initializer; pnpm/bun/yarn pass them
+ * through directly. Defaults to pnpm so the server OG card stays consistent.
  */
 export function buildCommand(input: {
   name: string;
   selections: Selections;
   addons?: AddonSelections;
+  pm?: PackageManager;
 }): string {
+  const pm = input.pm ?? "pnpm";
   const slotFlags = slotOrder
     .map((slot) => {
       const v = input.selections[slot];
@@ -217,5 +223,8 @@ export function buildCommand(input: {
     })
     .filter((s): s is string => Boolean(s));
   const flags = [...slotFlags, ...addonFlags];
-  return `pnpm create stanza ${input.name}${flags.length ? " " + flags.join(" ") : ""}`;
+  const base = `${pm} create stanza ${input.name}`;
+  if (flags.length === 0) return base;
+  const separator = pm === "npm" ? " -- " : " ";
+  return `${base}${separator}${flags.join(" ")}`;
 }

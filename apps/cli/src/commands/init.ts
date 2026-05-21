@@ -128,8 +128,11 @@ function bootstrapShell(
   // bun/npm; pnpm reads its globs from pnpm-workspace.yaml (written below).
   fs.writeFileSync(
     path.join(projectRoot, "package.json"),
-    JSON.stringify(rootPackageJson({ name: opts.name, packageManager: opts.packageManager }), null, 2) +
-      "\n",
+    JSON.stringify(
+      rootPackageJson({ name: opts.name, packageManager: opts.packageManager }),
+      null,
+      2,
+    ) + "\n",
   );
 
   if (opts.packageManager === "pnpm") {

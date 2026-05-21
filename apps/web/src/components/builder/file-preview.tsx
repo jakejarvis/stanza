@@ -59,7 +59,11 @@ export function FilePreview({
   // The model owns selection internally; `useFileTreeSelection` exposes the
   // currently-selected paths as a stable readonly array we subscribe to.
   const selectedPaths = useFileTreeSelection(model);
-  const activePath = selectedPaths[0] ?? filePaths[0];
+  // Until the user picks a file, default to the synthesized root package.json
+  // (the most useful at-a-glance summary of the stack) when it exists, else the
+  // first file in the tree.
+  const defaultPath = filePaths.includes("package.json") ? "package.json" : filePaths[0];
+  const activePath = selectedPaths[0] ?? defaultPath;
   const preview = activePath ? previews[activePath] : undefined;
 
   // Drive the tree's shadow-root palette from the app theme — otherwise it

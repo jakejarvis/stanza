@@ -12,7 +12,6 @@ import { TryIt } from "@/components/detail/try-it";
 import { ModuleLogo } from "@/components/module-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { buildCommand } from "@/lib/selection";
 import { buildHead } from "@/lib/seo";
 import { getModuleDetail } from "@/server/module-detail.functions";
 
@@ -81,19 +80,13 @@ function ModuleDetailPage() {
 
   const templates = useMemo(() => adapter.templates ?? [], [adapter.templates]);
 
-  // Build a "Try it" command using the same builder helper, treating the
-  // current module + resolved peers as a complete-enough selection. Add-ons
-  // go through the addons map (→ `--testing=vitest`); slots through selections.
-  const command = isAddon(module)
-    ? buildCommand({
-        name: "my-app",
-        selections: resolvedPeers,
-        addons: { [module.category]: [module.id] },
-      })
-    : buildCommand({
-        name: "my-app",
-        selections: { ...resolvedPeers, [module.slot]: module.id },
-      });
+  // Build the "Try it" selection, treating the current module + resolved peers
+  // as a complete-enough selection. Add-ons go through the addons map (→
+  // `--testing=vitest`); slots through selections. CommandPreview turns this
+  // into the package-manager-specific command string.
+  const tryItParts = isAddon(module)
+    ? { selections: resolvedPeers, addons: { [module.category]: [module.id] } }
+    : { selections: { ...resolvedPeers, [module.slot]: module.id } };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -123,13 +116,11 @@ function ModuleDetailPage() {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
               >
-                Homepage <IconExternalLink className="size-3" />
+                Website
+                <IconExternalLink className="size-3" />
               </a>
             )}
             {module.author && <span className="text-muted-foreground">by {module.author}</span>}
-            <span className="font-mono text-muted-foreground/70">
-              {moduleGroup(module)}/{module.id}
-            </span>
           </div>
         </div>
       </header>
@@ -152,23 +143,8 @@ function ModuleDetailPage() {
         <EnvTable env={effective.env} />
         <DepsTable title="Scripts" entries={effective.scripts} />
         <TemplatesList templates={templates} previews={previews} />
-        <TryIt command={command} />
+        <TryIt name="my-app" {...tryItParts} />
       </div>
-
-      {/* Hidden meta — useful for the future when more fields exist */}
-      <Separator className="my-8" />
-      <p className="text-[11px] text-muted-foreground/60">
-        Adapter key: <code className="font-mono">{adapter.key}</code>
-        {Object.keys(adapter.match).length > 0 && (
-          <>
-            {" · "}
-            matches{" "}
-            {Object.entries(adapter.match)
-              .map(([slot, id]) => `${slot}=${id}`)
-              .join(", ")}
-          </>
-        )}
-      </p>
     </div>
   );
 }

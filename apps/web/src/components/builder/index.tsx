@@ -9,7 +9,6 @@ import {
   type AddonSelections,
   type BuilderSearch,
   type Selections,
-  buildCommand,
   DEFAULT_NAME,
   parseSelections,
   resolveSelectedAdapters,
@@ -26,7 +25,6 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   const moduleCount =
     Object.keys(resolved).length +
     Object.values(resolvedAddons).reduce((n, entries) => n + entries.length, 0);
-  const command = buildCommand({ name, selections, addons });
 
   const setName = useCallback(
     (next: string) => {
@@ -70,7 +68,13 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   );
 
   const commandBar = (
-    <ProjectSetup name={name} defaultName={DEFAULT_NAME} command={command} onNameChange={setName} />
+    <ProjectSetup
+      name={name}
+      defaultName={DEFAULT_NAME}
+      selections={selections}
+      addons={addons}
+      onNameChange={setName}
+    />
   );
 
   return (

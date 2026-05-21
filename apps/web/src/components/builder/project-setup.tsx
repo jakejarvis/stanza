@@ -1,20 +1,23 @@
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { CopyButton } from "@/components/copy-button";
+import { CommandPreview } from "@/components/command-preview";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { AddonSelections, Selections } from "@/lib/selection";
 
 export function ProjectSetup({
   name,
   defaultName,
-  command,
+  selections,
+  addons,
   onNameChange,
 }: {
   name: string;
   defaultName: string;
-  command: string;
+  selections: Selections;
+  addons: AddonSelections;
   onNameChange: (name: string) => void;
 }) {
   // Keep the field responsive locally and debounce the upward push: each
@@ -56,12 +59,7 @@ export function ProjectSetup({
 
       <div className="space-y-1.5">
         <span className="text-xs font-medium text-muted-foreground">Run this</span>
-        <div className="flex items-stretch gap-2">
-          <pre className="no-scrollbar flex h-8 min-w-0 flex-1 items-center overflow-x-auto rounded-none border border-border bg-muted/50 px-3 font-mono text-[11px] whitespace-pre sm:text-xs">
-            <code>{command}</code>
-          </pre>
-          <CopyButton value={command} />
-        </div>
+        <CommandPreview name={name} selections={selections} addons={addons} />
       </div>
     </Card>
   );

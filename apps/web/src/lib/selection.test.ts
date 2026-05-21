@@ -97,6 +97,24 @@ describe("buildCommand", () => {
   it("keeps the bare command when nothing is selected", () => {
     expect(buildCommand({ name: "my-app", selections: {} })).toBe("pnpm create stanza my-app");
   });
+
+  it("uses the chosen package manager as the prefix", () => {
+    expect(buildCommand({ name: "my-app", selections: { framework: "next" }, pm: "bun" })).toBe(
+      "bun create stanza my-app --framework=next",
+    );
+  });
+
+  it("inserts a -- separator before flags for npm", () => {
+    expect(buildCommand({ name: "my-app", selections: { framework: "next" }, pm: "npm" })).toBe(
+      "npm create stanza my-app -- --framework=next",
+    );
+  });
+
+  it("omits the -- separator for npm when there are no flags", () => {
+    expect(buildCommand({ name: "my-app", selections: {}, pm: "npm" })).toBe(
+      "npm create stanza my-app",
+    );
+  });
 });
 
 describe("selectedFiles", () => {
