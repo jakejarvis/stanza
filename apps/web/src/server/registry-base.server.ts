@@ -8,11 +8,31 @@
  * We read from storage instead of fetching ourselves because prod SSR loopback
  * connections get refused.
  *
+ * Dev caveat: TanStack Start's server functions execute in Vite's `ssr`
+ * environment, but Nitro only injects the real `#nitro/virtual/storage`
+ * (with the mounted serverAssets) into its own `nitro` environment. Outside it,
+ * `useStorage` resolves to an empty stub, so `assets:registry` reads return
+ * null. In dev we therefore read the same files straight off disk; the
+ * serverAssets path is prod-only (where everything bundles into one server).
+ *
  * @see https://nitro.build/docs/assets#server-assets
  */
 import { useStorage } from "nitro/storage";
 
 export async function loadRegistryFile<T>(relativePath: string): Promise<T> {
+  if (import.meta.env.DEV) {
+    const { readFile } = await import("node:fs/promises");
+    const { resolve } = await import("node:path");
+    const filePath = resolve(process.cwd(), "public/registry", relativePath);
+    try {
+      return JSON.parse(await readFile(filePath, "utf8")) as T;
+    } catch {
+      throw new Error(
+        `Registry asset not found: ${filePath} (run \`pnpm --filter @stanza/web prebuild\` to populate public/registry/)`,
+      );
+    }
+  }
+
   const data = await useStorage("assets:registry").getItem(relativePath);
   if (data == null) {
     throw new Error(`Registry asset not found: assets:registry:${relativePath}`);

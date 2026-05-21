@@ -20,7 +20,7 @@ src="$repo_root/dist/registry"
 dest="$app_dir/public/registry"
 
 if [[ ! -d "$src" ]]; then
-  echo "[copy-registry] $src not found — building registry..." >&2
+  echo "[prepare-registry] $src not found — building registry..." >&2
   # Prefer bun for maintainer convenience; fall back to tsx (resolvable via
   # the workspace's vite/vitest) on node-only deploy targets like Vercel.
   if command -v bun >/dev/null 2>&1; then
@@ -33,4 +33,4 @@ fi
 rm -rf "$dest"
 mkdir -p "$(dirname "$dest")"
 cp -R "$src" "$dest"
-echo "[copy-registry] ${src#"$repo_root/"} → ${dest#"$repo_root/"}"
+echo "[prepare-registry] ${src#"$repo_root/"} → ${dest#"$repo_root/"}"
