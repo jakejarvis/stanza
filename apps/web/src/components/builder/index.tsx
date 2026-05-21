@@ -78,8 +78,8 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
       {/* Mobile: the command (the thing to copy) sits above the slot cards so a
           phone user isn't forced to scroll past all five slots to reach it. On
           lg the right column owns it instead. */}
-      <div className="lg:hidden">{commandBar}</div>
-      <section className="space-y-8">
+      <div className="min-w-0 lg:hidden">{commandBar}</div>
+      <section className="min-w-0 space-y-8">
         <SlotCards
           modules={state.modules}
           summaries={state.index.modules}
@@ -89,7 +89,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           onToggleAddon={toggleAddon}
         />
       </section>
-      <section className="space-y-6 lg:sticky lg:top-20 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:gap-6 lg:space-y-0 lg:self-start">
+      <section className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:gap-6 lg:space-y-0 lg:self-start">
         <div className="hidden lg:block">{commandBar}</div>
         <FilePreview
           filePaths={state.filePaths}

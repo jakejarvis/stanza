@@ -18,7 +18,13 @@ import type {
   StanzaManifest,
   TemplateRef,
 } from "@stanza/registry";
-import { ADDON_PACKAGE_DIR, isAddon, SLOT_PACKAGE_DIR } from "@stanza/registry";
+import {
+  ADDON_PACKAGE_DIR,
+  isAddon,
+  mergeInstallFields,
+  SLOT_PACKAGE_DIR,
+  slotPackageJsonBase,
+} from "@stanza/registry";
 
 import { writeManifest } from "./manifest";
 import { claim, release, RegionConflictError } from "./region-tracker";
@@ -284,19 +290,8 @@ function ensureSlotPackage(args: {
       fs.mkdirSync(packageRoot, { recursive: true });
       fs.writeFileSync(
         pkgPath,
-        JSON.stringify(
-          {
-            name: packageName,
-            version: "0.0.0",
-            private: true,
-            type: "module",
-            main: "./src/index.ts",
-            types: "./src/index.ts",
-            exports: { ".": "./src/index.ts" },
-          },
-          null,
-          2,
-        ) + "\n",
+        JSON.stringify(slotPackageJsonBase({ name: args.manifest.name, dir: packageDir }), null, 2) +
+          "\n",
         "utf8",
       );
     }
@@ -371,32 +366,6 @@ function ensureSlotPackage(args: {
   }
 
   return created;
-}
-
-/**
- * Combine a module's shared install fields with the chosen adapter's overrides.
- * Adapter values win per-key. Env merges by `name`. Used at the top of
- * `applyModule` so the rest of the body operates on one set of merged maps
- * regardless of where each field was declared.
- */
-function mergeInstallFields(
-  module: Module,
-  adapter: ModuleAdapter,
-): {
-  dependencies: Record<string, string>;
-  devDependencies: Record<string, string>;
-  scripts: Record<string, string>;
-  env: NonNullable<ModuleAdapter["env"]>;
-} {
-  const envByName = new Map<string, NonNullable<ModuleAdapter["env"]>[number]>();
-  for (const v of module.env ?? []) envByName.set(v.name, v);
-  for (const v of adapter.env ?? []) envByName.set(v.name, v);
-  return {
-    dependencies: { ...module.dependencies, ...adapter.dependencies },
-    devDependencies: { ...module.devDependencies, ...adapter.devDependencies },
-    scripts: { ...module.scripts, ...adapter.scripts },
-    env: [...envByName.values()],
-  };
 }
 
 /**

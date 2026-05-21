@@ -3,7 +3,15 @@ import path from "node:path";
 
 import * as p from "@clack/prompts";
 import type { AddonCategoryId, SlotId } from "@stanza/registry";
-import { addonOrder, KNOWN_ADDONS, KNOWN_SLOTS, resolveAdapter, slotOrder } from "@stanza/registry";
+import {
+  addonOrder,
+  appPackageJsonBase,
+  KNOWN_ADDONS,
+  KNOWN_SLOTS,
+  resolveAdapter,
+  rootPackageJson,
+  slotOrder,
+} from "@stanza/registry";
 import kleur from "kleur";
 import type { Argv } from "mri";
 
@@ -116,26 +124,12 @@ function bootstrapShell(
   projectRoot: string,
   opts: { name: string; packageManager: "pnpm" | "bun" | "npm"; appDir: string },
 ) {
-  // Root package.json
+  // Root package.json. The shared builder emits the `workspaces` field for
+  // bun/npm; pnpm reads its globs from pnpm-workspace.yaml (written below).
   fs.writeFileSync(
     path.join(projectRoot, "package.json"),
-    JSON.stringify(
-      {
-        name: opts.name,
-        private: true,
-        version: "0.1.0",
-        packageManager: { pnpm: "pnpm@10.33.4", bun: "bun@1.3.14", npm: "npm@10.9.0" }[
-          opts.packageManager
-        ],
-        scripts: {
-          dev: `${opts.packageManager} -r run dev`,
-          build: `${opts.packageManager} -r run build`,
-          test: `${opts.packageManager} -r run test`,
-        },
-      },
-      null,
-      2,
-    ) + "\n",
+    JSON.stringify(rootPackageJson({ name: opts.name, packageManager: opts.packageManager }), null, 2) +
+      "\n",
   );
 
   if (opts.packageManager === "pnpm") {
@@ -143,17 +137,6 @@ function bootstrapShell(
       path.join(projectRoot, "pnpm-workspace.yaml"),
       `packages:\n  - "apps/*"\n  - "packages/*"\n`,
     );
-  } else if (opts.packageManager === "bun") {
-    // Bun reads workspaces from package.json.
-    const pkgPath = path.join(projectRoot, "package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    pkg.workspaces = ["apps/*", "packages/*"];
-    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-  } else {
-    const pkgPath = path.join(projectRoot, "package.json");
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
-    pkg.workspaces = ["apps/*", "packages/*"];
-    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
   }
 
   fs.writeFileSync(
@@ -173,16 +156,7 @@ function bootstrapShell(
   fs.mkdirSync(path.join(projectRoot, opts.appDir), { recursive: true });
   fs.writeFileSync(
     path.join(projectRoot, opts.appDir, "package.json"),
-    JSON.stringify(
-      {
-        name: `@${opts.name}/${path.basename(opts.appDir)}`,
-        version: "0.0.0",
-        private: true,
-        type: "module",
-      },
-      null,
-      2,
-    ) + "\n",
+    JSON.stringify(appPackageJsonBase({ name: opts.name, appDir: opts.appDir }), null, 2) + "\n",
   );
   fs.mkdirSync(path.join(projectRoot, "packages"), { recursive: true });
 }

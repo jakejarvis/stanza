@@ -1,5 +1,5 @@
 import type { Module, RegistryIndex } from "@stanza/registry";
-import { moduleGroup } from "@stanza/registry";
+import { moduleGroup, synthesizePackageJsons } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
 import {
@@ -46,15 +46,33 @@ export const getBuilderState = createServerFn({ method: "GET" })
     );
     const modules: Record<string, Module> = Object.fromEntries(fullModules);
 
-    const { selections, addons } = parseSelections(data);
+    const { name, selections, addons } = parseSelections(data);
     const resolved = resolveSelectedAdapters(modules, selections);
     const resolvedAddons = resolveSelectedAddons(modules, selections, addons);
     const files = selectedFiles(resolved, resolvedAddons);
 
+    // Templates carry their own content; package.json files are synthesized
+    // (the CLI never ships them as templates — it merges deps/scripts into them
+    // at apply time). Surface the same resolved package.json files in the
+    // preview so the tree matches what stanza actually writes. Only when
+    // something is selected, so an empty builder still shows the empty state.
+    const hasSelection =
+      Object.keys(resolved).length > 0 ||
+      Object.values(resolvedAddons).some((entries) => (entries?.length ?? 0) > 0);
+    const previewFiles: { path: string; content: string }[] = files.map((file) => ({
+      path: file.path,
+      content: file.template.content ?? "",
+    }));
+    if (hasSelection) {
+      const pkgJsons = synthesizePackageJsons(resolved, resolvedAddons, { name });
+      for (const [path, pkg] of Object.entries(pkgJsons)) {
+        previewFiles.push({ path, content: JSON.stringify(pkg, null, 2) + "\n" });
+      }
+    }
+
     const previewEntries = await Promise.all(
-      files.map(async (file) => {
-        const content = file.template.content ?? "";
-        const preview = await renderPreview(content, file.path);
+      previewFiles.map(async (file) => {
+        const preview = await renderPreview(file.content, file.path);
         return [file.path, preview] as const;
       }),
     );
@@ -63,6 +81,6 @@ export const getBuilderState = createServerFn({ method: "GET" })
       index,
       modules,
       previews: Object.fromEntries(previewEntries),
-      filePaths: files.map((f) => f.path),
+      filePaths: previewFiles.map((f) => f.path),
     };
   });

@@ -43,3 +43,19 @@ export { StanzaManifestSchema, CURRENT_MANIFEST_VERSION, emptyManifest } from ".
 
 export type { ResolveContext, ResolveResult, ResolveError } from "./resolver";
 export { resolveAdapter, isCompatible, slotOrder, addonOrder } from "./resolver";
+
+export type {
+  PackageManager,
+  PackageJson,
+  MergedInstallFields,
+  ResolvedEntry,
+  ResolvedSlots,
+  ResolvedAddons,
+} from "./package-json";
+export {
+  mergeInstallFields,
+  rootPackageJson,
+  appPackageJsonBase,
+  slotPackageJsonBase,
+  synthesizePackageJsons,
+} from "./package-json";

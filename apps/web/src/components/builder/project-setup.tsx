@@ -57,10 +57,10 @@ export function ProjectSetup({
       <div className="space-y-1.5">
         <span className="text-xs font-medium text-muted-foreground">Run this</span>
         <div className="flex items-stretch gap-2">
-          <pre className="min-w-0 flex-1 overflow-x-auto rounded-none border border-border bg-muted/50 px-3 py-2 font-mono text-[11px] whitespace-pre sm:text-xs">
+          <pre className="no-scrollbar flex h-8 min-w-0 flex-1 items-center overflow-x-auto rounded-none border border-border bg-muted/50 px-3 font-mono text-[11px] whitespace-pre sm:text-xs">
             <code>{command}</code>
           </pre>
-          <CopyButton value={command} className="h-auto!" />
+          <CopyButton value={command} />
         </div>
       </div>
     </Card>
