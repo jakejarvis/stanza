@@ -2,6 +2,7 @@ import type { SlotId } from "@stanza/registry";
 import { KNOWN_SLOTS, slotLabel } from "@stanza/registry";
 import { IconExternalLink } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import { useCallback, useMemo } from "react";
 
 import { AdapterSwitcher } from "@/components/detail/adapter-switcher";
 import { DepsTable } from "@/components/detail/deps-table";
@@ -64,12 +65,18 @@ function ModuleDetailPage() {
 
   const { module, adapter, resolvedPeers, peerOptions, effective, previews, index } = detail;
 
-  const onPeerChange = (slot: SlotId, id: string) => {
-    void navigate({
-      search: { ...search, [slot]: id },
-      replace: true,
-    });
-  };
+  const onPeerChange = useCallback(
+    (slot: SlotId, id: string) => {
+      void navigate({
+        search: { ...search, [slot]: id },
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate, search],
+  );
+
+  const templates = useMemo(() => adapter.templates ?? [], [adapter.templates]);
 
   // Build a "Try it" command using the same builder helper, treating the
   // current module + resolved peers as a complete-enough selection.
@@ -134,7 +141,7 @@ function ModuleDetailPage() {
         <DepsTable title="Dev dependencies" entries={effective.devDependencies} />
         <EnvTable env={effective.env} />
         <DepsTable title="Scripts" entries={effective.scripts} />
-        <TemplatesList templates={adapter.templates ?? []} previews={previews} />
+        <TemplatesList templates={templates} previews={previews} />
         <TryIt command={command} />
       </div>
 

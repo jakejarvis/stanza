@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "import", "promise"],
+  "plugins": ["oxc", "eslint", "typescript", "unicorn", "import", "promise", "vitest"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -33,7 +33,18 @@
     },
     {
       "files": ["apps/web/**/*.tsx"],
-      "plugins": ["typescript", "react", "react-perf", "promise", "jsx-a11y", "unicorn", "import"],
+      "plugins": [
+        "oxc",
+        "eslint",
+        "typescript",
+        "react",
+        "react-perf",
+        "promise",
+        "jsx-a11y",
+        "unicorn",
+        "import",
+        "vitest"
+      ],
       "rules": {
         "react/react-in-jsx-scope": "off"
       }

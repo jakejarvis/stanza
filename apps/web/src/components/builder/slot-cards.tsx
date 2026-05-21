@@ -1,6 +1,7 @@
 import type { Module, ModuleSummary, ResolveError, SlotId } from "@stanza/registry";
 import { KNOWN_SLOTS, emptyManifest, resolveAdapter, slotLabel } from "@stanza/registry";
 import { IconCheck } from "@tabler/icons-react";
+import { useCallback } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
 import type { Selections } from "@/lib/selection";
@@ -27,22 +28,18 @@ export function SlotCards({
 }) {
   return (
     <div className="space-y-8">
-      {KNOWN_SLOTS.map((slot, index) => {
-        const slotModules = summaries.filter((m) => m.slot === slot);
-        if (slotModules.length === 0) return null;
-        return (
-          <SlotSection
-            key={slot}
-            slot={slot}
-            label={SLOT_LABELS[slot]}
-            modules={slotModules}
-            modulesById={modules}
-            selections={selections}
-            index={index + 1}
-            onSelect={onSelect}
-          />
-        );
-      })}
+      {KNOWN_SLOTS.map((slot, index) => (
+        <SlotSection
+          key={slot}
+          slot={slot}
+          label={SLOT_LABELS[slot]}
+          summaries={summaries}
+          modulesById={modules}
+          selections={selections}
+          index={index + 1}
+          onSelect={onSelect}
+        />
+      ))}
     </div>
   );
 }
@@ -50,7 +47,7 @@ export function SlotCards({
 function SlotSection({
   slot,
   label,
-  modules,
+  summaries,
   modulesById,
   selections,
   index,
@@ -58,12 +55,15 @@ function SlotSection({
 }: {
   slot: SlotId;
   label: string;
-  modules: ModuleSummary[];
+  summaries: ModuleSummary[];
   modulesById: Record<string, Module>;
   selections: Selections;
   index: number;
   onSelect: (slot: SlotId, id: string | undefined) => void;
 }) {
+  const modules = summaries.filter((m) => m.slot === slot);
+  if (modules.length === 0) return null;
+
   const pending: Partial<Record<SlotId, Module>> = {};
   for (const s of KNOWN_SLOTS) {
     const id = selections[s];
@@ -89,13 +89,11 @@ function SlotSection({
             <ModuleCard
               key={m.id}
               module={m}
+              slot={slot}
               selected={selected}
               disabled={disabled}
               reason={reason}
-              onClick={() => {
-                if (disabled) return;
-                onSelect(slot, selected ? undefined : m.id);
-              }}
+              onSelect={onSelect}
             />
           );
         })}
@@ -106,17 +104,24 @@ function SlotSection({
 
 function ModuleCard({
   module: m,
+  slot,
   selected,
   disabled,
   reason,
-  onClick,
+  onSelect,
 }: {
   module: ModuleSummary;
+  slot: SlotId;
   selected: boolean;
   disabled: boolean;
   reason?: string;
-  onClick: () => void;
+  onSelect: (slot: SlotId, id: string | undefined) => void;
 }) {
+  const onClick = useCallback(() => {
+    if (disabled) return;
+    onSelect(slot, selected ? undefined : m.id);
+  }, [disabled, onSelect, slot, selected, m.id]);
+
   return (
     <button
       type="button"

@@ -12,6 +12,10 @@ import { getRegistryIndex } from "@/server/registry-index.functions";
 
 import appCss from "../styles.css?url";
 
+const BACK_LINK = <Link to="/" />;
+const DEVTOOLS_CONFIG = { position: "bottom-right" } as const;
+const DEVTOOLS_PLUGINS = [{ name: "Tanstack Router", render: <TanStackRouterDevtoolsPanel /> }];
+
 export const Route = createRootRoute({
   loader: () => getRegistryIndex(),
   // Per-route `head()` overrides supply title / OG / canonical. The root just
@@ -52,7 +56,7 @@ function NotFound() {
       title="Page not found"
       description="That page doesn’t exist. It may have moved, or the URL might be wrong."
     >
-      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
+      <Button render={BACK_LINK} nativeButton={false} variant="outline" size="sm">
         ← Back to builder
       </Button>
     </CenteredMessage>
@@ -65,7 +69,7 @@ function ErrorState({ error }: { error: Error }) {
       title="Something went wrong"
       description={error?.message || "An unexpected error occurred while rendering this page."}
     >
-      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
+      <Button render={BACK_LINK} nativeButton={false} variant="outline" size="sm">
         ← Back to builder
       </Button>
     </CenteredMessage>
@@ -91,10 +95,7 @@ function RootComponent() {
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>
-        <TanStackDevtools
-          config={{ position: "bottom-right" }}
-          plugins={[{ name: "Tanstack Router", render: <TanStackRouterDevtoolsPanel /> }]}
-        />
+        <TanStackDevtools config={DEVTOOLS_CONFIG} plugins={DEVTOOLS_PLUGINS} />
         <Scripts />
       </body>
     </html>

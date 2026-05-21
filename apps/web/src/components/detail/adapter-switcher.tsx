@@ -1,7 +1,7 @@
 import type { ModuleSummary, RegistryIndex, SlotId } from "@stanza/registry";
 import { slotLabel } from "@stanza/registry";
 
-import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /**
  * Chip-row picker for each peer slot the detail page can switch on. Hides any
@@ -33,30 +33,30 @@ export function AdapterSwitcher({
             <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
               {slotLabel(slot)}
             </span>
-            <div className="flex flex-wrap gap-1.5">
+            <ToggleGroup
+              variant="outline"
+              size="sm"
+              spacing={0}
+              value={active ? [active] : []}
+              onValueChange={(value: string[]) => {
+                const next = value[0];
+                if (next) onChange(slot, next);
+              }}
+            >
               {options.map((id) => {
                 const summary = index.modules.find((m) => m.slot === slot && m.id === id);
                 const label = summary?.label ?? id;
-                const isActive = active === id;
                 return (
-                  <button
+                  <ToggleGroupItem
                     key={id}
-                    type="button"
-                    onClick={() => onChange(slot, id)}
-                    aria-pressed={isActive}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-none border px-2.5 py-1 text-xs transition-colors",
-                      "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                      isActive
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border bg-background text-foreground hover:bg-muted",
-                    )}
+                    value={id}
+                    className="data-[state=on]:border-foreground data-[state=on]:bg-foreground data-[state=on]:text-background"
                   >
                     {label}
-                  </button>
+                  </ToggleGroupItem>
                 );
               })}
-            </div>
+            </ToggleGroup>
           </div>
         );
       })}

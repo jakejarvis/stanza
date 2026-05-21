@@ -60,14 +60,14 @@ function TemplateRow({
 
 function PreviewBlock({ preview }: { preview: Preview }) {
   const { resolvedTheme } = useTheme();
-  const html = useMemo(
-    () => (resolvedTheme === "dark" ? preview.dark : preview.light),
+  const inner = useMemo(
+    () => ({ __html: resolvedTheme === "dark" ? preview.dark : preview.light }),
     [preview, resolvedTheme],
   );
   return (
     <div
       className="overflow-auto border-t border-border text-xs leading-relaxed [&_pre]:bg-transparent! [&_pre]:p-4!"
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={inner}
     />
   );
 }

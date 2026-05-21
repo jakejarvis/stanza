@@ -1,8 +1,9 @@
 import type { SlotId } from "@stanza/registry";
 import { useNavigate } from "@tanstack/react-router";
+import { useCallback } from "react";
 
-import { CommandBar } from "@/components/builder/command-bar";
 import { FilePreview } from "@/components/builder/file-preview";
+import { ProjectSetup } from "@/components/builder/project-setup";
 import { SlotCards } from "@/components/builder/slot-cards";
 import {
   type BuilderSearch,
@@ -21,27 +22,33 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   const resolved = resolveSelectedAdapters(state.modules, selections);
   const command = buildCommand({ name, selections });
 
-  const setName = (next: string) => {
-    void navigate({
-      search: toSearchParams({ name: next, selections }),
-      replace: true,
-      resetScroll: false,
-    });
-  };
+  const setName = useCallback(
+    (next: string) => {
+      void navigate({
+        search: toSearchParams({ name: next, selections }),
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate, selections],
+  );
 
-  const setSelection = (slot: SlotId, id: string | undefined) => {
-    const next: Selections = { ...selections };
-    if (id) next[slot] = id;
-    else delete next[slot];
-    void navigate({
-      search: toSearchParams({ name, selections: next }),
-      replace: true,
-      resetScroll: false,
-    });
-  };
+  const setSelection = useCallback(
+    (slot: SlotId, id: string | undefined) => {
+      const next: Selections = { ...selections };
+      if (id) next[slot] = id;
+      else delete next[slot];
+      void navigate({
+        search: toSearchParams({ name, selections: next }),
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate, name, selections],
+  );
 
   const commandBar = (
-    <CommandBar name={name} defaultName={DEFAULT_NAME} command={command} onNameChange={setName} />
+    <ProjectSetup name={name} defaultName={DEFAULT_NAME} command={command} onNameChange={setName} />
   );
 
   return (

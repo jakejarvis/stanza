@@ -1,6 +1,12 @@
 import type { Logo } from "@stanza/registry";
+import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
+
+function InlineSvg({ html, className }: { html: string; className: string }) {
+  const inner = useMemo(() => ({ __html: html }), [html]);
+  return <div aria-hidden className={className} dangerouslySetInnerHTML={inner} />;
+}
 
 /**
  * Renders an inline-SVG module logo, falling back to a single-letter tile.
@@ -42,21 +48,13 @@ export function ModuleLogo({
   const wrapClass = cn("flex shrink-0 items-center justify-center", sizeClass);
 
   if (typeof logo === "string") {
-    return <div aria-hidden className={wrapClass} dangerouslySetInnerHTML={{ __html: logo }} />;
+    return <InlineSvg html={logo} className={wrapClass} />;
   }
 
   return (
     <>
-      <div
-        aria-hidden
-        className={cn(wrapClass, "dark:hidden")}
-        dangerouslySetInnerHTML={{ __html: logo.light }}
-      />
-      <div
-        aria-hidden
-        className={cn(wrapClass, "hidden dark:flex")}
-        dangerouslySetInnerHTML={{ __html: logo.dark }}
-      />
+      <InlineSvg html={logo.light} className={cn(wrapClass, "dark:hidden")} />
+      <InlineSvg html={logo.dark} className={cn(wrapClass, "hidden dark:flex")} />
     </>
   );
 }

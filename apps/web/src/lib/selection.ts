@@ -122,7 +122,7 @@ function resolveTemplatePath(tpl: TemplateRef, slot: SlotId, appDir: string): st
 
 /**
  * Build the `pnpm create stanza` command from the current state. Used both by
- * the command-bar display and by the copy-to-clipboard action.
+ * the project-setup display and by the copy-to-clipboard action.
  */
 export function buildCommand(input: { name: string; selections: Selections }): string {
   const flags = slotOrder

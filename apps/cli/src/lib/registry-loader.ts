@@ -88,7 +88,7 @@ async function loadFsRegistry(rootDir: string): Promise<Registry> {
   const index: RegistryIndex = {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
-    slots: SLOTS.map((s) => ({ ...s })),
+    slots: [...SLOTS],
     modules: summaries,
   };
 

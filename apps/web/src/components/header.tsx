@@ -5,6 +5,15 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { SiteSearch } from "@/components/search/site-search";
 import { Button } from "@/components/ui/button";
 
+const GITHUB_LINK = (
+  <a
+    href="https://github.com/jakejarvis/stanza"
+    target="_blank"
+    rel="noreferrer"
+    aria-label="GitHub"
+  />
+);
+
 export function Header() {
   // Root loader stocks the registry index. `useLoaderData` reads it via the
   // typed root-match path so the search popover has data without re-fetching.
@@ -18,21 +27,9 @@ export function Header() {
         </Link>
         <div className="flex items-center gap-2">
           <SiteSearch index={index} />
-          <Button
-            nativeButton={false}
-            render={
-              <a
-                href="https://github.com/jakejarvis/stanza"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="GitHub"
-              />
-            }
-            variant="ghost"
-            size="sm"
-          >
-            <IconBrandGithub className="size-4" />
-            <span className="hidden sm:inline">GitHub</span>
+          <Button nativeButton={false} render={GITHUB_LINK} variant="outline">
+            <IconBrandGithub data-icon="inline-start" />
+            <span className="sr-only">GitHub</span>
           </Button>
           <ModeToggle />
         </div>

@@ -1,13 +1,12 @@
-import { IconCopy } from "@tabler/icons-react";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import type { ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/copy-button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
 
-export function CommandBar({
+export function ProjectSetup({
   name,
   defaultName,
   command,
@@ -36,45 +35,32 @@ export function CommandBar({
     return () => clearTimeout(timer);
   }, [draft, name]);
 
-  const onCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(command);
-      toast.success("Copied to clipboard");
-    } catch {
-      toast.error("Couldn't access the clipboard");
-    }
-  };
+  const onDraftChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value),
+    [],
+  );
 
   return (
     <Card className="gap-4 p-5">
       <div className="space-y-1.5">
-        <label htmlFor="stanza-project-name" className="text-xs font-medium text-muted-foreground">
+        <Label htmlFor="stanza-project-name" className="font-medium text-muted-foreground">
           Project name
-        </label>
+        </Label>
         <Input
           id="stanza-project-name"
           value={draft}
           placeholder={defaultName}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={onDraftChange}
         />
       </div>
 
       <div className="space-y-1.5">
         <span className="text-xs font-medium text-muted-foreground">Run this</span>
         <div className="flex items-stretch gap-2">
-          <pre className="flex-1 overflow-x-auto rounded-none border border-border bg-muted/50 px-3 py-2 font-mono text-[11px] break-words whitespace-pre-wrap sm:text-xs">
+          <pre className="min-w-0 flex-1 overflow-x-auto rounded-none border border-border bg-muted/50 px-3 py-2 font-mono text-[11px] whitespace-pre sm:text-xs">
             <code>{command}</code>
           </pre>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button variant="outline" size="icon" onClick={onCopy} aria-label="Copy command">
-                  <IconCopy className="size-4" />
-                </Button>
-              }
-            />
-            <TooltipContent>Copy</TooltipContent>
-          </Tooltip>
+          <CopyButton value={command} className="h-auto!" />
         </div>
       </div>
     </Card>

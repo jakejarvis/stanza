@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 
 import { emptyManifest } from "./manifest";
 import { defineModule, type Module } from "./module";
@@ -46,7 +46,8 @@ describe("resolveAdapter", () => {
       },
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.adapter.key).toBe("postgres");
+    assert(result.ok);
+    expect(result.adapter.key).toBe("postgres");
   });
 
   it("fails fast when a required peer is missing", () => {
@@ -55,7 +56,8 @@ describe("resolveAdapter", () => {
       pending: {},
     });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.kind).toBe("missing-peer");
+    assert(!result.ok);
+    expect(result.error.kind).toBe("missing-peer");
   });
 
   it("rejects a peer not on the allow-list", () => {
@@ -73,7 +75,8 @@ describe("resolveAdapter", () => {
       },
     });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.kind).toBe("incompatible-peer");
+    assert(!result.ok);
+    expect(result.error.kind).toBe("incompatible-peer");
   });
 
   it("falls back to a default (empty-match) adapter when no peers are required", () => {
@@ -90,6 +93,7 @@ describe("resolveAdapter", () => {
       pending: {},
     });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.adapter.key).toBe("default");
+    assert(result.ok);
+    expect(result.adapter.key).toBe("default");
   });
 });

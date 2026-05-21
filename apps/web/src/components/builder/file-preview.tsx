@@ -132,10 +132,10 @@ function PreviewPane({
   path: string | undefined;
 }) {
   const { resolvedTheme } = useTheme();
-  const html = useMemo(() => {
-    if (!preview) return "";
-    return resolvedTheme === "dark" ? preview.dark : preview.light;
-  }, [preview, resolvedTheme]);
+  const inner = useMemo(
+    () => ({ __html: preview ? (resolvedTheme === "dark" ? preview.dark : preview.light) : "" }),
+    [preview, resolvedTheme],
+  );
 
   if (!preview || !path) {
     return (
@@ -153,7 +153,7 @@ function PreviewPane({
       <div
         className="max-h-[360px] overflow-auto text-xs leading-relaxed sm:max-h-[480px] lg:max-h-none lg:min-h-0 lg:flex-1 [&_pre]:bg-transparent! [&_pre]:p-4!"
         // Shiki HTML is server-rendered from our trusted registry payload.
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={inner}
       />
     </div>
   );
