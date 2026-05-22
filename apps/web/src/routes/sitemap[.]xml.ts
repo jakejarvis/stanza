@@ -1,15 +1,9 @@
 import type { RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { source } from "@/lib/source";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
-/**
- * `/sitemap.xml` — enumerates the home plus every module detail page. Search
- * params (peer overrides) are intentionally excluded: the canonical URL for a
- * module is the bare `/m/$slot/$id`, and the page renders an auto-default
- * adapter from there. A TanStack Start server route — the origin is derived
- * from the incoming request URL.
- */
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
@@ -24,22 +18,18 @@ export const Route = createFileRoute("/sitemap.xml")({
         }
 
         const urls = [
-          { loc: `${origin}/`, changefreq: "weekly", priority: "1.0" },
+          { loc: `${origin}/`, priority: "1.0" },
+          ...source.getPages().map((p) => ({
+            loc: `${origin}${p.url}`,
+          })),
           ...index.modules.map((m) => ({
             loc: `${origin}/m/${m.category}/${m.id}`,
-            changefreq: "monthly",
-            priority: "0.7",
           })),
         ];
 
         const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls
-  .map(
-    (u) =>
-      `  <url><loc>${u.loc}</loc><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`,
-  )
-  .join("\n")}
+${urls.map((u) => `  <url><loc>${u.loc}</loc>${"priority" in u ? `<priority>${u.priority}</priority>` : ""}</url>`).join("\n")}
 </urlset>
 `;
 
