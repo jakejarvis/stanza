@@ -73,9 +73,26 @@ export function FilePreview({
   // live in the model) and replay them via `initialExpandedPaths`.
   const prevPathsRef = useRef(filePaths);
   useEffect(() => {
-    const expanded = directoryPaths(prevPathsRef.current).filter((dir) => {
-      const item = model.getItem(dir);
-      return item != null && "isExpanded" in item && item.isExpanded();
+    const expandedSet = new Set(
+      directoryPaths(prevPathsRef.current).filter((dir) => {
+        const item = model.getItem(dir);
+        return item != null && "isExpanded" in item && item.isExpanded();
+      }),
+    );
+    // Collapsing a directory only clears its *own* expanded flag — descendants
+    // stay flagged expanded while hidden. `initialExpandedPaths` re-expands the
+    // full ancestor chain of every path it's given, so replaying such a
+    // descendant would re-open the parent the user just collapsed. Keep only
+    // directories whose entire ancestor chain is still expanded.
+    const expanded = [...expandedSet].filter((dir) => {
+      const segments = dir.split("/");
+      segments.pop();
+      let prefix = "";
+      for (const segment of segments) {
+        prefix = prefix ? `${prefix}/${segment}` : segment;
+        if (!expandedSet.has(prefix)) return false;
+      }
+      return true;
     });
     expanded.sort();
     // Capture the open file before `resetPaths` wipes selection.
@@ -129,31 +146,36 @@ export function FilePreview({
         </span>
       </div>
 
-      {filePaths.length === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="relative h-[420px] lg:h-auto lg:min-h-0 lg:flex-1">
-          <ResizablePanelGroup orientation={isWide ? "horizontal" : "vertical"}>
-            <ResizablePanel defaultSize="35%" minSize="20%">
-              <FileTree
-                key={resolvedTheme}
-                model={model}
-                className="h-full overflow-auto py-2 [--trees-accent-override:var(--ring)] [--trees-bg-override:transparent] [--trees-border-radius-override:0px] [--trees-padding-inline-override:8px] [--trees-selected-bg-override:var(--accent)] [--trees-selected-fg-override:var(--accent-foreground)]"
-                style={treeStyle}
-              />
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel defaultSize="65%" minSize="35%">
-              <PreviewPane preview={preview} path={activePath} />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-          {isLoading ? (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/50 backdrop-blur-[1px] transition-opacity duration-150">
-              <IconLoader2 className="size-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : null}
-        </div>
-      )}
+      <div className="relative flex min-h-[280px] flex-col lg:min-h-0 lg:flex-1">
+        {filePaths.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="h-[420px] lg:h-auto lg:min-h-0 lg:flex-1">
+            <ResizablePanelGroup orientation={isWide ? "horizontal" : "vertical"}>
+              <ResizablePanel defaultSize="35%" minSize="20%">
+                <FileTree
+                  key={resolvedTheme}
+                  model={model}
+                  className="h-full overflow-auto py-2 [--trees-accent-override:var(--ring)] [--trees-bg-override:transparent] [--trees-border-radius-override:0px] [--trees-padding-inline-override:8px] [--trees-selected-bg-override:var(--accent)] [--trees-selected-fg-override:var(--accent-foreground)]"
+                  style={treeStyle}
+                />
+              </ResizablePanel>
+              <ResizableHandle />
+              <ResizablePanel defaultSize="65%" minSize="35%">
+                <PreviewPane preview={preview} path={activePath} />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </div>
+        )}
+        {/* Hosted outside the empty/non-empty branch so it also covers the very
+            first selection (empty → content), where `filePaths` is still the
+            stale empty array while the loader runs. */}
+        {isLoading ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/50 backdrop-blur-[1px] transition-opacity duration-150">
+            <IconLoader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : null}
+      </div>
     </Card>
   );
 }

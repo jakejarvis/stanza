@@ -74,10 +74,12 @@ _New **slot** (single-choice, constraint-bearing)._
 
 ## payments
 
-_New **slot** (single-choice, constraint-bearing)._
+_New **slot** (single-choice, constraint-bearing)._ In addition to adding example files to the framework app, each of these have a plugin for better-auth -- add those too if better-auth is selected, either before or after this selection.
 
 - [ ] **stripe** — Checkout Sessions + webhooks
 - [ ] **polar** — Polar SDK
+- [ ] **autumn**
+- [ ] **dodo payments**
 
 ## email
 
@@ -102,9 +104,9 @@ _New **add-on**._ Vitest and Playwright are independent and routinely coexist.
 
 ## deploy
 
-_New **add-on**._
+_New **slot**._
 
-- [ ] **vercel** — `vercel.json` + framework-specific output
+- [ ] **vercel** — `vercel.json` + framework-specific output, add the nitro vite plugin for tanstack start
 - [ ] **cloudflare** — Workers / Pages adapter per framework
 - [ ] **railway** — `railway.toml` + Dockerfile
 - [ ] **docker** — generic `Dockerfile` + compose for self-host
@@ -126,15 +128,16 @@ _Not a slot — a top-level field in `stanza.json` (`packageManager: "pnpm" | "b
 
 ## Slot-package extraction
 
-Generated projects place each slot's output in one of two homes:
+Generated projects place each slot's output in one of three homes:
 
 - **App-scoped** (`framework`, `styling`) — files land in `manifest.appDir` (e.g. `apps/web/`). These slots wire the app shell itself, so there's no useful extraction boundary.
 - **Package-scoped** (`auth`, `db`, `orm`) — files land in `packages/<dir>/`, named `@<manifest.name>/<dir>`, and the app gets a `workspace:*` dep. `db` and `orm` share a single `packages/db/` package so the ORM client sits next to the schema it queries.
+- **Repo-scoped** (`tooling`) — config files land at the repo root and scripts/devDeps merge into the root `package.json`, because one lint/format config governs every workspace.
 
-The mapping lives in the canonical [`SLOTS`](packages/registry/src/module.ts) array as the `packageDir` field — `SLOT_PACKAGE_DIR` is just a `Record<SlotId, ...>` view derived from it. When you add a new slot, decide upfront whether it extracts (data layer, observability, payments) or wires the shell (router, UI primitives that mount in `<html>`) and set `packageDir` accordingly.
+The mapping lives in the canonical [`SLOTS`](packages/registry/src/module.ts) array: `packageDir` (non-null → package-scoped) and `repoScoped` (true → repo root). `SLOT_PACKAGE_DIR` / `SLOT_REPO_SCOPED` are `Record<SlotId, ...>` views derived from it. When you add a new slot, decide whether it extracts (data layer, payments → `packageDir`), wires the shell (router, global CSS → app), or governs the whole repo (lint/format → `repoScoped`).
 
 ## Slot taxonomy changes required
 
-Adding a new slot is now a **two-line edit**: append the id to `KNOWN_SLOTS` (the `as const` tuple Zod needs) and append a `Slot` entry to `SLOTS` with `{ id, label, description, packageDir }`. Order is topological — earlier slots become peer candidates for later ones. Existing `stanza.json` files don't break: new slots are optional, so adding them is additive.
+Adding a new slot is now a **one-line edit**: append a `Slot` entry to `SLOTS` with `{ id, label, description, packageDir }` (plus `repoScoped: true` for repo-wide tooling). `SlotId` and `KNOWN_SLOTS` are derived from `SLOTS`, so there's nothing else to keep in sync. Order is topological — earlier slots become peer candidates for later ones. Existing `stanza.json` files don't break: new slots are optional, so adding them is additive.
 
-Adding an add-on **category** is the same two-line edit against `KNOWN_ADDONS` + `ADDON_CATEGORIES`. Authoring an add-on **module** sets `kind: "addon"` + `category` (instead of `slot`) on `defineModule`; the manifest's `addons` record and the runner/CLI/web surfaces already handle multi-choice. See the category table at the top of this file for which planned modules are add-ons vs slots.
+Adding an add-on **category** is the same one-line edit against `ADDON_CATEGORIES` (`AddonCategoryId` + `KNOWN_ADDONS` derive from it). Authoring an add-on **module** sets `kind: "addon"` + `category` (instead of `slot`) on `defineModule`; the manifest's `addons` record and the runner/CLI/web surfaces already handle multi-choice. See the category table at the top of this file for which planned modules are add-ons vs slots.

@@ -141,6 +141,51 @@ export function resolveSelectedAddons(
   return out;
 }
 
+/**
+ * Drop any selection whose peers aren't satisfied. Deselecting a slot (or
+ * landing on a shared URL like `?orm=drizzle` with no `db`) would otherwise
+ * leave the orphaned dependent selected-but-unresolvable: its card renders
+ * selected yet disabled (so it can't be toggled off) and it leaks an invalid
+ * flag into the generated command. Pruning to a fixpoint keeps slots and
+ * add-ons in lockstep with what the resolver — and therefore the CLI — accepts.
+ */
+export function pruneUnresolved(
+  modules: Record<string, Module>,
+  selections: Selections,
+  addons: AddonSelections,
+): { selections: Selections; addons: AddonSelections } {
+  let curSelections: Selections = { ...selections };
+  let curAddons: AddonSelections = { ...addons };
+  for (;;) {
+    const resolved = resolveSelectedAdapters(modules, curSelections);
+    const resolvedAddons = resolveSelectedAddons(modules, curSelections, curAddons);
+    let removed = false;
+
+    const nextSelections: Selections = {};
+    for (const slot of KNOWN_SLOTS) {
+      const id = curSelections[slot];
+      if (!id) continue;
+      if (resolved[slot]) nextSelections[slot] = id;
+      else removed = true;
+    }
+
+    const nextAddons: AddonSelections = {};
+    for (const category of KNOWN_ADDONS) {
+      const ids = curAddons[category];
+      if (!ids?.length) continue;
+      const okIds = new Set((resolvedAddons[category] ?? []).map((e) => e.module.id));
+      const kept = ids.filter((id) => okIds.has(id));
+      if (kept.length !== ids.length) removed = true;
+      if (kept.length > 0) nextAddons[category] = kept;
+    }
+
+    curSelections = nextSelections;
+    curAddons = nextAddons;
+    // Removing one entry can orphan another (a peer chain); loop until stable.
+    if (!removed) return { selections: nextSelections, addons: nextAddons };
+  }
+}
+
 export type SelectedFile = {
   path: string;
   template: TemplateRef;

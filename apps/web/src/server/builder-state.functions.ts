@@ -15,7 +15,7 @@ import {
 } from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
-import { renderPreview } from "@/server/highlighter.server";
+import { getHighlighter, renderPreview } from "@/server/highlighter.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type BuilderState = {
@@ -36,6 +36,13 @@ export type BuilderState = {
 export const getBuilderState = createServerFn({ method: "GET" })
   .inputValidator((data: BuilderSearch) => data)
   .handler(async ({ data }): Promise<BuilderState> => {
+    // Warm the Shiki singleton during the initial empty-state load (which
+    // renders zero previews and so would otherwise never touch the
+    // highlighter). Fire-and-forget: the grammar/theme bundles load in the
+    // background while the user reads the page, so the first slot toggle hits a
+    // warm highlighter instead of paying ~hundreds of ms of cold-start.
+    void getHighlighter();
+
     const index = await loadRegistryFile<RegistryIndex>("index.json");
 
     // Load every module in parallel. The dataset is small (10s of KB at most)

@@ -22,8 +22,8 @@ export default defineModule({
       key: "default",
       match: {},
       templates: [
-        { src: "dot_oxlintrc.json", dest: ".oxlintrc.json", scope: "app" },
-        { src: "dot_oxfmtrc.json", dest: ".oxfmtrc.json", scope: "app" },
+        { src: "dot_oxlintrc.json", dest: ".oxlintrc.json", scope: "repo" },
+        { src: "dot_oxfmtrc.json", dest: ".oxfmtrc.json", scope: "repo" },
       ],
     },
   ],

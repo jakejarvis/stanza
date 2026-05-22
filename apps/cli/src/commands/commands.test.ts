@@ -268,8 +268,8 @@ describe("add-ons (multi-choice testing slot)", () => {
   });
 });
 
-describe("tooling slot (single-choice)", () => {
-  it("init --yes installs a tooling pick alongside the framework", async () => {
+describe("tooling slot (single-choice, repo-scoped)", () => {
+  it("init --yes installs a tooling pick at the repo root", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next", tooling: "eslint-prettier" }));
     expect(process.exitCode).toBeFalsy();
 
@@ -277,17 +277,22 @@ describe("tooling slot (single-choice)", () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
     expect(manifest.modules.tooling).toMatchObject({ id: "eslint-prettier", adapter: "next" });
 
-    // Per-framework adapter wrote the next eslint config + shared prettier config.
-    expect(fs.existsSync(path.join(projectRoot, "apps/web/eslint.config.mjs"))).toBe(true);
-    expect(fs.existsSync(path.join(projectRoot, "apps/web/prettier.config.mjs"))).toBe(true);
+    // Repo-scoped: config + scripts + devDeps land at the monorepo root, not the app.
+    expect(fs.existsSync(path.join(projectRoot, "eslint.config.mjs"))).toBe(true);
+    expect(fs.existsSync(path.join(projectRoot, "prettier.config.mjs"))).toBe(true);
+    expect(fs.existsSync(path.join(projectRoot, "apps/web/eslint.config.mjs"))).toBe(false);
 
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
+    // framework-next no longer ships `lint`, so the tooling module owns it cleanly.
+    expect(rootPkg.scripts.lint).toBe("eslint .");
+    expect(rootPkg.scripts.format).toBe("prettier --write .");
+    expect(rootPkg.devDependencies.eslint).toBeTruthy();
+
+    // The app package.json is untouched by the tooling slot.
     const appPkg = JSON.parse(
       fs.readFileSync(path.join(projectRoot, "apps/web/package.json"), "utf8"),
     );
-    // framework-next no longer ships `lint`, so the tooling module owns it cleanly.
-    expect(appPkg.scripts.lint).toBe("eslint .");
-    expect(appPkg.scripts.format).toBe("prettier --write .");
-    expect(appPkg.devDependencies.eslint).toBeTruthy();
+    expect(appPkg.scripts?.lint).toBeUndefined();
   });
 
   it("framework-next ships no lint script on its own", async () => {
@@ -298,7 +303,7 @@ describe("tooling slot (single-choice)", () => {
     expect(appPkg.scripts.lint).toBeUndefined();
   });
 
-  it("add installs a framework-agnostic tooling module and records modules.tooling", async () => {
+  it("add installs a framework-agnostic tooling module at the root", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "tanstack-start" }));
     process.chdir(path.join(tmp, "app"));
 
@@ -307,7 +312,10 @@ describe("tooling slot (single-choice)", () => {
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(manifest.modules.tooling).toMatchObject({ id: "biome", adapter: "default" });
-    expect(fs.existsSync("apps/web/biome.json")).toBe(true);
+    expect(fs.existsSync("biome.json")).toBe(true);
+    const rootPkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+    expect(rootPkg.scripts.lint).toBe("biome lint .");
+    expect(rootPkg.devDependencies["@biomejs/biome"]).toBeTruthy();
   });
 
   it("rejects a second tooling pick (slot already filled)", async () => {

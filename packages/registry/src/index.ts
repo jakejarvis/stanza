@@ -24,6 +24,7 @@ export {
   KNOWN_SLOTS,
   KNOWN_ADDONS,
   SLOT_PACKAGE_DIR,
+  SLOT_REPO_SCOPED,
   ADDON_PACKAGE_DIR,
   SLOTS,
   ADDON_CATEGORIES,
@@ -54,12 +55,15 @@ export type {
   PackageManager,
   PackageJson,
   MergedInstallFields,
+  InstallHome,
   ResolvedEntry,
   ResolvedSlots,
   ResolvedAddons,
 } from "./package-json";
 export {
   mergeInstallFields,
+  installHome,
+  installPackageJson,
   rootPackageJson,
   appPackageJsonBase,
   slotPackageJsonBase,

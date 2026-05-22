@@ -2,9 +2,11 @@ import {
   ADDON_PACKAGE_DIR,
   type AddonCategoryId,
   type EnvVar,
+  isAddon,
   type Module,
   type ModuleAdapter,
   SLOT_PACKAGE_DIR,
+  SLOT_REPO_SCOPED,
   type SlotId,
 } from "./module";
 import { addonOrder, slotOrder } from "./resolver";
@@ -51,6 +53,34 @@ export function mergeInstallFields(module: Module, adapter: ModuleAdapter): Merg
     scripts: { ...module.scripts, ...adapter.scripts },
     env: [...envByName.values()],
   };
+}
+
+/**
+ * Where a module's install fields (deps/scripts) and `scope`-less templates land.
+ * The SINGLE decision point for install routing, shared by the CLI apply path
+ * (`codemod-runner`) and the web preview (`synthesizePackageJsons`) so the two
+ * can never disagree about which `package.json` a module writes to. Derived
+ * entirely from slot/category metadata in `SLOTS` / `ADDON_CATEGORIES`:
+ *  - package-scoped (`packageDir`) wins, then repo-scoped (`repoScoped`), else app.
+ */
+export type InstallHome = { kind: "root" } | { kind: "app" } | { kind: "package"; dir: string };
+
+export function installHome(module: Module): InstallHome {
+  if (isAddon(module)) {
+    const dir = ADDON_PACKAGE_DIR[module.category];
+    return dir ? { kind: "package", dir } : { kind: "app" };
+  }
+  const dir = SLOT_PACKAGE_DIR[module.slot];
+  if (dir) return { kind: "package", dir };
+  return SLOT_REPO_SCOPED[module.slot] ? { kind: "root" } : { kind: "app" };
+}
+
+/** Repo-relative `package.json` a module's deps/scripts merge into. */
+export function installPackageJson(module: Module, appDir: string): string {
+  const home = installHome(module);
+  if (home.kind === "package") return `packages/${home.dir}/package.json`;
+  if (home.kind === "root") return "package.json";
+  return `${appDir.replace(/\/+$/, "")}/package.json`;
 }
 
 const PM_VERSION: Record<PackageManager, string> = {
@@ -159,6 +189,7 @@ export function synthesizePackageJsons(
   const appDir = (opts.appDir ?? "apps/web").replace(/\/+$/, "");
   const packageManager = opts.packageManager ?? "pnpm";
 
+  const root = rootPackageJson({ name, packageManager });
   const app = appPackageJsonBase({ name, appDir });
   const packages = new Map<string, PackageJson>();
 
@@ -171,12 +202,14 @@ export function synthesizePackageJsons(
     return pkg;
   };
 
+  // Routing target comes from `installHome` — the same decision the CLI applies.
   const route = (
-    dir: string | null,
+    home: InstallHome,
     fields: MergedInstallFields,
     consumesPackages: readonly string[],
   ) => {
-    if (dir) {
+    if (home.kind === "package") {
+      const dir = home.dir;
       const pkg = ensurePkg(dir);
       // The host app consumes the extracted package as a workspace dep.
       addDep(app, `@${name}/${dir}`, "workspace:*");
@@ -190,7 +223,7 @@ export function synthesizePackageJsons(
       }
       applyFields(pkg, fields);
     } else {
-      applyFields(app, fields);
+      applyFields(home.kind === "root" ? root : app, fields);
     }
   };
 
@@ -198,7 +231,7 @@ export function synthesizePackageJsons(
     const entry = slots[slot];
     if (!entry) continue;
     route(
-      SLOT_PACKAGE_DIR[slot],
+      installHome(entry.module),
       mergeInstallFields(entry.module, entry.adapter),
       entry.module.consumesPackages ?? [],
     );
@@ -207,7 +240,7 @@ export function synthesizePackageJsons(
   for (const category of addonOrder) {
     for (const entry of addons[category] ?? []) {
       route(
-        ADDON_PACKAGE_DIR[category],
+        installHome(entry.module),
         mergeInstallFields(entry.module, entry.adapter),
         entry.module.consumesPackages ?? [],
       );
@@ -215,7 +248,7 @@ export function synthesizePackageJsons(
   }
 
   const out: Record<string, PackageJson> = {
-    "package.json": rootPackageJson({ name, packageManager }),
+    "package.json": root,
     [`${appDir}/package.json`]: app,
   };
   for (const [dir, pkg] of packages) out[`packages/${dir}/package.json`] = pkg;

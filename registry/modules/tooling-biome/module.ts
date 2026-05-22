@@ -18,7 +18,7 @@ export default defineModule({
     {
       key: "default",
       match: {},
-      templates: [{ src: "biome.json", dest: "biome.json", scope: "app" }],
+      templates: [{ src: "biome.json", dest: "biome.json", scope: "repo" }],
     },
   ],
 });

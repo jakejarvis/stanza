@@ -12,6 +12,12 @@ export type Slot = {
   label: string;
   description: string;
   packageDir: string | null;
+  /**
+   * When `packageDir` is null, route install fields (deps/scripts) and
+   * `scope: "repo"` templates to the monorepo ROOT rather than the app. For
+   * repo-wide tooling (lint/format) whose one config governs every workspace.
+   */
+  repoScoped?: boolean;
 };
 
 /**
@@ -35,6 +41,7 @@ export const SLOTS = [
     label: "Tooling",
     description: "Linter + formatter toolchain.",
     packageDir: null,
+    repoScoped: true,
   },
   // Inline shape (not `Slot`) so `SlotId` can derive from this without a cycle.
 ] as const satisfies readonly {
@@ -42,6 +49,7 @@ export const SLOTS = [
   label: string;
   description: string;
   packageDir: string | null;
+  repoScoped?: boolean;
 }[];
 
 /** Legal slot ids, derived from `SLOTS`. */
@@ -57,6 +65,11 @@ export const KNOWN_SLOTS = SLOTS.map((s) => s.id) as [SlotId, ...SlotId[]];
 export const SLOT_PACKAGE_DIR: Record<SlotId, string | null> = Object.fromEntries(
   SLOTS.map((s) => [s.id, s.packageDir]),
 ) as Record<SlotId, string | null>;
+
+/** Slots whose install fields land in the monorepo root `package.json`. */
+export const SLOT_REPO_SCOPED: Record<SlotId, boolean> = Object.fromEntries(
+  SLOTS.map((s) => [s.id, "repoScoped" in s && s.repoScoped === true]),
+) as Record<SlotId, boolean>;
 
 const SLOT_BY_ID: Record<SlotId, Slot> = Object.fromEntries(SLOTS.map((s) => [s.id, s])) as Record<
   SlotId,

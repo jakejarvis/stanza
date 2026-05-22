@@ -5,6 +5,7 @@ import {
   buildCommand,
   DEFAULT_NAME,
   parseSelections,
+  pruneUnresolved,
   resolveSelectedAdapters,
   selectedFiles,
   toSearchParams,
@@ -234,5 +235,80 @@ describe("resolveSelectedAdapters", () => {
     const out = resolveSelectedAdapters(modules, { orm: "drizzle", db: "postgres" });
     expect(out.orm?.adapter.key).toBe("postgres");
     expect(out.db?.adapter.key).toBe("default");
+  });
+});
+
+describe("pruneUnresolved", () => {
+  const postgres: Module = defineModule({
+    id: "postgres",
+    slot: "db",
+    label: "Postgres",
+    description: "",
+    version: "0.1.0",
+    adapters: [{ key: "default", match: {} }],
+  });
+  const drizzle: Module = defineModule({
+    id: "drizzle",
+    slot: "orm",
+    label: "Drizzle",
+    description: "",
+    version: "0.1.0",
+    peers: { db: ["postgres"] },
+    adapters: [{ key: "postgres", match: { db: "postgres" } }],
+  });
+  const next: Module = defineModule({
+    id: "next",
+    slot: "framework",
+    label: "Next.js",
+    description: "",
+    version: "0.1.0",
+    adapters: [{ key: "default", match: {} }],
+  });
+  const vitest: Module = defineModule({
+    kind: "addon",
+    id: "vitest",
+    category: "testing",
+    label: "Vitest",
+    description: "",
+    version: "0.1.0",
+    peers: { framework: ["next"] },
+    adapters: [{ key: "next", match: { framework: "next" } }],
+  });
+  const modules: Record<string, Module> = {
+    "db:postgres": postgres,
+    "orm:drizzle": drizzle,
+    "framework:next": next,
+    "testing:vitest": vitest,
+  };
+
+  it("drops a slot whose peer is missing", () => {
+    const { selections } = pruneUnresolved(modules, { orm: "drizzle" }, {});
+    expect(selections).toEqual({});
+  });
+
+  it("keeps a slot once its peer is present", () => {
+    const { selections } = pruneUnresolved(modules, { orm: "drizzle", db: "postgres" }, {});
+    expect(selections).toEqual({ orm: "drizzle", db: "postgres" });
+  });
+
+  it("drops an add-on whose framework peer is missing", () => {
+    const { addons } = pruneUnresolved(modules, {}, { testing: ["vitest"] });
+    expect(addons).toEqual({});
+  });
+
+  it("keeps an add-on once its framework peer is present", () => {
+    const { selections, addons } = pruneUnresolved(
+      modules,
+      { framework: "next" },
+      { testing: ["vitest"] },
+    );
+    expect(selections).toEqual({ framework: "next" });
+    expect(addons).toEqual({ testing: ["vitest"] });
+  });
+
+  it("cascades: dropping db strands orm and its dependents in one call", () => {
+    // orm depends on db; remove db and orm must go too, leaving only framework.
+    const { selections } = pruneUnresolved(modules, { framework: "next", orm: "drizzle" }, {});
+    expect(selections).toEqual({ framework: "next" });
   });
 });

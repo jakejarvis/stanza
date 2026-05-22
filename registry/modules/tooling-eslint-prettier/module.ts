@@ -27,8 +27,8 @@ export default defineModule({
       match: { framework: "next" },
       devDependencies: { "@next/eslint-plugin-next": "^16.2.6" },
       templates: [
-        { src: "eslint.config.next.mjs", dest: "eslint.config.mjs", scope: "app" },
-        { src: "prettier.config.mjs", dest: "prettier.config.mjs", scope: "app" },
+        { src: "eslint.config.next.mjs", dest: "eslint.config.mjs", scope: "repo" },
+        { src: "prettier.config.mjs", dest: "prettier.config.mjs", scope: "repo" },
       ],
     },
     {
@@ -36,8 +36,8 @@ export default defineModule({
       match: { framework: "tanstack-start" },
       devDependencies: { "eslint-plugin-react": "^7.37.5" },
       templates: [
-        { src: "eslint.config.tanstack.mjs", dest: "eslint.config.mjs", scope: "app" },
-        { src: "prettier.config.mjs", dest: "prettier.config.mjs", scope: "app" },
+        { src: "eslint.config.tanstack.mjs", dest: "eslint.config.mjs", scope: "repo" },
+        { src: "prettier.config.mjs", dest: "prettier.config.mjs", scope: "repo" },
       ],
     },
   ],

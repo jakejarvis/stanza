@@ -19,7 +19,8 @@ import type {
   TemplateRef,
 } from "@stanza/registry";
 import {
-  ADDON_PACKAGE_DIR,
+  installHome,
+  installPackageJson,
   isAddon,
   mergeInstallFields,
   SLOT_PACKAGE_DIR,
@@ -73,12 +74,12 @@ export async function applyModule(args: {
   // on conflicts; env merges by `name`.
   const installFields = mergeInstallFields(module, adapter);
 
-  // Slot/category → package mapping. When non-null, this module's
-  // templates/deps/scripts are routed into `packages/<packageDir>/` instead of
-  // into the active app. Add-ons are all app/repo-scoped today (null).
-  const packageDir = isAddon(module)
-    ? ADDON_PACKAGE_DIR[module.category]
-    : SLOT_PACKAGE_DIR[module.slot];
+  // `installHome` (in @stanza/registry) is the single decision point for where
+  // a module's templates/deps/scripts land — package (`packages/<dir>/`), repo
+  // root, or the active app. The web preview's `synthesizePackageJsons` reads
+  // the same helper, so the two can't disagree.
+  const home = installHome(module);
+  const packageDir = home.kind === "package" ? home.dir : null;
   const packageRoot = packageDir ? path.join(projectRoot, "packages", packageDir) : null;
   const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
 
@@ -126,9 +127,7 @@ export async function applyModule(args: {
   // The slot-package path is bootstrapped above by `ensureSlotPackage`; the
   // app path is created by `stanza init` (bootstrapShell). For `stanza add`
   // in a pre-existing project, missing app package.json is a real misuse.
-  const pkgJsonPath = packageRoot
-    ? path.join(packageRoot, "package.json")
-    : path.join(appRoot, "package.json");
+  const pkgJsonPath = path.join(projectRoot, installPackageJson(module, manifest.appDir));
   const hasInstall =
     Object.keys(installFields.dependencies).length > 0 ||
     Object.keys(installFields.devDependencies).length > 0 ||
@@ -526,10 +525,8 @@ export async function revertCodemods(args: {
   const codemods = adapter.codemods ?? [];
   if (codemods.length === 0) return { manifest, touchedFiles: [], dryRun, manualCleanup };
 
-  const packageDir = isAddon(module)
-    ? ADDON_PACKAGE_DIR[module.category]
-    : SLOT_PACKAGE_DIR[module.slot];
-  const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
+  const home = installHome(module);
+  const packageName = home.kind === "package" ? `@${manifest.name}/${home.dir}` : "";
   const renderContext = buildRenderContext(manifest, packageName);
 
   const project = lazyProject(appRoot);

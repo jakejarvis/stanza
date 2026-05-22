@@ -1,6 +1,6 @@
 import type { AddonCategoryId, SlotId } from "@stanza/registry";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback } from "react";
+import { startTransition, useCallback, useOptimistic } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
 import { ProjectSetup } from "@/components/builder/project-setup";
@@ -12,6 +12,7 @@ import {
   type Selections,
   DEFAULT_NAME,
   parseSelections,
+  pruneUnresolved,
   resolveSelectedAdapters,
   resolveSelectedAddons,
   toSearchParams,
@@ -21,7 +22,25 @@ import type { BuilderState } from "@/server/builder-state.functions";
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });
   const capture = useAnalytics();
-  const { name, selections, addons } = parseSelections(search);
+  const parsed = parseSelections(search);
+  const { name } = parsed;
+  // Sanitize at the URL boundary: a shared link with an orphaned dependent
+  // (e.g. `?orm=drizzle` with no `db`) must not render a stuck selected card or
+  // leak an invalid flag into the command. The server loader already resolves
+  // before building the preview, so this only realigns the cards + command.
+  const { selections, addons } = pruneUnresolved(state.modules, parsed.selections, parsed.addons);
+
+  // Card selection is optimistic: a toggle flips the border/check immediately
+  // instead of waiting for the loader-backed navigation to commit. The async
+  // transition holds the optimistic value until `navigate` resolves, at which
+  // point the URL-derived base matches and reconciles seamlessly. The preview
+  // pane deliberately stays on committed loader data (it needs server-rendered
+  // Shiki HTML) and surfaces its own spinner while that round-trip runs.
+  const [optimistic, setOptimistic] = useOptimistic(
+    { selections, addons },
+    (_prev, next: { selections: Selections; addons: AddonSelections }) => next,
+  );
+
   const resolved = resolveSelectedAdapters(state.modules, selections);
   const resolvedAddons = resolveSelectedAddons(state.modules, selections, addons);
   const moduleCount =
@@ -30,47 +49,62 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
 
   const setName = useCallback(
     (next: string) => {
+      // Build off the optimistic snapshot, not the committed URL — otherwise a
+      // debounced name push landing mid-flight would navigate with stale
+      // selections and drop a slot/add-on toggle that hasn't committed yet.
       void navigate({
-        search: toSearchParams({ name: next, selections, addons }),
+        search: toSearchParams({ name: next, ...optimistic }),
         replace: true,
         resetScroll: false,
       });
     },
-    [navigate, selections, addons],
+    [navigate, optimistic],
   );
 
   const setSelection = useCallback(
     (slot: SlotId, id: string | undefined) => {
-      const next: Selections = { ...selections };
-      if (id) next[slot] = id;
-      else delete next[slot];
+      // Build off the optimistic snapshot so rapid clicks accumulate instead of
+      // each one resetting against the not-yet-committed URL.
+      const draft: Selections = { ...optimistic.selections };
+      if (id) draft[slot] = id;
+      else delete draft[slot];
       if (id) capture("builder_module_selected", { slot, module: id });
       else capture("builder_module_deselected", { slot });
-      void navigate({
-        search: toSearchParams({ name, selections: next, addons }),
-        replace: true,
-        resetScroll: false,
+      // Removing or changing a slot can orphan dependents (e.g. dropping `db`
+      // strands `orm`); prune them so cards + command never go inconsistent.
+      const next = pruneUnresolved(state.modules, draft, optimistic.addons);
+      startTransition(async () => {
+        setOptimistic(next);
+        await navigate({
+          search: toSearchParams({ name, ...next }),
+          replace: true,
+          resetScroll: false,
+        });
       });
     },
-    [capture, navigate, name, selections, addons],
+    [capture, navigate, name, optimistic, setOptimistic, state.modules],
   );
 
   const toggleAddon = useCallback(
     (category: AddonCategoryId, id: string) => {
-      const current = addons[category] ?? [];
+      const current = optimistic.addons[category] ?? [];
       const enabled = !current.includes(id);
       const nextIds = enabled ? [...current, id] : current.filter((x) => x !== id);
-      const next: AddonSelections = { ...addons };
-      if (nextIds.length > 0) next[category] = nextIds;
-      else delete next[category];
+      const nextAddons: AddonSelections = { ...optimistic.addons };
+      if (nextIds.length > 0) nextAddons[category] = nextIds;
+      else delete nextAddons[category];
       capture("builder_addon_toggled", { category, addon: id, enabled });
-      void navigate({
-        search: toSearchParams({ name, selections, addons: next }),
-        replace: true,
-        resetScroll: false,
+      const next = { selections: optimistic.selections, addons: nextAddons };
+      startTransition(async () => {
+        setOptimistic(next);
+        await navigate({
+          search: toSearchParams({ name, ...next }),
+          replace: true,
+          resetScroll: false,
+        });
       });
     },
-    [capture, navigate, name, selections, addons],
+    [capture, navigate, name, optimistic, setOptimistic],
   );
 
   const commandBar = (
@@ -93,8 +127,8 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         <SlotCards
           modules={state.modules}
           summaries={state.index.modules}
-          selections={selections}
-          addonSelections={addons}
+          selections={optimistic.selections}
+          addonSelections={optimistic.addons}
           onSelect={setSelection}
           onToggleAddon={toggleAddon}
         />
