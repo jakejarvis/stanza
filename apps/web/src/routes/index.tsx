@@ -1,5 +1,5 @@
 import { KNOWN_CATEGORIES } from "@stanza/registry";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/")({
     buildHead({
       title: "Build your stack",
       description:
-        "Pick a framework, ORM, database, auth provider, and styling. Get a clean monorepo with idiomatic, vendored code.",
+        "Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code that's yours the moment it lands.",
       path: "/",
     }),
   component: Page,
@@ -40,10 +40,19 @@ function Page() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <header className="mb-10 max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">Build your stack</h1>
-        <p className="mt-2 text-muted-foreground">
-          Pick a framework, ORM, database, auth provider, and styling. Get a clean monorepo with
-          idiomatic, vendored code. Add modules later with <code>stanza add</code>.
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Build your stack, minus the pressure.
+        </h1>
+        <p className="mt-2 text-pretty text-muted-foreground">
+          Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code
+          that's yours the moment it lands. Add more modules or swap them out at any time.{" "}
+          <Link
+            to="/docs/$"
+            params={{ _splat: "" }}
+            className="text-primary underline underline-offset-4 hover:text-primary/80"
+          >
+            Learn more…
+          </Link>
         </p>
       </header>
       <Builder state={state} search={search} />
