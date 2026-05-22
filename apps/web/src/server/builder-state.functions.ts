@@ -1,8 +1,13 @@
 import type { Module, RegistryIndex } from "@stanza/registry";
-import { synthesizeEnvExample, synthesizeManifest, synthesizePackageJsons } from "@stanza/registry";
+import {
+  synthesizeEnvExample,
+  synthesizeManifest,
+  synthesizePackageJsons,
+  synthesizeTemplates,
+} from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import { parseSelections, resolveSelected, selectedFiles } from "@/lib/selection";
+import { parseSelections, resolveSelected } from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
@@ -51,7 +56,6 @@ export const getBuilderState = createServerFn({ method: "GET" })
 
     const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);
-    const files = selectedFiles(resolved);
 
     // Templates carry their own content; package.json, stanza.json, and
     // .env.example are synthesized — the CLI never ships them as templates, it
@@ -60,10 +64,9 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // matches what stanza actually writes. Only when something is selected, so
     // an empty builder still shows the empty state.
     const hasSelection = Object.values(resolved).some((entries) => (entries?.length ?? 0) > 0);
-    const previewFiles: { path: string; content: string }[] = files.map((file) => ({
-      path: file.path,
-      content: file.template.content ?? "",
-    }));
+    const previewFiles: { path: string; content: string }[] = synthesizeTemplates(resolved, {
+      name,
+    }).map((tpl) => ({ path: tpl.path, content: tpl.content }));
     if (hasSelection) {
       const pkgJsons = synthesizePackageJsons(resolved, { name, packageManager: pm });
       for (const [path, pkg] of Object.entries(pkgJsons)) {

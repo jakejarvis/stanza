@@ -31,5 +31,3 @@ export {
 } from "./json";
 
 export { addEnvVar, removeEnvVar } from "./env";
-
-export { renderTemplate, writeTemplateFile } from "./template";

@@ -1,4 +1,4 @@
-import { clerkMiddleware } from "{{packageName}}";
+import { clerkMiddleware } from "{{package.name}}";
 
 export default clerkMiddleware();
 

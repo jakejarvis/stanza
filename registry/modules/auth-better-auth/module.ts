@@ -56,7 +56,11 @@ export default defineModule({
       codemods: [
         {
           id: "re-export",
-          args: { file: "src/schema.ts", from: "{{packageName}}/auth-schema", base: "package:db" },
+          args: {
+            file: "src/schema.ts",
+            from: "{{package.name}}/auth-schema",
+            base: "package:db",
+          },
         },
       ],
     },
@@ -87,7 +91,11 @@ export default defineModule({
       codemods: [
         {
           id: "re-export",
-          args: { file: "src/schema.ts", from: "{{packageName}}/auth-schema", base: "package:db" },
+          args: {
+            file: "src/schema.ts",
+            from: "{{package.name}}/auth-schema",
+            base: "package:db",
+          },
         },
       ],
     },
@@ -195,7 +203,11 @@ model Verification {
       codemods: [
         {
           id: "re-export",
-          args: { file: "src/schema.ts", from: "{{packageName}}/auth-schema", base: "package:db" },
+          args: {
+            file: "src/schema.ts",
+            from: "{{package.name}}/auth-schema",
+            base: "package:db",
+          },
         },
       ],
     },
@@ -221,7 +233,11 @@ model Verification {
       codemods: [
         {
           id: "re-export",
-          args: { file: "src/schema.ts", from: "{{packageName}}/auth-schema", base: "package:db" },
+          args: {
+            file: "src/schema.ts",
+            from: "{{package.name}}/auth-schema",
+            base: "package:db",
+          },
         },
       ],
     },

@@ -46,7 +46,7 @@ export default defineModule({
           id: "wrap-root-layout",
           args: {
             providerName: "ClerkRootProvider",
-            providerImport: "{{packageName}}",
+            providerImport: "{{package.name}}",
           },
         },
       ],
@@ -84,7 +84,7 @@ export default defineModule({
           id: "wrap-root-layout",
           args: {
             providerName: "ClerkRootProvider",
-            providerImport: "{{packageName}}",
+            providerImport: "{{package.name}}",
           },
         },
       ],

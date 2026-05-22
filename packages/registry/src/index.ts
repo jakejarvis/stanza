@@ -66,4 +66,8 @@ export {
   appendEnvVar,
   synthesizeEnvExample,
   synthesizeManifest,
+  synthesizeTemplates,
 } from "./synthesize";
+
+export type { TemplateContext } from "./template";
+export { renderTemplate, buildRenderContext } from "./template";

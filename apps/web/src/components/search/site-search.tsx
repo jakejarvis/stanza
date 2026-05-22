@@ -120,7 +120,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
             <DialogTitle>Search modules</DialogTitle>
             <DialogDescription>Search the registry for a module to add.</DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-2 border-b px-3 focus-within:ring-1 focus-within:ring-ring">
+          <div className="flex items-center gap-2 border-b px-3">
             <IconSearch className="size-4 shrink-0 opacity-50" aria-hidden />
             <input
               autoFocus={!isTouchDevice}

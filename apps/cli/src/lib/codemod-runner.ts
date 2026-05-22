@@ -2,12 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { openProject } from "@stanza/codemods";
-import {
-  addPackageDependency,
-  addPackageScript,
-  addEnvVar,
-  renderTemplate,
-} from "@stanza/codemods";
+import { addPackageDependency, addPackageScript, addEnvVar } from "@stanza/codemods";
 import type { CodemodContext, Project } from "@stanza/codemods";
 import { CODEMOD_CATALOG } from "@stanza/codemods/builtins";
 import type {
@@ -15,13 +10,16 @@ import type {
   Module,
   ModuleAdapter,
   StanzaManifest,
+  TemplateContext,
   TemplateRef,
 } from "@stanza/registry";
 import {
+  buildRenderContext,
   categoryHome,
   installPackageJson,
   mergeInstallFields,
   PACKAGE_DIRS,
+  renderTemplate,
   slotPackageJsonBase,
 } from "@stanza/registry";
 
@@ -101,7 +99,11 @@ export async function applyModule(args: {
     if (created) bootstrappedPackage = { dir: packageDir, name: packageName };
   }
 
-  const renderContext = buildRenderContext(manifest, packageName);
+  const renderContext = buildRenderContext({
+    projectName: manifest.name,
+    appDir: manifest.appDir,
+    packageName,
+  });
 
   // 1. Templates (claim regions per-template-file).
   for (const tpl of adapter.templates ?? []) {
@@ -379,12 +381,12 @@ function ensureSlotPackage(args: {
 /**
  * Walk a codemod args object and run renderTemplate over every string leaf.
  * Non-string values pass through untouched. The contract for catalog
- * codemods is that string args may contain `{{projectName}}`, `{{appDir}}`,
- * `{{packageName}}` — anything else should be passed in raw.
+ * codemods is that string args may contain `{{project.name}}`, `{{project.appDir}}`,
+ * `{{package.name}}`, `{{packages.<dir>.name}}` — anything else should be passed in raw.
  */
 function renderArgs(
   args: Record<string, JsonValue>,
-  context: Record<string, string>,
+  context: TemplateContext,
 ): Record<string, JsonValue> {
   const visit = (value: JsonValue): JsonValue => {
     if (typeof value === "string") return renderTemplate(value, context);
@@ -458,27 +460,6 @@ function buildContext(args: {
   };
 }
 
-/**
- * Build the render context used by both template-body substitution and
- * codemod-args substitution. Provides:
- *  - `{{appDir}}`, `{{projectName}}` — project-level
- *  - `{{packageName}}` — the active module's own package (empty for categories
- *    without a package home)
- *  - `{{<dir>PackageName}}` (e.g. `{{dbPackageName}}`) — shorthand for every
- *    package home, so cross-package imports stay declarative
- */
-function buildRenderContext(manifest: StanzaManifest, packageName: string): Record<string, string> {
-  const ctx: Record<string, string> = {
-    appDir: manifest.appDir,
-    projectName: manifest.name,
-    packageName,
-  };
-  for (const dir of PACKAGE_DIRS) {
-    ctx[`${dir}PackageName`] = `@${manifest.name}/${dir}`;
-  }
-  return ctx;
-}
-
 export type RevertResult = {
   manifest: StanzaManifest;
   touchedFiles: string[];
@@ -520,7 +501,11 @@ export async function revertCodemods(args: {
 
   const home = categoryHome(module.category);
   const packageName = home.kind === "package" ? `@${manifest.name}/${home.dir}` : "";
-  const renderContext = buildRenderContext(manifest, packageName);
+  const renderContext = buildRenderContext({
+    projectName: manifest.name,
+    appDir: manifest.appDir,
+    packageName,
+  });
 
   const project = lazyProject(appRoot);
   const ctx = buildContext({

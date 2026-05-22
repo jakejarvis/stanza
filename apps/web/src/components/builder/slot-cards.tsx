@@ -135,7 +135,7 @@ function ModuleCard({
       aria-pressed={selected}
       onClick={onClick}
       className={cn(
-        "relative flex h-full w-full flex-col gap-3 rounded-none border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors",
+        "relative flex h-full w-full flex-col gap-3 rounded-none border border-border bg-card p-2.5 text-left text-card-foreground shadow-sm transition-colors",
         "outline-none focus-visible:ring-2 focus-visible:ring-ring",
         !disabled && "cursor-pointer hover:bg-accent/40",
         selected && "border-foreground ring-1 ring-foreground",

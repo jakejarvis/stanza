@@ -1,11 +1,19 @@
 import { emptyManifest, type StanzaManifest } from "./manifest";
 import {
+  categoryHome,
+  type CategoryId,
+  type InstallHome,
+  type ModuleId,
+  type TemplateRef,
+} from "./module";
+import {
   mergeInstallFields,
   type PackageManager,
   type Resolved,
   type ResolvedEntry,
 } from "./package-json";
 import { categoryOrder } from "./resolver";
+import { buildRenderContext, renderTemplate } from "./template";
 
 /** Header `stanza init` writes at the top of `.env.example`. */
 export const ENV_EXAMPLE_HEADER = "# Stanza-managed environment variables.\n";
@@ -95,4 +103,71 @@ export function synthesizeManifest(
   }
 
   return { ...base, modules };
+}
+
+export type SynthesizedTemplate = {
+  /** Path relative to the generated project root. */
+  path: string;
+  /** Final content stanza would write — substitution already applied for `template: true` refs. */
+  content: string;
+  owner: { category: CategoryId; module: ModuleId };
+};
+
+const DEFAULT_APP_DIR = "apps/web";
+
+/**
+ * Compute every template file stanza would write for a resolved selection,
+ * with mustache substitution applied. Mirrors the CLI's apply path so the web
+ * preview is byte-identical to what the CLI actually writes.
+ *
+ * Each resolved module gets a fresh render context: `package.name` and the
+ * active package's slot in `packages.<dir>.name` resolve to the owning
+ * module's own package. Templates with `template: true` go through
+ * `renderTemplate`; raw templates pass through untouched.
+ *
+ * Returns content from `tpl.content` only — never touches disk, so the
+ * registry package stays node-free for client/server bundles. Local-dev
+ * disk fallback is the CLI runner's concern.
+ */
+export function synthesizeTemplates(
+  resolved: Resolved,
+  opts: { name: string; appDir?: string },
+): SynthesizedTemplate[] {
+  const appDir = opts.appDir ?? DEFAULT_APP_DIR;
+  const out: SynthesizedTemplate[] = [];
+
+  for (const category of categoryOrder) {
+    const home = categoryHome(category);
+    const packageName = home.kind === "package" ? `@${opts.name}/${home.dir}` : "";
+    const renderContext = buildRenderContext({
+      projectName: opts.name,
+      appDir,
+      packageName,
+    });
+
+    for (const entry of resolved[category] ?? []) {
+      for (const tpl of entry.adapter.templates ?? []) {
+        const source = tpl.content ?? "";
+        const content = tpl.template ? renderTemplate(source, renderContext) : source;
+        out.push({
+          path: resolveTemplatePath(tpl, home, appDir),
+          content,
+          owner: { category, module: entry.module.id },
+        });
+      }
+    }
+  }
+
+  return out;
+}
+
+function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, appDir: string): string {
+  if (tpl.scope === "repo") return tpl.dest;
+  if (tpl.scope === "package") {
+    // Defensive: a `scope: "package"` ref under a non-package category would be
+    // rejected by the CLI runner. Fall back to repo root here so the preview
+    // doesn't throw while the user is mid-edit.
+    return home.kind === "package" ? `packages/${home.dir}/${tpl.dest}` : tpl.dest;
+  }
+  return `${appDir.replace(/\/$/, "")}/${tpl.dest}`;
 }
