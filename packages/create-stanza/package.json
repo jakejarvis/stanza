@@ -23,21 +23,20 @@
   ],
   "type": "module",
   "publishConfig": {
+    "access": "public",
     "bin": {
       "create-stanza": "./dist/bin.mjs"
-    },
-    "access": "public"
+    }
   },
   "scripts": {
-    "build": "tsdown",
-    "check-types": "tsc --noEmit"
+    "build": "vp pack"
   },
   "dependencies": {
     "stanza-cli": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "tsdown": "^0.22.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vite-plus": "catalog:"
   }
 }

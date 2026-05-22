@@ -1,5 +1,5 @@
 import { Project } from "ts-morph";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { addNamedImport, addDefaultImport, removeImport } from "./imports";
 

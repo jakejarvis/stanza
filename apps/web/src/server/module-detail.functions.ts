@@ -7,12 +7,17 @@ import type {
   PeerRequirement,
   RegistryIndex,
 } from "@stanza/registry";
-import { emptyManifest, PEER_CATEGORIES, resolveAdapter } from "@stanza/registry";
+import { emptyManifest, KNOWN_CATEGORIES, PEER_CATEGORIES, resolveAdapter } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
 import type { Preview } from "@/server/highlighter";
 import { renderPreview } from "@/server/highlighter.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
+
+/** Typed `Object.keys` for a partial category-record (avoids a key-widening cast). */
+function categoryKeys(record: Partial<Record<CategoryId, unknown>>): CategoryId[] {
+  return KNOWN_CATEGORIES.filter((category) => record[category] !== undefined);
+}
 
 export type ModuleDetailInput = {
   category: CategoryId;
@@ -98,9 +103,9 @@ function computePeerOptions(
   const out: Partial<Record<CategoryId, string[]>> = {};
   const declared = module.peers ?? ({} as PeerRequirement);
   const referenced = new Set<CategoryId>();
-  for (const slot of Object.keys(declared) as CategoryId[]) referenced.add(slot);
+  for (const slot of categoryKeys(declared)) referenced.add(slot);
   for (const adapter of module.adapters) {
-    for (const slot of Object.keys(adapter.match) as CategoryId[]) referenced.add(slot);
+    for (const slot of categoryKeys(adapter.match)) referenced.add(slot);
   }
 
   for (const slot of referenced) {
@@ -144,7 +149,7 @@ function applyAutoDefaults(
   peerOptions: Partial<Record<CategoryId, string[]>>,
 ): Partial<Record<CategoryId, string>> {
   const out: Partial<Record<CategoryId, string>> = { ...peers };
-  for (const slot of Object.keys(peerOptions) as CategoryId[]) {
+  for (const slot of categoryKeys(peerOptions)) {
     if (out[slot]) continue;
     const opts = peerOptions[slot];
     if (opts && opts.length > 0) out[slot] = opts[0];

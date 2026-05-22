@@ -113,8 +113,20 @@ export const CATEGORIES = [
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
 
 /** Category ids as a non-empty tuple — the shape `z.enum` needs. Also the processing order. */
-export const KNOWN_CATEGORIES = CATEGORIES.map((c) => c.id) as [CategoryId, ...CategoryId[]];
+const [firstCategory, ...restCategories] = CATEGORIES;
+export const KNOWN_CATEGORIES: [CategoryId, ...CategoryId[]] = [
+  firstCategory.id,
+  ...restCategories.map((c) => c.id),
+];
 
+/** Runtime guard narrowing an arbitrary string to a known `CategoryId`. */
+export function isCategoryId(value: string): value is CategoryId {
+  return KNOWN_CATEGORIES.some((id) => id === value);
+}
+
+// `Object.fromEntries` widens keys to `string`; CATEGORIES covers every
+// CategoryId by construction, so narrowing to the exhaustive record is sound.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map((c) => [c.id, c])) as Record<
   CategoryId,
   Category
@@ -346,7 +358,8 @@ const adapterSchema = z.object({
   ...installFieldsSchema,
 });
 
-export const ModuleSchema = z.object({
+/** Shape shared by a full `Module` and its index `ModuleSummary` (all but `adapters`). */
+const moduleBaseShape = {
   category: z.enum(KNOWN_CATEGORIES),
   id: z.string(),
   label: z.string(),
@@ -358,8 +371,39 @@ export const ModuleSchema = z.object({
     .optional(),
   consumesPackages: z.array(z.string()).optional(),
   ...installFieldsSchema,
-  adapters: z.array(adapterSchema),
   homepage: z.string().optional(),
   author: z.string().optional(),
   logo: z.union([z.string(), z.object({ light: z.string(), dark: z.string() })]).optional(),
+};
+
+export const ModuleSchema = z.object({
+  ...moduleBaseShape,
+  adapters: z.array(adapterSchema),
 }) satisfies z.ZodType<Module>;
+
+/** Category metadata as served in the registry `index.json`. */
+const categorySchema = z.object({
+  id: z.enum(KNOWN_CATEGORIES),
+  label: z.string(),
+  description: z.string(),
+  cardinality: z.enum(["one", "many"]),
+  home: z.union([
+    z.object({ kind: z.literal("app") }),
+    z.object({ kind: z.literal("repo") }),
+    z.object({ kind: z.literal("package"), dir: z.string() }),
+  ]),
+}) satisfies z.ZodType<Category>;
+
+/** Index summary: full module metadata with adapters reduced to `key` + `match`. */
+export const ModuleSummarySchema = z.object({
+  ...moduleBaseShape,
+  adapters: z.array(z.object({ key: z.string(), match: z.record(z.string(), z.string()) })),
+}) satisfies z.ZodType<ModuleSummary>;
+
+/** Runtime-validatable schema for the registry `index.json` payload. */
+export const RegistryIndexSchema = z.object({
+  generatedAt: z.string(),
+  schemaVersion: z.literal(1),
+  categories: z.array(categorySchema),
+  modules: z.array(ModuleSummarySchema),
+}) satisfies z.ZodType<RegistryIndex>;

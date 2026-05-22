@@ -1,5 +1,5 @@
 import { emptyManifest } from "@stanza/registry";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 
 import { openProject, type CodemodContext, type Project } from "../index";
 import reExport from "./re-export";

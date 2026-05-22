@@ -204,6 +204,9 @@ function commentLine(style: CommentStyle, body: string): string {
       return `# ${body}`;
     case "block":
       return `/* ${body} */`;
+    default:
+      style satisfies never;
+      throw new Error(`append-to-file: unknown comment style ${String(style)}`);
   }
 }
 

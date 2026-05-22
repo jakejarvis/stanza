@@ -1,5 +1,5 @@
 import type { CategoryId, ModuleSummary, RegistryIndex } from "@stanza/registry";
-import { categoryLabel } from "@stanza/registry";
+import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -19,9 +19,10 @@ export function AdapterSwitcher({
   resolvedPeers: Partial<Record<CategoryId, string>>;
   onChange: (category: CategoryId, id: string) => void;
 }) {
-  const switchable = (Object.entries(peerOptions) as [CategoryId, string[]][]).filter(
-    ([, opts]) => opts.length > 1,
-  );
+  const switchable = KNOWN_CATEGORIES.flatMap((category): [CategoryId, string[]][] => {
+    const opts = peerOptions[category];
+    return opts && opts.length > 1 ? [[category, opts]] : [];
+  });
   if (switchable.length === 0) return null;
 
   return (

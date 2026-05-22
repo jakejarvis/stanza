@@ -69,7 +69,7 @@ export function ThemeProvider({
   }, [theme, mounted]);
 
   useEffect(() => {
-    if (!mounted || theme !== "system") return;
+    if (!mounted || theme !== "system") return undefined;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => setResolvedTheme(applyTheme("system"));
     media.addEventListener("change", onChange);

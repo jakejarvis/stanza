@@ -12,15 +12,12 @@
     "./module": "./src/module.ts",
     "./resolver": "./src/resolver.ts"
   },
-  "scripts": {
-    "check-types": "tsc --noEmit",
-    "test": "vitest run"
-  },
   "dependencies": {
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "typescript": "^6.0.3",
-    "vitest": "^4.1.7"
+    "vite-plus": "catalog:",
+    "vitest": "catalog:"
   }
 }

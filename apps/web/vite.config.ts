@@ -4,17 +4,17 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
 import mdx from "fumadocs-mdx/vite";
 import { nitro } from "nitro/vite";
-import { defineConfig } from "vite";
+import { defineConfig, lazyPlugins } from "vite-plus";
 
 export default defineConfig({
-  plugins: [
+  plugins: lazyPlugins(() => [
     mdx(),
-    nitro({ serverAssets: [{ baseName: "registry", dir: "public/registry" }] }),
     devtools(),
     tailwindcss(),
     tanstackStart(),
     react(),
-  ],
+    nitro({ serverAssets: [{ baseName: "registry", dir: "public/registry" }] }),
+  ]),
   resolve: {
     tsconfigPaths: true,
     alias: {

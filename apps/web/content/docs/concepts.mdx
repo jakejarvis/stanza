@@ -14,15 +14,15 @@ properties that govern how its modules behave:
 - **Cardinality** — `one` (single-choice) or `many` (coexisting).
 - **Home** — where a module's output lands: `app`, `repo`, or `package`.
 
-| Category    | Cardinality | Home      |
-| ----------- | ----------- | --------- |
-| `framework` | one         | app       |
-| `styling`   | one         | app       |
-| `db`        | one         | package   |
-| `orm`       | one         | package   |
-| `auth`      | one         | package   |
-| `tooling`   | one         | repo      |
-| `testing`   | many        | app       |
+| Category    | Cardinality | Home    |
+| ----------- | ----------- | ------- |
+| `framework` | one         | app     |
+| `styling`   | one         | app     |
+| `db`        | one         | package |
+| `orm`       | one         | package |
+| `auth`      | one         | package |
+| `tooling`   | one         | repo    |
+| `testing`   | many        | app     |
 
 A `one` category holds at most one module — adding a second fails until you
 remove the first. A `many` category lets modules coexist (e.g. Vitest and
@@ -36,10 +36,10 @@ share a single `packages/db/` so the ORM client sits next to the schema it
 queries.
 
 <Callout type="info">
-  **Planned:** more categories are on the roadmap — `api`, `ai`, `payments`
-  (single-choice) and `email`, `deploy` (coexisting). They aren't shipping yet,
-  but the taxonomy is designed to absorb them without breaking existing
-  projects.
+  **Planned:** more categories are on the roadmap — `api`, `ai`, `payments`, `email` (single-choice)
+  and `deploy` (coexisting). They aren't shipping yet, but the taxonomy is designed to absorb them
+  without breaking existing projects. See the [module registry](/docs/registry) for the full
+  roadmap.
 </Callout>
 
 ## Vendoring
@@ -55,7 +55,8 @@ Modules declare **peers** — the other categories they care about. When you `ad
 a module, stanza reads your current selections and picks the **adapter** that
 matches. Better Auth, for instance, peers on both `framework` and `orm`, so
 adding it to a Next + Drizzle app produces different wiring than a TanStack Start
-+ Prisma app. You pick the module; stanza picks the right variant.
+
+- Prisma app. You pick the module; stanza picks the right variant.
 
 ## The manifest (`stanza.json`)
 

@@ -175,5 +175,8 @@ function describeError(error: ResolveError): string {
       return `Doesn't pair with ${error.peer} (your ${categoryLabel(error.category)} pick).`;
     case "no-adapter":
       return "No adapter matches your current stack.";
+    default:
+      error satisfies never;
+      throw new Error(`Unknown resolve error: ${String(error)}`);
   }
 }

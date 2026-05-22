@@ -48,8 +48,9 @@ const reExport: Codemod<ReExportArgs> = {
     const fileRel = path.relative(ctx.projectRoot, fileAbs);
     const sf = openOrThrow(ctx, fileAbs);
 
-    const wantsStar = args.names === undefined || args.names === "all";
-    const wantNames = wantsStar ? [] : (args.names as string[]);
+    const names = args.names ?? "all";
+    const wantsStar = names === "all";
+    const wantNames = names === "all" ? [] : names;
 
     const existing = sf
       .getExportDeclarations()

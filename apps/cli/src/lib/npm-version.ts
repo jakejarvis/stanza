@@ -6,6 +6,10 @@ const NPM_REGISTRY = process.env.STANZA_NPM_REGISTRY ?? "https://registry.npmjs.
 // the CLI process so a multi-module `init` hits npm at most once per package.
 const cache = new Map<string, string[] | null>();
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 /** `"^"`/`"~"` for shapes we re-resolve; `null` means leave the range verbatim. */
 function rangeModifier(range: string): "^" | "~" | null {
   const t = range.trim();
@@ -32,8 +36,9 @@ async function fetchVersions(name: string): Promise<string[] | null> {
       cache.set(name, null);
       return null;
     }
-    const body = (await res.json()) as { versions?: Record<string, unknown> };
-    const versions = Object.keys(body.versions ?? {});
+    const body: unknown = await res.json();
+    const versionsMap = isObject(body) && isObject(body.versions) ? body.versions : {};
+    const versions = Object.keys(versionsMap);
     cache.set(name, versions);
     return versions;
   } catch {

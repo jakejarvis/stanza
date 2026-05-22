@@ -30,16 +30,26 @@ type Payload = {
   events: IncomingEvent[];
 };
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function parsePayload(body: unknown): Payload | null {
-  if (typeof body !== "object" || body === null) return null;
-  const { distinctId, events } = body as Record<string, unknown>;
+  if (!isObject(body)) return null;
+  const { distinctId, events } = body;
   if (typeof distinctId !== "string" || distinctId.length === 0) return null;
   if (!Array.isArray(events) || events.length === 0 || events.length > MAX_EVENTS) return null;
+  const parsed: IncomingEvent[] = [];
   for (const e of events) {
-    if (typeof e !== "object" || e === null) return null;
-    if (typeof (e as IncomingEvent).event !== "string") return null;
+    if (!isObject(e)) return null;
+    if (typeof e.event !== "string") return null;
+    parsed.push({
+      event: e.event,
+      properties: isObject(e.properties) ? e.properties : undefined,
+      timestamp: typeof e.timestamp === "string" ? e.timestamp : undefined,
+    });
   }
-  return { distinctId, events: events as IncomingEvent[] };
+  return { distinctId, events: parsed };
 }
 
 export const Route = createFileRoute("/api/events")({

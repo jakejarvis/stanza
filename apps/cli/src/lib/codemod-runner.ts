@@ -344,9 +344,9 @@ function ensureSlotPackage(args: {
   // Wire the workspace dep into the host app's package.json on first
   // bootstrap. Not region-tracked — sweep cleans it up.
   if (fs.existsSync(appPkgPath)) {
-    const appPkg = JSON.parse(fs.readFileSync(appPkgPath, "utf8")) as {
-      dependencies?: Record<string, string>;
-    };
+    const appPkg: { dependencies?: Record<string, string> } = JSON.parse(
+      fs.readFileSync(appPkgPath, "utf8"),
+    );
     if (appPkg.dependencies?.[packageName] !== "workspace:*") {
       created = true;
       if (!dryRun) addPackageDependency(appPkgPath, packageName, "workspace:*");
@@ -363,9 +363,9 @@ function ensureSlotPackage(args: {
       if (!PACKAGE_DIRS.has(peer)) continue;
       const peerName = `@${args.manifest.name}/${peer}`;
       if (!fs.existsSync(ownPkgJson)) continue;
-      const pkg = JSON.parse(fs.readFileSync(ownPkgJson, "utf8")) as {
-        dependencies?: Record<string, string>;
-      };
+      const pkg: { dependencies?: Record<string, string> } = JSON.parse(
+        fs.readFileSync(ownPkgJson, "utf8"),
+      );
       if (pkg.dependencies?.[peerName] !== "workspace:*") {
         created = true;
         if (!dryRun) addPackageDependency(ownPkgJson, peerName, "workspace:*");
@@ -396,7 +396,9 @@ function renderArgs(
     }
     return value;
   };
-  return visit(args) as Record<string, JsonValue>;
+  const out: Record<string, JsonValue> = {};
+  for (const [k, v] of Object.entries(args)) out[k] = visit(v);
+  return out;
 }
 
 /**

@@ -3,10 +3,13 @@
 Modular monorepo template CLI — aka shadcn for full-stack TypeScript projects.
 
 ```sh
-npm init stanza my-app
+npm init stanza my-revolutionary-app
 ```
 
 Pick a framework, ORM, database, auth provider, and styling — get a clean monorepo with idiomatic code, vendored into your repo. Layer in more modules later with `stanza-cli add`.
+
+> [!WARNING]
+> 🚧 **Major work in progress!** See the [module registry](https://stanza.tools/docs/registry) for the module roadmap, and [TODO.md](./TODO.md) for active work.
 
 ## Why Stanza?
 
@@ -44,15 +47,11 @@ apps/
 packages/
   registry/       # shared schema, slot/peer/capability resolver
   codemods/       # ts-morph helpers for region-aware patching
-  create-stanza/  # `pnpm create stanza` shim
+  create-stanza/  # `npm init stanza` template shim
 registry/
   modules/        # first-party modules (framework, orm, db, auth, styling, tooling, testing)
 ```
 
-## Contributing
-
-Work in progress. See [CLAUDE.md](./CLAUDE.md) for architecture and toolchain invariants, [REGISTRY.md](./REGISTRY.md) for the module roadmap, and [TODO.md](./TODO.md) for active work.
-
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+[MIT](./LICENSE)

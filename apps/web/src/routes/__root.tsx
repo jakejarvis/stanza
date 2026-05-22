@@ -13,14 +13,8 @@ import { getRegistryIndex } from "@/server/registry-index.functions";
 
 import appCss from "../styles.css?url";
 
-const BACK_LINK = <Link to="/" />;
-const DEVTOOLS_CONFIG = { position: "bottom-right" } as const;
-const DEVTOOLS_PLUGINS = [{ name: "Tanstack Router", render: <TanStackRouterDevtoolsPanel /> }];
-
 export const Route = createRootRoute({
   loader: () => getRegistryIndex(),
-  // Per-route `head()` overrides supply title / OG / canonical. The root just
-  // sets the always-present basics and ships the global stylesheet.
   head: () => ({
     meta: [
       { charSet: "utf-8" },
@@ -57,7 +51,7 @@ function NotFound() {
       title="Page not found"
       description="That page doesn’t exist. It may have moved, or the URL might be wrong."
     >
-      <Button render={BACK_LINK} nativeButton={false} variant="outline" size="sm">
+      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
         ← Back to builder
       </Button>
     </CenteredMessage>
@@ -70,7 +64,7 @@ function ErrorState({ error }: { error: Error }) {
       title="Something went wrong"
       description={error?.message || "An unexpected error occurred while rendering this page."}
     >
-      <Button render={BACK_LINK} nativeButton={false} variant="outline" size="sm">
+      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
         ← Back to builder
       </Button>
     </CenteredMessage>
@@ -83,7 +77,7 @@ function RootComponent() {
       <head>
         <HeadContent />
       </head>
-      <body className="min-h-svh bg-background font-sans text-foreground antialiased">
+      <body className="min-h-svh bg-background font-sans text-foreground tabular-nums antialiased">
         <PostHogProvider>
           <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
             <div className="flex min-h-svh flex-col">
@@ -96,7 +90,10 @@ function RootComponent() {
             <Toaster />
           </ThemeProvider>
         </PostHogProvider>
-        <TanStackDevtools config={DEVTOOLS_CONFIG} plugins={DEVTOOLS_PLUGINS} />
+        <TanStackDevtools
+          config={{ position: "bottom-right" }}
+          plugins={[{ name: "TanStack Router", render: <TanStackRouterDevtoolsPanel /> }]}
+        />
         <Analytics />
         <Scripts />
       </body>

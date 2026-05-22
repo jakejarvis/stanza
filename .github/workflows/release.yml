@@ -24,39 +24,32 @@ jobs:
           # Changesets needs full history to compute the changelog.
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: 24
-          cache: pnpm
+          cache: true
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Build registry
-        run: pnpm registry:build
+        run: vp run registry:build
 
-      - name: Lint + typecheck + test
-        run: |
-          pnpm lint
-          pnpm fmt:check
-          pnpm check-types
-          pnpm test
+      - name: Lint
+        run: vp check
+
+      - name: Tests
+        run: vp test
+
+      - name: Build
+        run: vp run build:cli
 
       - name: Create release PR or publish
         id: changesets
         uses: changesets/action@v1
         with:
-          version: pnpm changeset version
-          publish: pnpm release
+          version: vp exec changeset version
+          publish: vp run release
           title: "chore: release"
           commit: "chore: release"
         env:

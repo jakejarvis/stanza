@@ -1,7 +1,18 @@
 import fs from "node:fs";
 
-export function readJson<T = unknown>(path: string): T {
-  return JSON.parse(fs.readFileSync(path, "utf8")) as T;
+/** Narrow an unknown JSON value to a plain object (excludes arrays and null). */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function readJson(path: string): unknown {
+  return JSON.parse(fs.readFileSync(path, "utf8"));
+}
+
+/** Read a JSON file expected to hold an object, falling back to `{}` otherwise. */
+function readRecord(path: string): Record<string, unknown> {
+  const value = readJson(path);
+  return isRecord(value) ? value : {};
 }
 
 export function writeJson(path: string, value: unknown): void {
@@ -13,9 +24,8 @@ export function writeJson(path: string, value: unknown): void {
  * Returns the dot-paths that were created or changed (for region claiming).
  */
 export function mergeJson(path: string, patch: Record<string, unknown>): string[] {
-  const original = readJson<Record<string, unknown>>(path);
   const touched: string[] = [];
-  const merged = mergeRecurse(original, patch, "", touched);
+  const merged = mergeRecurse(readRecord(path), patch, "", touched);
   writeJson(path, merged);
   return touched;
 }
@@ -29,20 +39,9 @@ function mergeRecurse(
   const out: Record<string, unknown> = { ...target };
   for (const [k, v] of Object.entries(source)) {
     const path = prefix ? `${prefix}.${k}` : k;
-    if (
-      v !== null &&
-      typeof v === "object" &&
-      !Array.isArray(v) &&
-      typeof out[k] === "object" &&
-      out[k] !== null &&
-      !Array.isArray(out[k])
-    ) {
-      out[k] = mergeRecurse(
-        out[k] as Record<string, unknown>,
-        v as Record<string, unknown>,
-        path,
-        touched,
-      );
+    const existing = out[k];
+    if (isRecord(v) && isRecord(existing)) {
+      out[k] = mergeRecurse(existing, v, path, touched);
     } else {
       if (out[k] !== v) touched.push(path);
       out[k] = v;
@@ -52,36 +51,45 @@ function mergeRecurse(
 }
 
 export function setJsonPath(file: string, dotPath: string, value: unknown): void {
-  const root = readJson<Record<string, unknown>>(file);
+  const root = readRecord(file);
   setPath(root, dotPath, value);
   writeJson(file, root);
 }
 
 export function unsetJsonPath(file: string, dotPath: string): void {
-  const root = readJson<Record<string, unknown>>(file);
+  const root = readRecord(file);
   unsetPath(root, dotPath);
   writeJson(file, root);
 }
 
 function setPath(root: Record<string, unknown>, dotPath: string, value: unknown): void {
   const parts = dotPath.split(".");
-  // parts is non-empty by construction (dotPath is non-empty caller contract)
-  const last = parts.pop() as string;
-  let node: Record<string, unknown> = root;
+  const last = parts.pop();
+  // dotPath is non-empty by caller contract, so `parts` was non-empty.
+  if (last === undefined) return;
+  let node = root;
   for (const p of parts) {
-    if (typeof node[p] !== "object" || node[p] === null) node[p] = {};
-    node = node[p] as Record<string, unknown>;
+    const next = node[p];
+    if (isRecord(next)) {
+      node = next;
+    } else {
+      const created: Record<string, unknown> = {};
+      node[p] = created;
+      node = created;
+    }
   }
   node[last] = value;
 }
 
 function unsetPath(root: Record<string, unknown>, dotPath: string): void {
   const parts = dotPath.split(".");
-  const last = parts.pop() as string;
-  let node: Record<string, unknown> = root;
+  const last = parts.pop();
+  if (last === undefined) return;
+  let node = root;
   for (const p of parts) {
-    if (typeof node[p] !== "object" || node[p] === null) return;
-    node = node[p] as Record<string, unknown>;
+    const next = node[p];
+    if (!isRecord(next)) return;
+    node = next;
   }
   delete node[last];
 }

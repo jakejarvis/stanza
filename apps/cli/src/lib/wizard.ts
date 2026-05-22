@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import type { CategoryId, Module, RegistryIndex } from "@stanza/registry";
+import type { CategoryId, Module, PackageManager, RegistryIndex } from "@stanza/registry";
 import {
   categoryLabel,
   categoryOrder,
@@ -81,7 +81,7 @@ export async function runInitWizard(args: {
         p.cancel("Cancelled.");
         return null;
       }
-      const ids = picks as string[];
+      const ids = picks;
       if (ids.length === 0) continue;
       selections[category] = await Promise.all(ids.map((id) => registry.loadModule(category, id)));
     } else {
@@ -95,13 +95,13 @@ export async function runInitWizard(args: {
         return null;
       }
       if (choice === "__skip__") continue;
-      const full = await registry.loadModule(category, choice as string);
+      const full = await registry.loadModule(category, choice);
       selections[category] = [full];
       pending[category] = full;
     }
   }
 
-  const pmChoice = await p.select({
+  const pmChoice = await p.select<PackageManager>({
     message: "Package manager?",
     options: [
       { value: "pnpm", label: "pnpm", hint: "Recommended" },
@@ -116,16 +116,15 @@ export async function runInitWizard(args: {
   }
 
   // Summary screen — what we're about to write.
-  const rows = (Object.entries(selections) as [CategoryId, Module[]][]).flatMap(
-    ([category, mods]) =>
-      mods.map(
-        (mod) =>
-          `${pc.bold(categoryLabel(category).padEnd(16))} ${mod.label} ${pc.dim(`(${mod.id})`)}`,
-      ),
+  const rows = KNOWN_CATEGORIES.flatMap((category) =>
+    (selections[category] ?? []).map(
+      (mod) =>
+        `${pc.bold(categoryLabel(category).padEnd(16))} ${mod.label} ${pc.dim(`(${mod.id})`)}`,
+    ),
   );
   const summary = [
-    `${pc.bold("Name:")}            ${String(name)}`,
-    `${pc.bold("Package manager:")} ${String(pmChoice)}`,
+    `${pc.bold("Name:")}            ${name}`,
+    `${pc.bold("Package manager:")} ${pmChoice}`,
     "",
     ...rows,
   ].join("\n");
@@ -138,9 +137,9 @@ export async function runInitWizard(args: {
   }
 
   return {
-    name: String(name),
+    name,
     appDir: "apps/web",
-    packageManager: pmChoice as "pnpm" | "bun" | "npm",
+    packageManager: pmChoice,
     selections,
   };
 }

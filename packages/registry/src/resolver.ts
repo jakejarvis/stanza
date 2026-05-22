@@ -103,9 +103,10 @@ function matchSpecificity(
   peers: Partial<Record<CategoryId, string>>,
 ): number {
   let score = 0;
-  for (const [category, required] of Object.entries(adapter.match) as [CategoryId, string][]) {
-    const actual = peers[category];
-    if (actual !== required) return -1;
+  for (const category of KNOWN_CATEGORIES) {
+    const required = adapter.match[category];
+    if (required === undefined) continue;
+    if (peers[category] !== required) return -1;
     score += 1;
   }
   return score;

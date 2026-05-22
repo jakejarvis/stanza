@@ -17,6 +17,9 @@ const ICONS = {
   loading: <IconLoader className="size-4 animate-spin" />,
 };
 
+// CSS custom properties aren't representable in React.CSSProperties (csstype
+// has no `--*` index signature), so the cast is the standard escape hatch.
+// oxlint-disable-next-line typescript/no-unsafe-type-assertion
 const STYLE = {
   "--normal-bg": "var(--popover)",
   "--normal-text": "var(--popover-foreground)",
@@ -31,7 +34,7 @@ const TOAST_OPTIONS = {
 };
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
 
   return (
     <Sonner

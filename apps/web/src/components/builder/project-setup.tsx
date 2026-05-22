@@ -27,7 +27,7 @@ export function ProjectSetup({
   }, [name]);
 
   useEffect(() => {
-    if (draft === name) return;
+    if (draft === name) return undefined;
     const timer = setTimeout(() => onNameChangeRef.current(draft), 300);
     return () => clearTimeout(timer);
   }, [draft, name]);

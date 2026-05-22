@@ -28,7 +28,7 @@ Session before that: pre-1.0 architectural cleanup landed.
 - **A3**: deleted `Module.provides`/`Module.requires`/`Capability` — they were declared but never read by the resolver. Peer constraints already encode the same info more precisely.
 - **A1**: hoisted module-level install fields (`dependencies`, `devDependencies`, `env`, `scripts`, `consumesPackages`). Adapters override per-key when needed. Better Auth's 6 adapters no longer duplicate `dependencies`, `env`, or workspace deps.
 - **A4**: web app is now the canonical registry host. `prebuild` builds + copies the registry into `apps/web/public/registry/`; deployed Vercel output ships it; the CLI's default URL points at the same path.
-- **A2 deferred**: the add-on schema (`manifest.addons[]` + `kind` discriminator) is intentionally postponed until the first real add-on module forces concrete design decisions. Categorization documented in [REGISTRY.md](REGISTRY.md).
+- **A2 deferred**: the add-on schema (`manifest.addons[]` + `kind` discriminator) is intentionally postponed until the first real add-on module forces concrete design decisions. Categorization documented in the [module registry](apps/web/content/docs/registry.mdx).
 - Cross-package wiring is now declared via module-level `consumesPackages` (was per-adapter `peerPackages`). `stanza add` composes modules across slots (verified: `framework next` → `db postgres` → `orm drizzle` → `auth better-auth` produces a working tree with the right adapter selection and the auth package depending on the db package). 49 unit tests pass. apps/web is a minimal Vite-native TanStack Start scaffold — needs the actual builder UI.
 
 ## Web app (apps/web) — priority
@@ -111,7 +111,7 @@ Functional but a few real issues to fix.
 
 ## Registry expansion
 
-The full first-party module roadmap lives in [REGISTRY.md](REGISTRY.md). These are the schema/resolver changes needed before most of those modules can land.
+The full first-party module roadmap lives in the [module registry](apps/web/content/docs/registry.mdx). These are the schema/resolver changes needed before most of those modules can land.
 
 - [x] **Unified `Category` taxonomy** — collapsed the slot/add-on split into one `Category` concept with two orthogonal, explicit axes: `cardinality` (`"one" | "many"`) and `home` (`app | repo | package`, replacing `packageDir`+`repoScoped`). `Module` is no longer a discriminated union — it carries a single `category` field. The manifest unified to one `modules: Partial<Record<CategoryId, StanzaModuleRecord[]>>` (arrays everywhere; `"one"` enforced ≤1 by `add`/`init`), bumping `CURRENT_MANIFEST_VERSION` 0.1→0.2 (clean break, no migration). Constraint-bearing is now emergent — the resolver iterates `PEER_CATEGORIES` (the `"one"` ids) only. Deleted `isAddon`/`moduleGroup`/`SlotModule`/`AddonModule`/`slotLabel`/`addonLabel`/`groupLabel`/`SLOT_PACKAGE_DIR`/`SLOT_REPO_SCOPED`/`ADDON_PACKAGE_DIR`/`KNOWN_SLOTS`/`KNOWN_ADDONS`; added `CATEGORIES`/`KNOWN_CATEGORIES`/`PEER_CATEGORIES`/`PACKAGE_DIRS`/`categoryHome`/`categoryCardinality`/`isMulti`/`categoryLabel`/`selectedOne`/`selectedAll`. Routing decided once in `categoryHome`, shared by the CLI runner + web `synthesizePackageJsons`. Wired through resolver/runner/CLI (add/remove/init/list/wizard, unified `--<category>` flags) + web builder (cards render single- vs multi-select off `isMulti`). All 14 modules migrated `slot`→`category`
 - [ ] Add new categories to `CATEGORIES`: `api`, `ai`, `ui`, `payments` (all `cardinality: one`). Decide topological order for the wizard prompts (api/ai after framework)
@@ -143,4 +143,4 @@ These are real future work but consciously deferred — don't pull them in oppor
 - `stanza update` — pinned-version 3-way merge
 - Third-party registry hosting — the spec exists implicitly; publish it formally later
 - React Native / Expo modules — needs the `native` capability + cross-platform framework slot
-- Additional first-party modules — full catalog tracked in [REGISTRY.md](REGISTRY.md); land the slot taxonomy changes above first
+- Additional first-party modules — full catalog tracked in the [module registry](apps/web/content/docs/registry.mdx); land the slot taxonomy changes above first

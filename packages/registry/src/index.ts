@@ -19,12 +19,16 @@ export {
   defineModule,
   CATEGORIES,
   KNOWN_CATEGORIES,
+  isCategoryId,
   PEER_CATEGORIES,
   PACKAGE_DIRS,
   categoryLabel,
   categoryHome,
   categoryCardinality,
   isMulti,
+  ModuleSchema,
+  ModuleSummarySchema,
+  RegistryIndexSchema,
 } from "./module";
 
 export type { StanzaManifest, StanzaModuleRecord, RegionMap, RegionOwnership } from "./manifest";

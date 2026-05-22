@@ -1,6 +1,11 @@
 import * as p from "@clack/prompts";
-import type { CategoryId } from "@stanza/registry";
-import { isMulti, KNOWN_CATEGORIES, resolveAdapter, selectedAll } from "@stanza/registry";
+import {
+  isCategoryId,
+  isMulti,
+  KNOWN_CATEGORIES,
+  resolveAdapter,
+  selectedAll,
+} from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -30,12 +35,12 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     return;
   }
 
-  if (!(KNOWN_CATEGORIES as readonly string[]).includes(slot)) {
+  if (!isCategoryId(slot)) {
     p.log.error(`Unknown category: ${slot}. Categories: ${KNOWN_CATEGORIES.join(", ")}`);
     process.exitCode = 1;
     return;
   }
-  const category = slot as CategoryId;
+  const category = slot;
   const group = category;
 
   const projectRoot = findProjectRoot();

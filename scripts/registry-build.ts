@@ -34,7 +34,8 @@ async function main() {
   const summaries = [];
   for (const dir of dirs) {
     const entry = path.join(modulesDir, dir, "module.ts");
-    const mod = ((await import(entry)) as { default: Module }).default;
+    const imported: { default: Module } = await import(entry);
+    const mod = imported.default;
     if (!mod) throw new Error(`Module ${dir} has no default export.`);
 
     // Inline each template's file contents. The per-module JSON is the

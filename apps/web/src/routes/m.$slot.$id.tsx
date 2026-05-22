@@ -82,8 +82,9 @@ function ModuleDetailPage() {
   // arrays (the unified selection shape). CommandPreview turns this into the
   // package-manager-specific command string (`--framework=next --testing=vitest`).
   const selections: Selections = {};
-  for (const [category, id] of Object.entries(resolvedPeers)) {
-    selections[category as CategoryId] = [id];
+  for (const category of KNOWN_CATEGORIES) {
+    const id = resolvedPeers[category];
+    if (id !== undefined) selections[category] = [id];
   }
   selections[module.category] = [module.id];
   const tryItParts = { selections };

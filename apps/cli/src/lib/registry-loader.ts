@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Module, RegistryIndex } from "@stanza/registry";
-import { CATEGORIES } from "@stanza/registry";
+import { CATEGORIES, ModuleSchema, RegistryIndexSchema } from "@stanza/registry";
 
 /**
  * In dev (when running from the stanza monorepo), modules are imported
@@ -111,7 +111,7 @@ async function loadHttpRegistry(baseUrl: string): Promise<Registry> {
   if (!indexRes.ok) {
     throw new Error(`Failed to load stanza registry from ${baseUrl}: ${indexRes.status}`);
   }
-  const index = (await indexRes.json()) as RegistryIndex;
+  const index = RegistryIndexSchema.parse(await indexRes.json());
 
   return {
     index,
@@ -119,14 +119,14 @@ async function loadHttpRegistry(baseUrl: string): Promise<Registry> {
       const url = `${baseUrl}/modules/${slot}-${id}.json`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Module fetch failed: ${url} (${res.status})`);
-      return (await res.json()) as Module;
+      return ModuleSchema.parse(await res.json());
     },
   };
 }
 
 async function importModule(modulesDir: string, dirName: string): Promise<Module> {
   const entry = path.join(modulesDir, dirName, "module.ts");
-  const mod = (await import(entry)) as { default: Module };
+  const mod: { default: Module } = await import(entry);
   if (!mod.default) {
     throw new Error(`Module ${dirName} has no default export at ${entry}`);
   }

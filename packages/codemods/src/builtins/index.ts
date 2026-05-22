@@ -26,10 +26,10 @@ import reExport from "./re-export";
 import wrapRootLayout from "./wrap-root-layout";
 
 export const CODEMOD_CATALOG: Record<string, Codemod> = {
-  [addVitePlugin.id]: addVitePlugin as unknown as Codemod,
-  [appendToFile.id]: appendToFile as unknown as Codemod,
-  [reExport.id]: reExport as unknown as Codemod,
-  [wrapRootLayout.id]: wrapRootLayout as unknown as Codemod,
+  [addVitePlugin.id]: addVitePlugin,
+  [appendToFile.id]: appendToFile,
+  [reExport.id]: reExport,
+  [wrapRootLayout.id]: wrapRootLayout,
 };
 
 export { addVitePlugin, appendToFile, reExport, wrapRootLayout };

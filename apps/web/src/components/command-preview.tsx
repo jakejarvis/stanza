@@ -44,7 +44,7 @@ export function CommandPreview({
         value={command}
         showLabel={false}
         copyLabel="Copy command"
-        className="flex-1 [font-variant-ligatures:none]"
+        className="flex-1"
         onCopy={onCopy}
       />
     </div>

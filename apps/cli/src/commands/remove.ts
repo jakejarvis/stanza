@@ -3,8 +3,8 @@ import path from "node:path";
 
 import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
-import type { CategoryId, StanzaModuleRecord } from "@stanza/registry";
-import { isMulti, KNOWN_CATEGORIES, PACKAGE_DIRS, selectedAll } from "@stanza/registry";
+import type { StanzaModuleRecord } from "@stanza/registry";
+import { isCategoryId, isMulti, PACKAGE_DIRS, selectedAll } from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -41,12 +41,12 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  if (!(KNOWN_CATEGORIES as readonly string[]).includes(slot)) {
+  if (!isCategoryId(slot)) {
     p.log.error(`Unknown category: ${slot}`);
     process.exitCode = 1;
     return;
   }
-  const category = slot as CategoryId;
+  const category = slot;
   const group = category;
 
   const projectRoot = findProjectRoot();

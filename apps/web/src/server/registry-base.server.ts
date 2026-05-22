@@ -25,7 +25,8 @@ export async function loadRegistryFile<T>(relativePath: string): Promise<T> {
     const { resolve } = await import("node:path");
     const filePath = resolve(process.cwd(), "public/registry", relativePath);
     try {
-      return JSON.parse(await readFile(filePath, "utf8")) as T;
+      const parsed: T = JSON.parse(await readFile(filePath, "utf8"));
+      return parsed;
     } catch {
       throw new Error(
         `Registry asset not found: ${filePath} (run \`pnpm --filter @stanza/web prebuild\` to populate public/registry/)`,
@@ -38,5 +39,8 @@ export async function loadRegistryFile<T>(relativePath: string): Promise<T> {
     throw new Error(`Registry asset not found: assets:registry:${relativePath}`);
   }
   // unstorage destr-parses JSON, but be explicit if a driver returns raw text.
-  return (typeof data === "string" ? JSON.parse(data) : data) as T;
+  const value: unknown = typeof data === "string" ? JSON.parse(data) : data;
+  // Registry assets are first-party build output; the caller declares the shape.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+  return value as T;
 }

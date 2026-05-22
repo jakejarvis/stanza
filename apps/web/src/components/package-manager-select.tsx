@@ -9,7 +9,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PACKAGE_MANAGERS, type PackageManager } from "@/lib/package-manager";
+import { isPackageManager, PACKAGE_MANAGERS, type PackageManager } from "@/lib/package-manager";
 
 function NpmLogo(props: ComponentProps<"svg">) {
   return (
@@ -84,7 +84,9 @@ export function PackageManagerSelect({
       <DropdownMenuContent align="start">
         <DropdownMenuRadioGroup
           value={value}
-          onValueChange={(next) => onValueChange(next as PackageManager)}
+          onValueChange={(next) => {
+            if (isPackageManager(next)) onValueChange(next);
+          }}
         >
           {PACKAGE_MANAGERS.map((pm) => (
             <DropdownMenuRadioItem
