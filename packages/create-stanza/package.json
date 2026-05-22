@@ -33,7 +33,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@stanza/cli": "workspace:*"
+    "stanza-cli": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

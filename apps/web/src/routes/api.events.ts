@@ -4,7 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import { getPostHogServerClient } from "@/server/posthog.server";
 
 /**
- * `POST /api/events` — analytics ingest for the `@stanza/cli`. The CLI sends
+ * `POST /api/events` — analytics ingest for the `stanza-cli`. The CLI sends
  * plain `fetch` batches here so it never has to bundle `posthog-node`; this
  * route holds the PostHog project key server-side and forwards each event via
  * the `posthog-node` client.

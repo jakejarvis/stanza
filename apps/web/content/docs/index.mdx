@@ -5,13 +5,35 @@ description: Assemble modular full-stack TypeScript monorepos with stanza.
 
 stanza is a shadcn-style CLI for assembling modular full-stack TypeScript
 monorepos. Pick a framework, styling, database, ORM, and auth — stanza vendors
-the code directly into your repo, with no runtime dependency to carry around.
+idiomatic code directly into your repo, with no runtime dependency to carry
+around.
 
 ## Why stanza
 
-- **Post-init `add`** works on existing projects — manifest-driven and peer-aware.
-- **Vendored code** — generated files land in your repo verbatim.
-- **Open registry** — host your own static JSON and serve custom modules.
+- **`add` works after `init`.** Run `stanza add` on an existing project. It reads
+  your `stanza.json` manifest, resolves peer constraints, and picks the right
+  adapter for your stack — so adding auth to a Next + Drizzle app writes
+  different code than adding it to a TanStack Start + Prisma app.
+- **Your code, vendored.** Generated files land in your repo verbatim. There's no
+  `@stanza/runtime` package to install, and nothing to upgrade out from under
+  you — the code is yours to edit.
+- **Open registry.** Modules are plain static JSON. The CLI ships with a default
+  registry, but you can point it at your own host with `STANZA_REGISTRY` and
+  serve custom modules.
 
-These docs are a work in progress. Use the sidebar to browse, or head to the
-[builder](/) to start assembling a stack.
+## How it fits together
+
+You choose modules across a small set of **categories** — `framework`, `styling`,
+`db`, `orm`, `auth`, `tooling`, `testing`. stanza scaffolds a clean monorepo,
+vendoring each module's templates, dependencies, and environment variables into
+the right place: app shell code into your app, data and auth layers into their
+own workspace packages. Later, `stanza add` and `stanza remove` layer modules in
+and out without you hand-editing the wiring.
+
+## Next steps
+
+- **[Getting started](/docs/getting-started)** — create your first project and add a module.
+- **[Concepts](/docs/concepts)** — the mental model: categories, vendoring, peers, and the manifest.
+- **[CLI reference](/docs/cli-reference)** — every verb, flag, and environment variable.
+
+Or skip ahead and assemble a stack visually with the [builder](/).

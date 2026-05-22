@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { run } from "@stanza/cli";
+import { run } from "stanza-cli";
 
 import { version } from "../package.json" with { type: "json" };
 

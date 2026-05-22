@@ -9,13 +9,13 @@ Use only the published CLI surface. Do not assume the Stanza source repo, local 
 
 ## Runtime Contract
 
-- The CLI package is `@stanza/cli`; the binary is `stanza`.
+- The CLI package is `stanza-cli`; the binary is `stanza`.
 - The create package is `create-stanza`; package-manager create commands forward to `stanza init`.
 - Prefer direct npm execution in automation because it avoids package-manager argument-forwarding ambiguity:
 
 ```sh
-npx -y @stanza/cli@latest --help
-npx -y @stanza/cli@latest init my-app --yes --framework=next
+npx -y stanza-cli@latest --help
+npx -y stanza-cli@latest init my-app --yes --framework=next
 ```
 
 - If the user wants create-style commands, use the correct separator for their package manager:
@@ -31,8 +31,8 @@ bun create stanza@latest my-app --yes --framework=next
 1. Check the CLI surface before making assumptions:
 
 ```sh
-npx -y @stanza/cli@latest --help
-npx -y @stanza/cli@latest search
+npx -y stanza-cli@latest --help
+npx -y stanza-cli@latest search
 ```
 
 2. Discover current module IDs with `stanza search [query]`. Registry contents evolve, so do not hardcode a module unless the user specified it or `search` confirms it.
@@ -40,7 +40,7 @@ npx -y @stanza/cli@latest search
 3. Scaffold with `init --yes`, passing every category you want explicitly:
 
 ```sh
-npx -y @stanza/cli@latest init my-app --yes \
+npx -y stanza-cli@latest init my-app --yes \
   --framework=next \
   --styling=tailwind \
   --db=postgres \

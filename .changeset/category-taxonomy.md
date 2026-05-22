@@ -1,5 +1,5 @@
 ---
-"@stanza/cli": minor
+"stanza-cli": minor
 ---
 
 Unify the module taxonomy into one `Category` concept. The old slot/add-on split

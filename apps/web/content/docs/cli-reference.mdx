@@ -1,21 +1,103 @@
 ---
 title: CLI reference
-description: The stanza command-line verbs at a glance.
+description: The stanza command-line verbs, flags, and environment variables.
 ---
 
-stanza currently ships five verbs against the slot taxonomy. More (`swap`,
-`update`) are planned.
+stanza ships five verbs against the category taxonomy. Run any verb with
+`--help` for its full flag list:
 
-| Verb     | What it does                                  |
-| -------- | --------------------------------------------- |
-| `init`   | Scaffold a new monorepo from a stack          |
-| `add`    | Add a module to an existing project           |
-| `remove` | Remove a module and sweep its claimed regions |
-| `list`   | List installed modules                        |
-| `search` | Search the registry                           |
-
-Run any verb with `--help` for its flags:
-
-```bash
+```sh
 stanza add --help
 ```
+
+## `init`
+
+Scaffold a new monorepo. Without flags it launches an interactive wizard;
+with `--yes` it takes every pick from flags.
+
+```sh
+stanza init [name] --yes --framework=next --orm=drizzle --db=postgres --pm=pnpm
+```
+
+- `name` — project directory name (positional; prompted if omitted).
+- `--yes` — non-interactive; take selections from category flags.
+- `--<category>=<ids>` — pick modules for a category. One flag per category
+  (`--framework`, `--styling`, `--db`, `--orm`, `--auth`, `--tooling`,
+  `--testing`); single-choice categories take one id, multi-choice categories
+  take a comma-separated list. Omitted categories are skipped — `--yes` chooses
+  no defaults.
+- `--pm=<pnpm|bun|npm>` — package manager recorded in the manifest.
+
+## `add`
+
+Add one module to an existing project.
+
+```sh
+stanza add <category> <module>
+```
+
+Resolves peers, selects the matching adapter, and writes the module's templates,
+deps, env, and scripts to the right home. Adding a module to a single-choice
+category that's already filled fails until you remove the existing one.
+
+## `remove`
+
+Remove a module and sweep the files (regions) it owns.
+
+```sh
+stanza remove <category> [id]
+```
+
+For single-choice categories the `id` is optional; for multi-choice categories
+(like `testing`) it's required.
+
+## `list`
+
+Print installed modules, grouped by category, from the nearest `stanza.json`.
+
+```sh
+stanza list
+```
+
+## `search`
+
+List registry modules and their `category/id` pairs. Pass a query to filter.
+
+```sh
+stanza search [query]
+```
+
+Use the printed **id** (not the display label) when passing a module to `add`.
+
+<Callout type="info">
+  **Planned:** `swap` (replace a module with another in the same category) and
+  `update` (re-pull a module at a newer version) are on the roadmap. The manifest
+  already reserves the fields they need; the verbs aren't implemented yet.
+</Callout>
+
+## Global flags
+
+These apply to the mutating verbs (`init`, `add`, `remove`):
+
+- `--dry-run` — print the actions that would be taken and write nothing.
+- `--dangerously-allow-dirty` — allow a mutating command to run with a dirty git
+  working tree. By default stanza refuses, so its edits never mix with
+  uncommitted changes. Commit or stash first when you can.
+- `--no-telemetry` — disable anonymous usage events for this invocation.
+
+## Environment variables
+
+- `STANZA_REGISTRY=<url-or-path>` — use a custom or self-hosted registry (HTTP
+  URL or filesystem path) instead of the default.
+- `STANZA_NO_NPM_LOOKUP=1` — skip npm version lookups and write dependency ranges
+  verbatim.
+- `STANZA_NPM_REGISTRY=<url>` — override the npm registry used for version lookups.
+- `STANZA_TELEMETRY=0` / `DO_NOT_TRACK=1` — disable telemetry persistently.
+  Telemetry is also auto-skipped in CI.
+
+## Dependency versioning
+
+On `init` and `add`, stanza bumps each `^`/`~` dependency range to the latest npm
+version that satisfies it, keeping the modifier. Other ranges and `workspace:*`
+specifiers are written as-is. When offline, it falls back to the range declared
+in the module.

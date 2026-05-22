@@ -10,7 +10,7 @@ Three things differentiate stanza from other scaffolders:
 
 ## Layout
 
-- `apps/cli/` — `@stanza/cli`, node entrypoint at `src/bin.ts` (run via tsx in dev, tsdown-built to `dist/bin.mjs` for publish)
+- `apps/cli/` — `stanza-cli`, node entrypoint at `src/bin.ts` (run via tsx in dev, tsdown-built to `dist/bin.mjs` for publish)
 - `apps/web/` — `@stanza/web`, TanStack Start visual builder (Vite-native, no Vinxi)
 - `packages/registry/` — shared schema, category/peer resolver, Zod manifest validator
 - `packages/codemods/` — ts-morph helpers (idempotent + reversible)
@@ -22,8 +22,8 @@ In a **generated project**, a module's output lands per its category's `home` (i
 
 ## Commands
 
-- `pnpm --filter @stanza/cli dev -- <verb>` — run CLI directly via `tsx watch ./src/bin.ts`; no build step. Or `tsx apps/cli/src/bin.ts <verb>` for a one-shot run
-- `pnpm --filter @stanza/cli build` — build the publishable CLI via tsdown (compiles to ESM JS at `apps/cli/dist/`, externalizes npm deps, inlines workspace packages). Same for `create-stanza`
+- `pnpm --filter stanza-cli dev -- <verb>` — run CLI directly via `tsx watch ./src/bin.ts`; no build step. Or `tsx apps/cli/src/bin.ts <verb>` for a one-shot run
+- `pnpm --filter stanza-cli build` — build the publishable CLI via tsdown (compiles to ESM JS at `apps/cli/dist/`, externalizes npm deps, inlines workspace packages). Same for `create-stanza`
 - `pnpm registry:build` — regenerate `dist/registry/{index,modules/*}.json`. Uses bun for maintainer convenience (the script body is portable; `tsx scripts/registry-build.ts` works too)
 - `pnpm --filter @stanza/web dev` — TanStack Start dev server. `prebuild` invokes [`apps/web/scripts/prepare-registry.sh`](apps/web/scripts/prepare-registry.sh) which copies the built `dist/registry/` into `apps/web/public/registry/`. Since `dist/registry/` is gitignored, the script builds it first when it's missing (e.g. on Vercel's clean checkout) — preferring `bun` locally and falling back to `pnpm exec tsx` on node-only deploy targets. The deployed site ships this directory as static assets, so CLI and web consume the same JSON. `public/registry/` is also registered as a Nitro `serverAssets` dir (vite.config.ts), so its contents are embedded into the server bundle at build time — SSR reads it via `useStorage("assets:registry")` (not the CDN), which is why it works on Vercel where `public/` is absent from the function fs
 - `pnpm lint` / `pnpm lint:fix` — Oxlint across the whole repo (config: `.oxlintrc.json`)
@@ -54,7 +54,7 @@ Core workflow:
 - **Node-only at runtime.** The CLI source uses node APIs and is dev-run via `tsx`; the published binary is plain ESM JS (`#!/usr/bin/env node`). The only place bun appears is the shebang on root maintainer scripts (`scripts/*.ts`) for our own convenience — those scripts don't use any `Bun.*` APIs and run fine under tsx/node
 - **Build pipeline**: `tsdown` compiles each publishable package to ESM JS in `dist/`. External npm deps are _not_ bundled (users install them via the normal dep chain); workspace deps are _inlined_ (we don't publish `@stanza/registry` and `@stanza/codemods` separately). Transitive runtime deps (`ts-morph`, `zod`) MUST be declared as direct `dependencies` of the publishable package or tsdown will inline them into the bundle
 - **Per-workspace `dist/` paths**: `main`/`types` in the source `package.json` still point at `./src/` so other workspaces resolve `.ts` directly during dev. The published tarball overrides via `publishConfig` to point at `./dist/<x>.mjs`/`.d.mts`
-- **Publishing**: only `@stanza/cli` and `create-stanza` ship to npm. `@stanza/codemods` + `@stanza/registry` are marked `private: true` (inlined into the CLI bundle by tsdown); `@stanza/web` is private (deployed as a Vercel site, not an npm package); the `registry/modules/*` packages are also private (they're registry data, not npm packages). Releases go through **Changesets**: drop a markdown file via `pnpm changeset`, push to main → the [release workflow](.github/workflows/release.yml) opens a "Version Packages" PR; merging that PR triggers the same workflow to run `pnpm release` (build CLI + create-stanza, then `changeset publish` to npm). Requires `NPM_TOKEN` in repo secrets; provenance attestations are emitted via `id-token: write` + `NPM_CONFIG_PROVENANCE=true`
+- **Publishing**: only `stanza-cli` and `create-stanza` ship to npm. `@stanza/codemods` + `@stanza/registry` are marked `private: true` (inlined into the CLI bundle by tsdown); `@stanza/web` is private (deployed as a Vercel site, not an npm package); the `registry/modules/*` packages are also private (they're registry data, not npm packages). Releases go through **Changesets**: drop a markdown file via `pnpm changeset`, push to main → the [release workflow](.github/workflows/release.yml) opens a "Version Packages" PR; merging that PR triggers the same workflow to run `pnpm release` (build CLI + create-stanza, then `changeset publish` to npm). Requires `NPM_TOKEN` in repo secrets; provenance attestations are emitted via `id-token: write` + `NPM_CONFIG_PROVENANCE=true`
 - pnpm 10 + `node-linker: isolated` — each workspace MUST declare `@types/node` in its own devDeps and set `types: ["node"]` in tsconfig (auto-discovery doesn't reach into the isolated `node_modules/@types`)
 - TypeScript 6 — `allowImportingTsExtensions: true` + `noEmit: true` is set in `tsconfig.json`; the CLI/create-stanza emit JS via tsdown, the registry/codemods packages stay source-only and never emit
 - `tsconfig.json` excludes `**/templates/**` globally — template files target user projects, not this repo

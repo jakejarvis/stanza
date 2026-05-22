@@ -55,7 +55,7 @@ jobs:
         run: pnpm test
 
       - name: Build CLI bundle
-        run: pnpm --filter @stanza/cli build
+        run: pnpm --filter stanza-cli build
 
       - name: Smoke-test built CLI
         run: |

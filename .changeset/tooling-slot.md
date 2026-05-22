@@ -1,5 +1,5 @@
 ---
-"@stanza/cli": minor
+"stanza-cli": minor
 ---
 
 Add a single-choice **tooling** slot for the lint/format toolchain, with three modules: `eslint-prettier` (ESLint flat config + Prettier, per-framework adapters), `biome`, and `oxlint-oxfmt` (both framework-agnostic). Modeled as a slot rather than a multi-choice add-on because the three toolchains are mutually exclusive substitutes.

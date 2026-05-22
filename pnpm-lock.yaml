@@ -248,7 +248,7 @@ importers:
 
   packages/create-stanza:
     dependencies:
-      '@stanza/cli':
+      stanza-cli:
         specifier: workspace:*
         version: link:../../apps/cli
     devDependencies:

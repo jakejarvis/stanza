@@ -1,32 +1,57 @@
 # Stanza
 
-Modular monorepo template CLI — shadcn for full-stack TypeScript stacks.
+Modular monorepo template CLI — aka shadcn for full-stack TypeScript projects.
 
 ```sh
-pnpm create stanza my-app
+npm init stanza my-app
 ```
 
-Pick a framework, ORM, database, auth provider, styling — get a clean monorepo with idiomatic code, vendored into your repo. Add modules later with `stanza add`.
+Pick a framework, ORM, database, auth provider, and styling — get a clean monorepo with idiomatic code, vendored into your repo. Layer in more modules later with `stanza-cli add`.
 
-Generated projects keep slot boundaries explicit: `auth`, `db`, and `orm` install into their own internal workspace packages (`packages/auth/`, `packages/db/`, named `@<your-app>/auth`, `@<your-app>/db`), and your app consumes them via `workspace:*` deps. Swapping an auth provider replaces the contents of `packages/auth/` without touching your app's imports.
+## Why Stanza?
+
+- **`add` works after `init`.** Run `stanza add` on an existing project — it's manifest-driven and peer-aware, so it picks the right adapter for your stack and wires deps, env, and templates into the correct workspace package.
+- **Your code, vendored.** Generated files land in your repo verbatim. There's no Stanza runtime to install or carry around.
+- **Open registry.** Modules are static JSON. Point the CLI at your own host and serve custom modules.
+
+## Quick start
+
+```sh
+npm init stanza my-app
+cd my-app
+npm install
+npm run dev
+```
+
+Add a module to an existing project at any time:
+
+```sh
+npx stanza-cli add auth better-auth
+```
+
+`auth`, `db`, and `orm` install into their own internal workspace packages (`packages/auth/`, `packages/db/`, named `@<your-app>/auth`, `@<your-app>/db`); your app consumes them via `workspace:*`. Swapping an auth provider replaces the contents of `packages/auth/` without touching your app's imports.
+
+## Docs
+
+Full guides and the CLI reference live at **[stanza.tools/docs](https://stanza.tools/docs)**. Assemble a stack visually with the builder at **[stanza.tools](https://stanza.tools)**.
 
 ## What's inside
 
 ```
 apps/
-  cli/            # @stanza/cli — the CLI binary
+  cli/            # stanza-cli — the CLI binary
   web/            # https://stanza.tools (TanStack Start)
 packages/
   registry/       # shared schema, slot/peer/capability resolver
   codemods/       # ts-morph helpers for region-aware patching
   create-stanza/  # `pnpm create stanza` shim
 registry/
-  modules/        # first-party modules (framework, orm, db, auth, styling)
+  modules/        # first-party modules (framework, orm, db, auth, styling, tooling, testing)
 ```
 
-## Status
+## Contributing
 
-Work in progress. See [CLAUDE.md](./CLAUDE.md), [TODO.md](./TODO.md), and [REGISTRY.md](./REGISTRY.md) for current state.
+Work in progress. See [CLAUDE.md](./CLAUDE.md) for architecture and toolchain invariants, [REGISTRY.md](./REGISTRY.md) for the module roadmap, and [TODO.md](./TODO.md) for active work.
 
 ## License
 

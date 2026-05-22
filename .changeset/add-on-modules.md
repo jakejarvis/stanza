@@ -1,5 +1,5 @@
 ---
-"@stanza/cli": minor
+"stanza-cli": minor
 ---
 
 Add multi-choice **add-on** modules. A `Module` is now a discriminated union on `kind` (`"slot"` default, or `"addon"` carrying a `category`), and `stanza.json` records add-ons in a new `addons` field keyed by category (each holding 0..n modules). Add-on categories (`testing`, `tooling`, `deploy`, `email`, `monorepo`) are disjoint from slots, so they never constrain another module's adapter dispatch — but they can still target a framework via `peers` + per-framework adapters.

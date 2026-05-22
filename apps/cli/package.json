@@ -1,5 +1,5 @@
 {
-  "name": "@stanza/cli",
+  "name": "stanza-cli",
   "version": "0.1.0",
   "description": "Modular monorepo template CLI — shadcn for stacks.",
   "keywords": [
