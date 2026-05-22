@@ -6,14 +6,15 @@ import { startTransition, useCallback, useOptimistic } from "react";
 import { FilePreview } from "@/components/builder/file-preview";
 import { ProjectSetup } from "@/components/builder/project-setup";
 import { SlotCards } from "@/components/builder/slot-cards";
+import { CommandPreview } from "@/components/command-preview";
 import { useAnalytics } from "@/lib/analytics";
+import type { PackageManager } from "@/lib/package-manager";
 import {
   type BuilderSearch,
   type Selections,
   DEFAULT_NAME,
   parseSelections,
   pruneUnresolved,
-  resolveSelected,
   toSearchParams,
 } from "@/lib/selection";
 import type { BuilderState } from "@/server/builder-state.functions";
@@ -22,7 +23,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   const navigate = useNavigate({ from: "/" });
   const capture = useAnalytics();
   const parsed = parseSelections(search);
-  const { name } = parsed;
+  const { name, pm } = parsed;
   // Sanitize at the URL boundary: a shared link with an orphaned dependent
   // (e.g. `?orm=drizzle` with no `db`) must not render a stuck selected card or
   // leak an invalid flag into the command. The server loader already resolves
@@ -37,21 +38,29 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   // Shiki HTML) and surfaces its own spinner while that round-trip runs.
   const [optimistic, setOptimistic] = useOptimistic(selections, (_prev, next: Selections) => next);
 
-  const resolved = resolveSelected(state.modules, selections);
-  const moduleCount = Object.values(resolved).reduce((n, entries) => n + entries.length, 0);
-
   const setName = useCallback(
     (next: string) => {
       // Build off the optimistic snapshot, not the committed URL — otherwise a
       // debounced name push landing mid-flight would navigate with stale
       // selections and drop a toggle that hasn't committed yet.
       void navigate({
-        search: toSearchParams({ name: next, selections: optimistic }),
+        search: toSearchParams({ name: next, pm, selections: optimistic }),
         replace: true,
         resetScroll: false,
       });
     },
-    [navigate, optimistic],
+    [navigate, pm, optimistic],
+  );
+
+  const setPm = useCallback(
+    (next: PackageManager) => {
+      void navigate({
+        search: toSearchParams({ name, pm: next, selections: optimistic }),
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate, name, optimistic],
   );
 
   const toggle = useCallback(
@@ -80,23 +89,16 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
       startTransition(async () => {
         setOptimistic(next);
         await navigate({
-          search: toSearchParams({ name, selections: next }),
+          search: toSearchParams({ name, pm, selections: next }),
           replace: true,
           resetScroll: false,
         });
       });
     },
-    [capture, navigate, name, optimistic, setOptimistic, state.modules],
+    [capture, navigate, name, pm, optimistic, setOptimistic, state.modules],
   );
 
-  const commandBar = (
-    <ProjectSetup
-      name={name}
-      defaultName={DEFAULT_NAME}
-      selections={selections}
-      onNameChange={setName}
-    />
-  );
+  const commandBar = <ProjectSetup name={name} defaultName={DEFAULT_NAME} onNameChange={setName} />;
 
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -117,7 +119,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         <FilePreview
           filePaths={state.filePaths}
           previews={state.previews}
-          moduleCount={moduleCount}
+          header={<CommandPreview name={name} selections={selections} pm={pm} onPmChange={setPm} />}
         />
       </section>
     </div>

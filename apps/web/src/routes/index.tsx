@@ -9,7 +9,7 @@ import { getBuilderState } from "@/server/builder-state.functions";
 // Keys are derived from the canonical slot + add-on tuples so this never
 // drifts when a slot or category is added. `parseSelections` splits the
 // comma-joined add-on values downstream.
-const SEARCH_KEYS = ["name", ...KNOWN_CATEGORIES] as const;
+const SEARCH_KEYS = ["name", "pm", ...KNOWN_CATEGORIES] as const;
 
 function validateSearch(input: Record<string, unknown>): BuilderSearch {
   const out: BuilderSearch = {};

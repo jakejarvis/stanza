@@ -49,7 +49,7 @@ export const getBuilderState = createServerFn({ method: "GET" })
     );
     const modules: Record<string, Module> = Object.fromEntries(fullModules);
 
-    const { name, selections } = parseSelections(data);
+    const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);
     const files = selectedFiles(resolved);
 
@@ -65,11 +65,11 @@ export const getBuilderState = createServerFn({ method: "GET" })
       content: file.template.content ?? "",
     }));
     if (hasSelection) {
-      const pkgJsons = synthesizePackageJsons(resolved, { name });
+      const pkgJsons = synthesizePackageJsons(resolved, { name, packageManager: pm });
       for (const [path, pkg] of Object.entries(pkgJsons)) {
         previewFiles.push({ path, content: JSON.stringify(pkg, null, 2) + "\n" });
       }
-      const manifest = synthesizeManifest(resolved, { name });
+      const manifest = synthesizeManifest(resolved, { name, packageManager: pm });
       previewFiles.push({
         path: "stanza.json",
         content: JSON.stringify(manifest, null, 2) + "\n",

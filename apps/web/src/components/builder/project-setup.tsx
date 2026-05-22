@@ -1,21 +1,17 @@
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { CommandPreview } from "@/components/command-preview";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { Selections } from "@/lib/selection";
 
 export function ProjectSetup({
   name,
   defaultName,
-  selections,
   onNameChange,
 }: {
   name: string;
   defaultName: string;
-  selections: Selections;
   onNameChange: (name: string) => void;
 }) {
   // Keep the field responsive locally and debounce the upward push: each
@@ -42,7 +38,7 @@ export function ProjectSetup({
   );
 
   return (
-    <Card className="gap-4 p-5">
+    <Card className="p-5">
       <div className="space-y-1.5">
         <Label htmlFor="stanza-project-name" className="font-medium text-muted-foreground">
           Project name
@@ -53,11 +49,6 @@ export function ProjectSetup({
           placeholder={defaultName}
           onChange={onDraftChange}
         />
-      </div>
-
-      <div className="space-y-1.5">
-        <span className="text-xs font-medium text-muted-foreground">Run this</span>
-        <CommandPreview name={name} selections={selections} />
       </div>
     </Card>
   );

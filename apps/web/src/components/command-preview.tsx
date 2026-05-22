@@ -3,16 +3,26 @@ import { useCallback } from "react";
 import { CopyButton } from "@/components/copy-button";
 import { PackageManagerSelect } from "@/components/package-manager-select";
 import { selectionProperties, useAnalytics } from "@/lib/analytics";
-import { usePackageManager } from "@/lib/package-manager";
+import type { PackageManager } from "@/lib/package-manager";
 import { buildCommand, DEFAULT_NAME, type Selections } from "@/lib/selection";
 
 /**
  * The `<pm> create stanza …` command box: a package-manager picker, the command
- * text, and a copy button. Owns the persisted package-manager preference and
- * builds the command from the current selection.
+ * text, and a copy button. The package manager lives in the URL (lifted to the
+ * builder), so the box is fully controlled — it builds the command from the
+ * current selection and reports changes upward.
  */
-export function CommandPreview({ name, selections }: { name: string; selections: Selections }) {
-  const { pm, setPm } = usePackageManager();
+export function CommandPreview({
+  name,
+  selections,
+  pm,
+  onPmChange,
+}: {
+  name: string;
+  selections: Selections;
+  pm: PackageManager;
+  onPmChange: (pm: PackageManager) => void;
+}) {
   const command = buildCommand({ name, selections, pm });
   const capture = useAnalytics();
 
@@ -28,7 +38,7 @@ export function CommandPreview({ name, selections }: { name: string; selections:
 
   return (
     <div className="flex items-stretch gap-2">
-      <PackageManagerSelect value={pm} onValueChange={setPm} />
+      <PackageManagerSelect value={pm} onValueChange={onPmChange} />
       <pre className="no-scrollbar flex h-8 min-w-0 flex-1 items-center overflow-x-auto rounded-none border border-border bg-muted/50 px-3 font-mono text-[11px] whitespace-pre [font-variant-ligatures:none] sm:text-xs">
         <code>{command}</code>
       </pre>

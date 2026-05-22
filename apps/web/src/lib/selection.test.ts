@@ -13,9 +13,17 @@ import {
 
 describe("parseSelections", () => {
   it("returns defaults when search is empty", () => {
-    const { name, selections } = parseSelections({});
+    const { name, pm, selections } = parseSelections({});
     expect(name).toBe(DEFAULT_NAME);
+    expect(pm).toBe("pnpm");
     expect(selections).toEqual({});
+  });
+
+  it("parses a recognized package manager and falls back to pnpm otherwise", () => {
+    expect(parseSelections({ pm: "npm" }).pm).toBe("npm");
+    expect(parseSelections({ pm: "bun" }).pm).toBe("bun");
+    expect(parseSelections({ pm: "yarn" }).pm).toBe("pnpm");
+    expect(parseSelections({ pm: "" }).pm).toBe("pnpm");
   });
 
   it("preserves recognized category keys and ignores unknown keys", () => {
@@ -45,6 +53,7 @@ describe("toSearchParams", () => {
   it("round-trips a populated state", () => {
     const input = {
       name: "my-app",
+      pm: "pnpm" as const,
       selections: { framework: ["next"], orm: ["drizzle"] },
     };
     const search = toSearchParams(input);
@@ -54,6 +63,7 @@ describe("toSearchParams", () => {
   it("round-trips multi-choice selections as comma-joined params", () => {
     const input = {
       name: DEFAULT_NAME,
+      pm: "pnpm" as const,
       selections: { framework: ["next"], testing: ["vitest", "playwright"] },
     };
     const search = toSearchParams(input);
@@ -61,8 +71,14 @@ describe("toSearchParams", () => {
     expect(parseSelections(search)).toEqual(input);
   });
 
-  it("omits the default name to keep the URL terse", () => {
-    expect(toSearchParams({ name: DEFAULT_NAME, selections: {} })).toEqual({});
+  it("omits the default name and package manager to keep the URL terse", () => {
+    expect(toSearchParams({ name: DEFAULT_NAME, pm: "pnpm", selections: {} })).toEqual({});
+  });
+
+  it("emits a non-default package manager", () => {
+    expect(toSearchParams({ name: DEFAULT_NAME, pm: "npm", selections: {} })).toEqual({
+      pm: "npm",
+    });
   });
 });
 

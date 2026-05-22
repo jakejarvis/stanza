@@ -2,6 +2,7 @@ import { themeToTreeStyles } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelection } from "@pierre/trees/react";
 import { IconLoader2 } from "@tabler/icons-react";
 import { useRouterState } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
 import { useTheme } from "@/components/theme-provider";
@@ -51,12 +52,12 @@ function directoryPaths(paths: readonly string[]): string[] {
 export function FilePreview({
   filePaths,
   previews,
-  moduleCount,
+  header,
 }: {
   filePaths: string[];
   previews: Record<string, Preview>;
-  /** Number of selected modules (slots + add-ons) contributing files. */
-  moduleCount: number;
+  /** Rendered into the pane's header bar (the install command row). */
+  header: ReactNode;
 }) {
   // @pierre/trees is path-driven. `useFileTree` builds the model once (lazy
   // `useState` init), so it does NOT react to later `paths` changes on its own.
@@ -138,13 +139,7 @@ export function FilePreview({
 
   return (
     <Card className="gap-0 overflow-hidden p-0 lg:min-h-0 lg:flex-1">
-      <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/30 px-4 py-2.5">
-        <span className="text-xs font-medium text-muted-foreground">
-          {filePaths.length > 0
-            ? `${filePaths.length} file${filePaths.length === 1 ? "" : "s"} from ${moduleCount} module${moduleCount === 1 ? "" : "s"}`
-            : "Pick a module to preview generated files"}
-        </span>
-      </div>
+      <div className="border-b border-border bg-muted/30 px-3 py-2">{header}</div>
 
       <div className="relative flex min-h-[280px] flex-col lg:min-h-0 lg:flex-1">
         {filePaths.length === 0 ? (

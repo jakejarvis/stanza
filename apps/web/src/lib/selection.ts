@@ -15,13 +15,18 @@ import {
   resolveAdapter,
 } from "@stanza/registry";
 
-import type { PackageManager } from "@/lib/package-manager";
+import {
+  DEFAULT_PACKAGE_MANAGER,
+  isPackageManager,
+  type PackageManager,
+} from "@/lib/package-manager";
 
 /** Selected module ids per category. Single-choice categories hold ≤ 1. */
 export type Selections = Partial<Record<CategoryId, string[]>>;
 
-// One optional comma-joined string per category, plus the project name.
-export type BuilderSearch = { name?: string } & Partial<Record<CategoryId, string>>;
+// One optional comma-joined string per category, plus the project name and the
+// chosen package manager.
+export type BuilderSearch = { name?: string; pm?: string } & Partial<Record<CategoryId, string>>;
 
 export const DEFAULT_NAME = "my-app";
 
@@ -32,6 +37,7 @@ export const DEFAULT_NAME = "my-app";
  */
 export function parseSelections(search: BuilderSearch): {
   name: string;
+  pm: PackageManager;
   selections: Selections;
 } {
   const selections: Selections = {};
@@ -47,16 +53,22 @@ export function parseSelections(search: BuilderSearch): {
   }
   const name =
     typeof search.name === "string" && search.name.length > 0 ? search.name : DEFAULT_NAME;
-  return { name, selections };
+  const pm = isPackageManager(search.pm) ? search.pm : DEFAULT_PACKAGE_MANAGER;
+  return { name, pm, selections };
 }
 
 /**
  * Inverse of `parseSelections`. Omits empty fields so the URL stays terse — a
  * brand-new visit shows no query string.
  */
-export function toSearchParams(input: { name: string; selections: Selections }): BuilderSearch {
+export function toSearchParams(input: {
+  name: string;
+  selections: Selections;
+  pm?: PackageManager;
+}): BuilderSearch {
   const out: BuilderSearch = {};
   if (input.name && input.name !== DEFAULT_NAME) out.name = input.name;
+  if (input.pm && input.pm !== DEFAULT_PACKAGE_MANAGER) out.pm = input.pm;
   for (const category of KNOWN_CATEGORIES) {
     const ids = input.selections[category];
     if (ids && ids.length > 0) out[category] = ids.join(",");
