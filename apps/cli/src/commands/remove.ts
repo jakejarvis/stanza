@@ -13,6 +13,7 @@ import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regionsOwnedBy } from "../lib/region-tracker";
 import { loadRegistry } from "../lib/registry-loader";
+import * as telemetry from "../lib/telemetry";
 
 export async function cmdRemove(args: {
   slot?: string;
@@ -189,6 +190,7 @@ export async function cmdRemove(args: {
 
   if (!dryRun) writeManifest(projectRoot, manifest);
 
+  telemetry.capture("cli_module", { action: "remove", group, module: installed.id });
   p.log.success(`${kleur.green("✓")} Removed ${installed.id} from ${group}`);
   if (sweptPackages.length > 0) {
     p.log.info(`Swept packages/${sweptPackages.join(", packages/")} (no remaining slot owns it).`);

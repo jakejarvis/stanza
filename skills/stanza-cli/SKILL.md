@@ -87,6 +87,10 @@ Current add-on categories are `testing`, `tooling`, `deploy`, `email`, and `mono
 - Mutating commands refuse to run in a dirty git worktree. Ask the user before using `--dangerously-allow-dirty`; it intentionally allows Stanza edits to mix with existing changes.
 - Use `STANZA_REGISTRY=<url-or-path>` only when the user asks for a custom/self-hosted registry or test fixture. Otherwise let the published CLI use its default registry.
 
+## Telemetry
+
+- The CLI sends anonymous usage events (command run, modules installed/removed — no PII, no identifier persisted). Disable per-invocation with `--no-telemetry`, or persistently with `STANZA_TELEMETRY=0` or `DO_NOT_TRACK=1`. Telemetry is auto-skipped in CI.
+
 ## Error Handling
 
 - `Module not found`: run `stanza search` and use the displayed module id, not the label.

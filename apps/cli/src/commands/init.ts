@@ -20,6 +20,7 @@ import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { initManifest } from "../lib/manifest";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
+import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
 
 export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
@@ -93,6 +94,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
       dryRun,
     });
     manifest = r.manifest;
+    telemetry.capture("cli_module", { action: "install", group: slot, module: mod.id });
     spinner.stop(`${kleur.green("✓")} ${mod.label}`);
   }
 
@@ -117,6 +119,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
         dryRun,
       });
       manifest = r.manifest;
+      telemetry.capture("cli_module", { action: "install", group: category, module: mod.id });
       spinner.stop(`${kleur.green("✓")} ${mod.label}`);
     }
   }

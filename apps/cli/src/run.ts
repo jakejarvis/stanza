@@ -6,6 +6,7 @@ import { cmdInit } from "./commands/init";
 import { cmdList } from "./commands/list";
 import { cmdRemove } from "./commands/remove";
 import { cmdSearch } from "./commands/search";
+import * as telemetry from "./lib/telemetry";
 
 const VERSION = "0.1.0";
 
@@ -32,7 +33,9 @@ ${kleur.bold("Options")}
   --dry-run                    Print the actions that would be taken; write nothing.
   --dangerously-allow-dirty    Allow mutating commands to run with a dirty git
                                working tree (by default they refuse).
-  --no-telemetry               Disable telemetry for this invocation.
+  --no-telemetry               Disable telemetry for this invocation. Set
+                               STANZA_TELEMETRY=0 to disable it persistently
+                               (also honors DO_NOT_TRACK and skips CI).
 
 ${kleur.bold("Examples")}
   stanza init my-app --yes --framework=next --orm=drizzle --db=postgres --testing=vitest,playwright
@@ -56,25 +59,43 @@ export async function run(argv: Argv): Promise<void> {
     return;
   }
 
-  switch (command) {
-    case "init":
-      await cmdInit({ name: rest[0], argv });
-      return;
-    case "add":
-      await cmdAdd({ slot: rest[0], moduleId: rest[1], argv });
-      return;
-    case "remove":
-      await cmdRemove({ slot: rest[0], moduleId: rest[1], argv });
-      return;
-    case "list":
-      await cmdList({ argv });
-      return;
-    case "search":
-      await cmdSearch({ query: rest.join(" "), argv });
-      return;
-    default:
-      console.error(kleur.red(`Unknown command: ${command}`));
-      console.error(HELP);
-      process.exitCode = 1;
+  telemetry.configure({
+    command,
+    version: VERSION,
+    disabled: telemetry.isTelemetryDisabled(argv),
+  });
+
+  let failed = false;
+  const startedAt = Date.now();
+  try {
+    switch (command) {
+      case "init":
+        await cmdInit({ name: rest[0], argv });
+        return;
+      case "add":
+        await cmdAdd({ slot: rest[0], moduleId: rest[1], argv });
+        return;
+      case "remove":
+        await cmdRemove({ slot: rest[0], moduleId: rest[1], argv });
+        return;
+      case "list":
+        await cmdList({ argv });
+        return;
+      case "search":
+        await cmdSearch({ query: rest.join(" "), argv });
+        return;
+      default:
+        console.error(kleur.red(`Unknown command: ${command}`));
+        console.error(HELP);
+        process.exitCode = 1;
+    }
+  } catch (err) {
+    failed = true;
+    throw err;
+  } finally {
+    // Covers thrown errors, handled `process.exitCode = 1` returns, and success.
+    const status = failed || process.exitCode ? "failure" : "success";
+    telemetry.capture("cli_command", { status, duration_ms: Date.now() - startedAt });
+    await telemetry.flush();
   }
 }

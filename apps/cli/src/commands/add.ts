@@ -8,6 +8,7 @@ import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest } from "../lib/manifest";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
+import * as telemetry from "../lib/telemetry";
 
 export async function cmdAdd(args: {
   slot?: string;
@@ -98,6 +99,7 @@ export async function cmdAdd(args: {
     throw err;
   }
 
+  telemetry.capture("cli_module", { action: "install", group, module: mod.id });
   spinner.stop(`${kleur.green("✓")} ${mod.label} added`);
   if (result.bootstrappedPackage) {
     const { name } = result.bootstrappedPackage;

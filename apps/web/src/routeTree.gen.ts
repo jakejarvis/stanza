@@ -13,6 +13,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OgIndexRouteImport } from './routes/og.index'
 import { Route as DocsSplatRouteImport } from './routes/docs.$'
+import { Route as ApiEventsRouteImport } from './routes/api.events'
 import { Route as OgSlotIdRouteImport } from './routes/og.$slot.$id'
 import { Route as MSlotIdRouteImport } from './routes/m.$slot.$id'
 
@@ -36,6 +37,11 @@ const DocsSplatRoute = DocsSplatRouteImport.update({
   path: '/docs/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiEventsRoute = ApiEventsRouteImport.update({
+  id: '/api/events',
+  path: '/api/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OgSlotIdRoute = OgSlotIdRouteImport.update({
   id: '/og/$slot/$id',
   path: '/og/$slot/$id',
@@ -50,6 +56,7 @@ const MSlotIdRoute = MSlotIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/og/': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/og': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/og/': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sitemap.xml'
+    | '/api/events'
     | '/docs/$'
     | '/og/'
     | '/m/$slot/$id'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sitemap.xml'
+    | '/api/events'
     | '/docs/$'
     | '/og'
     | '/m/$slot/$id'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/sitemap.xml'
+    | '/api/events'
     | '/docs/$'
     | '/og/'
     | '/m/$slot/$id'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiEventsRoute: typeof ApiEventsRoute
   DocsSplatRoute: typeof DocsSplatRoute
   OgIndexRoute: typeof OgIndexRoute
   MSlotIdRoute: typeof MSlotIdRoute
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/events': {
+      id: '/api/events'
+      path: '/api/events'
+      fullPath: '/api/events'
+      preLoaderRoute: typeof ApiEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/og/$slot/$id': {
       id: '/og/$slot/$id'
       path: '/og/$slot/$id'
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiEventsRoute: ApiEventsRoute,
   DocsSplatRoute: DocsSplatRoute,
   OgIndexRoute: OgIndexRoute,
   MSlotIdRoute: MSlotIdRoute,
