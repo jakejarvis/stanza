@@ -166,8 +166,13 @@ export function FilePreview({
             first selection (empty → content), where `filePaths` is still the
             stale empty array while the loader runs. */}
         {isLoading ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/50 backdrop-blur-[1px] transition-opacity duration-150">
-            <IconLoader2 className="size-5 animate-spin text-muted-foreground" />
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/50 backdrop-blur-[1px] transition-opacity duration-150"
+          >
+            <IconLoader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
+            <span className="sr-only">Loading…</span>
           </div>
         ) : null}
       </div>

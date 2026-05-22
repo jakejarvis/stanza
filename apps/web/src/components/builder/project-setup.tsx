@@ -45,9 +45,12 @@ export function ProjectSetup({
         </Label>
         <Input
           id="stanza-project-name"
+          name="project-name"
           value={draft}
           placeholder={defaultName}
           onChange={onDraftChange}
+          autoComplete="off"
+          spellCheck={false}
         />
       </div>
     </Card>

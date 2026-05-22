@@ -16,6 +16,7 @@ export function DepsTable({ title, entries }: { title: string; entries: Record<s
         {items.map(([name, version]) => (
           <li
             key={name}
+            translate="no"
             className="flex items-center justify-between gap-3 px-3 py-2 font-mono text-xs"
           >
             <span className="truncate text-foreground">{name}</span>

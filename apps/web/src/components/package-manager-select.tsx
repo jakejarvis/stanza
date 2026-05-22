@@ -77,7 +77,7 @@ export function PackageManagerSelect({
         render={
           <Button variant="outline" aria-label="Package manager">
             {PM_LOGOS[value]}
-            <IconChevronDown className="size-3 opacity-60" />
+            <IconChevronDown className="size-3 opacity-60" aria-hidden />
           </Button>
         }
       />

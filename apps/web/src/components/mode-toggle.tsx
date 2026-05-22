@@ -12,8 +12,8 @@ import {
 
 const TOGGLE_BUTTON = (
   <Button variant="outline" size="icon" aria-label="Toggle theme">
-    <IconSun className="scale-100 rotate-0 text-muted-foreground transition-all dark:scale-0 dark:-rotate-90" />
-    <IconMoon className="absolute scale-0 rotate-90 text-muted-foreground transition-all dark:scale-100 dark:rotate-0" />
+    <IconSun className="scale-100 rotate-0 text-muted-foreground transition-transform dark:scale-0 dark:-rotate-90" />
+    <IconMoon className="absolute scale-0 rotate-90 text-muted-foreground transition-transform dark:scale-100 dark:rotate-0" />
     <span className="sr-only">Toggle theme</span>
   </Button>
 );

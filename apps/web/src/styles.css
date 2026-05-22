@@ -150,6 +150,20 @@
     @apply cursor-pointer;
   }
 
+  /* Respect the OS "reduce motion" setting: collapse transitions/animations
+   * (dialog + tooltip zoom/fade, the preview spinner, theme-toggle icon
+   * crossfade) to near-instant rather than disabling outright. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* Thin, themed scrollbars that fade in while the pointer is inside their
    * scroll container. :hover matches ancestors too, so the thumb reveals
    * whenever the cursor is anywhere within the scrollable region. */
@@ -183,10 +197,10 @@
     }
   }
 
+  /* TODO: temporary fix for https://github.com/vercel/geist-font/pull/217 */
   pre,
   code,
   .font-mono {
-    /* TODO: temporary fix for https://github.com/vercel/geist-font/pull/217 */
     font-variant-ligatures: none !important;
   }
 }

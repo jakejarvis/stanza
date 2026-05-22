@@ -19,6 +19,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#0a0a0a", media: "(prefers-color-scheme: dark)" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
@@ -80,9 +82,15 @@ function RootComponent() {
       <body className="min-h-svh bg-background font-sans text-foreground tabular-nums antialiased">
         <PostHogProvider>
           <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
+            <a
+              href="#main"
+              className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:rounded-none focus-visible:border focus-visible:border-border focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Skip to content
+            </a>
             <div className="flex min-h-svh flex-col">
               <Header />
-              <main className="flex-1">
+              <main id="main" className="flex-1">
                 <Outlet />
               </main>
               <Footer />

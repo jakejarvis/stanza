@@ -73,9 +73,9 @@ function CopyableField({
             type="button"
             aria-label={typeof label === "string" ? `Select ${label}` : "Select text"}
             onClick={handleSelect}
-            className="h-full w-full min-w-0 cursor-text bg-transparent py-0 pr-2 pl-3 text-left font-mono text-[13px] outline-none"
+            className="h-full w-full min-w-0 cursor-text bg-transparent py-0 pr-2 pl-3 text-left font-mono text-[13px] outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <span ref={contentRef} className="inline-block whitespace-nowrap">
+            <span ref={contentRef} translate="no" className="inline-block whitespace-nowrap">
               {children ?? value}
             </span>
           </button>

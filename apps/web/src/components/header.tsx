@@ -40,7 +40,7 @@ export function Header() {
             variant="outline"
             size="icon"
           >
-            <IconBrandGithub className="text-muted-foreground" />
+            <IconBrandGithub className="text-muted-foreground" aria-hidden />
             <span className="sr-only">GitHub</span>
           </Button>
           <ModeToggle />

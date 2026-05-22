@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
+import { usePointerCapability } from "@/hooks/use-pointer-capability";
 import { groupByCategory } from "@/lib/module-search";
 
 const HOTKEY = "Mod+K";
@@ -41,6 +42,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const navigate = useNavigate();
   const listRef = useRef<HTMLDivElement>(null);
+  const { isTouchDevice } = usePointerCapability();
 
   useHotkey(HOTKEY, () => setOpen((o) => !o));
 
@@ -106,7 +108,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
         aria-label="Search modules"
         className="gap-2 bg-background px-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:min-w-[180px] sm:px-2.5"
       >
-        <IconSearch data-icon="inline-start" />
+        <IconSearch data-icon="inline-start" aria-hidden />
         <span className="hidden flex-1 text-left text-[13px] font-normal sm:inline">
           Search modules…
         </span>
@@ -118,19 +120,25 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
             <DialogTitle>Search modules</DialogTitle>
             <DialogDescription>Search the registry for a module to add.</DialogDescription>
           </DialogHeader>
-          <div className="flex items-center gap-2 border-b px-3">
-            <IconSearch className="size-4 shrink-0 opacity-50" />
+          <div className="flex items-center gap-2 border-b px-3 focus-within:ring-1 focus-within:ring-ring">
+            <IconSearch className="size-4 shrink-0 opacity-50" aria-hidden />
             <input
-              autoFocus
+              autoFocus={!isTouchDevice}
+              type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Search modules…"
               aria-label="Search modules"
-              className="h-10 w-full bg-transparent text-xs outline-hidden placeholder:text-muted-foreground"
+              autoComplete="off"
+              spellCheck={false}
+              className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
           </div>
-          <div ref={listRef} className="max-h-72 overflow-x-hidden overflow-y-auto p-1">
+          <div
+            ref={listRef}
+            className="max-h-72 overflow-x-hidden overflow-y-auto overscroll-contain p-1"
+          >
             {flat.length === 0 ? (
               <div className="py-6 text-center text-xs text-muted-foreground">No matches.</div>
             ) : (
@@ -180,6 +188,7 @@ function SearchResult({
   return (
     <button
       type="button"
+      tabIndex={-1}
       data-index={index}
       data-selected={active || undefined}
       onClick={handleSelect}

@@ -28,7 +28,7 @@ export const Route = createFileRoute("/")({
     buildHead({
       title: "Build your stack",
       description:
-        "Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code that's yours the moment it lands.",
+        "Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code that’s yours the moment it lands.",
       path: "/",
     }),
   component: Page,
@@ -45,7 +45,7 @@ function Page() {
         </h1>
         <p className="mt-2 text-pretty text-muted-foreground">
           Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code
-          that's yours the moment it lands. Add more modules or swap them out at any time.{" "}
+          that’s yours the moment it lands. Add more modules or swap them out at any time.{" "}
           <Link
             to="/docs/$"
             params={{ _splat: "" }}

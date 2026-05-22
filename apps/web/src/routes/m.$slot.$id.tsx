@@ -117,7 +117,7 @@ function ModuleDetailPage() {
                 className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Website
-                <IconExternalLink className="size-3" />
+                <IconExternalLink className="size-3" aria-hidden />
               </a>
             )}
             {module.author && <span className="text-muted-foreground">by {module.author}</span>}
@@ -138,6 +138,7 @@ function ModuleDetailPage() {
       {hasSwitchable(peerOptions) && <Separator className="my-8" />}
 
       <div className="space-y-8">
+        <h2 className="sr-only">Module details</h2>
         <DepsTable title="Dependencies" entries={effective.dependencies} />
         <DepsTable title="Dev dependencies" entries={effective.devDependencies} />
         <EnvTable env={effective.env} />
