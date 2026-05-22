@@ -2,11 +2,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   test: {
-    // apps/web is intentionally omitted: its plugin-heavy SSR config trips a
-    // vite-plus alpha bug in the workspace project loader (`runner.config` is
-    // undefined during suite collection — same class as voidzero-dev/vite-plus#1076).
-    // Re-add it here once that's fixed upstream; it passes when run on its own.
-    projects: ["apps/*", "packages/*", "!apps/web"],
+    projects: ["apps/*", "packages/*"],
   },
   staged: {
     "*": "vp check --fix",

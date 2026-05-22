@@ -7,8 +7,8 @@ import { nitro } from "nitro/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
 export default defineConfig({
-  plugins: lazyPlugins(() => [
-    mdx(),
+  plugins: lazyPlugins(async () => [
+    mdx(await import("./source.config.ts")),
     devtools(),
     tailwindcss(),
     tanstackStart(),
