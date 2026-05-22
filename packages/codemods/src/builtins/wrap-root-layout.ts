@@ -1,5 +1,7 @@
 import path from "node:path";
 
+import { selectedOne } from "@stanza/registry";
+
 import {
   addDefaultImport,
   addNamedImport,
@@ -39,10 +41,10 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
   description: "Wrap the root layout's children with a provider element.",
 
   apply(ctx, args) {
-    const target = frameworkTarget(ctx.manifest.modules.framework?.id);
+    const target = frameworkTarget(selectedOne(ctx.manifest, "framework")?.id);
     if (!target) {
       throw new Error(
-        `wrap-root-layout: framework "${ctx.manifest.modules.framework?.id ?? "<unset>"}" not supported. ` +
+        `wrap-root-layout: framework "${selectedOne(ctx.manifest, "framework")?.id ?? "<unset>"}" not supported. ` +
           `Add a case in frameworkTarget() to enable.`,
       );
     }
@@ -84,7 +86,7 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
   },
 
   revert(ctx, args) {
-    const target = frameworkTarget(ctx.manifest.modules.framework?.id);
+    const target = frameworkTarget(selectedOne(ctx.manifest, "framework")?.id);
     if (!target) return { touchedFiles: [] };
 
     const layoutAbs = path.join(ctx.appRoot, target.relPath);

@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "better-auth",
-  slot: "auth",
+  category: "auth",
   label: "Better Auth",
   description: "Framework-agnostic, headless TypeScript auth library.",
   version: "0.1.0",

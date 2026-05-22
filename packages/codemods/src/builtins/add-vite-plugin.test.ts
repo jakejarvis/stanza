@@ -49,7 +49,7 @@ function setup(initial: string = BASE_VITE_CONFIG) {
     appRoot: "/repo/apps/web",
     project: () => inMem,
     manifest,
-    owner: { slot: "styling", module: "tailwind" },
+    owner: { category: "styling", module: "tailwind" },
     adapter: "default",
     claimRegion(file, region) {
       claimed.push({ file, region });

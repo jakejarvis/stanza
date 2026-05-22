@@ -2,16 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import type { AddonCategoryId, SlotId } from "@stanza/registry";
+import type { CategoryId } from "@stanza/registry";
 import {
-  addonOrder,
   appPackageJsonBase,
+  categoryOrder,
   ENV_EXAMPLE_HEADER,
-  KNOWN_ADDONS,
-  KNOWN_SLOTS,
+  KNOWN_CATEGORIES,
   resolveAdapter,
   rootPackageJson,
-  slotOrder,
 } from "@stanza/registry";
 import { type ArgsDef, defineCommand } from "citty";
 import pc from "picocolors";
@@ -24,18 +22,13 @@ import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
 import { commonArgs, type CliArgs } from "./_args";
 
-// Derived from the registry constants so new slots/categories surface in
-// `--help` automatically.
-const slotArgs = Object.fromEntries(
-  KNOWN_SLOTS.map((slot) => [
-    slot,
-    { type: "string", description: `Pick the ${slot} module (with --yes).` },
-  ]),
-) satisfies ArgsDef;
-const addonArgs = Object.fromEntries(
-  KNOWN_ADDONS.map((category) => [
+// Derived from the registry constants so new categories surface in `--help`
+// automatically. Each flag takes a comma-separated list of module ids;
+// single-choice categories accept just one.
+const categoryArgs = Object.fromEntries(
+  KNOWN_CATEGORIES.map((category) => [
     category,
-    { type: "string", description: `Comma-separated ${category} add-ons (with --yes).` },
+    { type: "string", description: `Pick ${category} module(s), comma-separated (with --yes).` },
   ]),
 ) satisfies ArgsDef;
 
@@ -49,8 +42,7 @@ export const init = defineCommand({
       description: "Non-interactive; take picks from flags.",
     },
     pm: { type: "string", description: "Package manager: pnpm | bun | npm." },
-    ...slotArgs,
-    ...addonArgs,
+    ...categoryArgs,
     ...commonArgs,
   },
   run: ({ args }) => cmdInit(args),
@@ -107,32 +99,10 @@ export async function cmdInit(args: CliArgs): Promise<void> {
 
   const spinner = p.spinner();
 
-  for (const slot of slotOrder) {
-    const mod = result.modules[slot];
-    if (!mod) continue;
-    spinner.start(`Installing ${mod.label}`);
-    const adapter = resolveAdapter(mod, { manifest, pending: {} });
-    if (!adapter.ok) {
-      spinner.stop(`${mod.label} ${pc.red("failed")}`);
-      throw new Error(`Could not resolve adapter for ${slot}/${mod.id}: ${adapter.error.kind}`);
-    }
-    const r = await applyModule({
-      projectRoot,
-      manifest,
-      module: mod,
-      adapter: adapter.adapter,
-      registryRoot,
-      dryRun,
-    });
-    manifest = r.manifest;
-    telemetry.capture("cli_module", { action: "install", group: slot, module: mod.id });
-    spinner.stop(`${pc.green("✓")} ${mod.label}`);
-  }
-
-  // Add-ons apply after all slots, so framework-varying adapters resolve
-  // against the now-populated manifest.
-  for (const category of addonOrder) {
-    for (const mod of result.addons[category] ?? []) {
+  // Apply in `categoryOrder`, so each category's peers (earlier one-cardinality
+  // picks) are already in the manifest when its framework-varying adapter resolves.
+  for (const category of categoryOrder) {
+    for (const mod of result.selections[category] ?? []) {
       spinner.start(`Installing ${mod.label}`);
       const adapter = resolveAdapter(mod, { manifest, pending: {} });
       if (!adapter.ok) {
@@ -208,28 +178,23 @@ function bootstrapShell(
 }
 
 function overridesFromArgv(name: string | undefined, args: CliArgs): WizardOverrides {
-  const modules: Partial<Record<SlotId, string>> = {};
-  for (const slot of KNOWN_SLOTS) {
-    const value = args[slot];
-    if (typeof value === "string" && value.length > 0) modules[slot] = value;
-  }
-  // Add-on flags are comma-separated lists (e.g. `--testing vitest,playwright`).
-  const addons: Partial<Record<AddonCategoryId, string[]>> = {};
-  for (const category of KNOWN_ADDONS) {
+  // Every category flag is a comma-separated list (e.g. `--testing vitest,playwright`,
+  // `--framework next`); the wizard rejects >1 id for single-choice categories.
+  const selections: Partial<Record<CategoryId, string[]>> = {};
+  for (const category of KNOWN_CATEGORIES) {
     const value = args[category];
     if (typeof value === "string" && value.length > 0) {
       const ids = value
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      if (ids.length > 0) addons[category] = ids;
+      if (ids.length > 0) selections[category] = ids;
     }
   }
   const pm = args.pm;
   return {
     name,
     packageManager: pm === "pnpm" || pm === "bun" || pm === "npm" ? pm : undefined,
-    modules,
-    addons,
+    selections,
   };
 }

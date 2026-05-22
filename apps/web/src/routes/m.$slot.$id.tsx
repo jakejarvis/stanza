@@ -1,5 +1,5 @@
-import type { AddonCategoryId, SlotId } from "@stanza/registry";
-import { groupLabel, isAddon, KNOWN_ADDONS, KNOWN_SLOTS, moduleGroup } from "@stanza/registry";
+import type { CategoryId } from "@stanza/registry";
+import { categoryLabel, KNOWN_CATEGORIES, PEER_CATEGORIES } from "@stanza/registry";
 import { IconExternalLink } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
@@ -12,16 +12,17 @@ import { TryIt } from "@/components/detail/try-it";
 import { ModuleLogo } from "@/components/module-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import type { Selections } from "@/lib/selection";
 import { buildHead } from "@/lib/seo";
 import { getModuleDetail } from "@/server/module-detail.functions";
 
-type DetailSearch = Partial<Record<SlotId, string>>;
+type DetailSearch = Partial<Record<CategoryId, string>>;
 
 function validateSearch(input: Record<string, unknown>): DetailSearch {
   const out: DetailSearch = {};
-  for (const slot of KNOWN_SLOTS) {
-    const v = input[slot];
-    if (typeof v === "string" && v.length > 0) out[slot] = v;
+  for (const category of PEER_CATEGORIES) {
+    const v = input[category];
+    if (typeof v === "string" && v.length > 0) out[category] = v;
   }
   return out;
 }
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/m/$slot/$id")({
   loader: async ({ params, deps }) => {
     if (!isGroup(params.slot)) throw notFound();
     const detail = await getModuleDetail({
-      data: { slot: params.slot, id: params.id, peers: deps },
+      data: { category: params.slot, id: params.id, peers: deps },
     });
     if (!detail) throw notFound();
     return detail;
@@ -53,11 +54,8 @@ export const Route = createFileRoute("/m/$slot/$id")({
   component: ModuleDetailPage,
 });
 
-function isGroup(group: string): group is SlotId | AddonCategoryId {
-  return (
-    (KNOWN_SLOTS as readonly string[]).includes(group) ||
-    (KNOWN_ADDONS as readonly string[]).includes(group)
-  );
+function isGroup(group: string): group is CategoryId {
+  return (KNOWN_CATEGORIES as readonly string[]).includes(group);
 }
 
 function ModuleDetailPage() {
@@ -68,9 +66,9 @@ function ModuleDetailPage() {
   const { module, adapter, resolvedPeers, peerOptions, effective, previews, index } = detail;
 
   const onPeerChange = useCallback(
-    (slot: SlotId, id: string) => {
+    (category: CategoryId, id: string) => {
       void navigate({
-        search: { ...search, [slot]: id },
+        search: { ...search, [category]: id },
         replace: true,
         resetScroll: false,
       });
@@ -80,13 +78,15 @@ function ModuleDetailPage() {
 
   const templates = useMemo(() => adapter.templates ?? [], [adapter.templates]);
 
-  // Build the "Try it" selection, treating the current module + resolved peers
-  // as a complete-enough selection. Add-ons go through the addons map (→
-  // `--testing=vitest`); slots through selections. CommandPreview turns this
-  // into the package-manager-specific command string.
-  const tryItParts = isAddon(module)
-    ? { selections: resolvedPeers, addons: { [module.category]: [module.id] } }
-    : { selections: { ...resolvedPeers, [module.slot]: module.id } };
+  // Build the "Try it" selection: the current module + its resolved peers, as
+  // arrays (the unified selection shape). CommandPreview turns this into the
+  // package-manager-specific command string (`--framework=next --testing=vitest`).
+  const selections: Selections = {};
+  for (const [category, id] of Object.entries(resolvedPeers)) {
+    selections[category as CategoryId] = [id];
+  }
+  selections[module.category] = [module.id];
+  const tryItParts = { selections };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -104,7 +104,7 @@ function ModuleDetailPage() {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{module.label}</h1>
-            <Badge variant="outline">{groupLabel(moduleGroup(module))}</Badge>
+            <Badge variant="outline">{categoryLabel(module.category)}</Badge>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">{module.description}</p>
           <div className="mt-3 flex flex-wrap gap-3 text-xs">
@@ -148,6 +148,6 @@ function ModuleDetailPage() {
   );
 }
 
-function hasSwitchable(peerOptions: Partial<Record<SlotId, string[]>>): boolean {
+function hasSwitchable(peerOptions: Partial<Record<CategoryId, string[]>>): boolean {
   return Object.values(peerOptions).some((opts) => opts && opts.length > 1);
 }

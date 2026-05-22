@@ -1,18 +1,8 @@
 import type { Module, RegistryIndex } from "@stanza/registry";
-import {
-  moduleGroup,
-  synthesizeEnvExample,
-  synthesizeManifest,
-  synthesizePackageJsons,
-} from "@stanza/registry";
+import { synthesizeEnvExample, synthesizeManifest, synthesizePackageJsons } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import {
-  parseSelections,
-  resolveSelectedAdapters,
-  resolveSelectedAddons,
-  selectedFiles,
-} from "@/lib/selection";
+import { parseSelections, resolveSelected, selectedFiles } from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
@@ -20,7 +10,7 @@ import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type BuilderState = {
   index: RegistryIndex;
-  /** Keyed by `${slotOrCategory}:${id}` for direct lookup. */
+  /** Keyed by `${category}:${id}` for direct lookup. */
   modules: Record<string, Module>;
   /** Pre-rendered Shiki HTML, keyed by file path (relative to repo root). */
   previews: Record<string, Preview>;
@@ -51,17 +41,17 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // per-selection — recomputed each loader run.
     const fullModules = await Promise.all(
       index.modules.map(async (summary) => {
-        const group = moduleGroup(summary);
-        const mod = await loadRegistryFile<Module>(`modules/${group}-${summary.id}.json`);
-        return [`${moduleGroup(mod)}:${mod.id}`, mod] as const;
+        const mod = await loadRegistryFile<Module>(
+          `modules/${summary.category}-${summary.id}.json`,
+        );
+        return [`${mod.category}:${mod.id}`, mod] as const;
       }),
     );
     const modules: Record<string, Module> = Object.fromEntries(fullModules);
 
-    const { name, selections, addons } = parseSelections(data);
-    const resolved = resolveSelectedAdapters(modules, selections);
-    const resolvedAddons = resolveSelectedAddons(modules, selections, addons);
-    const files = selectedFiles(resolved, resolvedAddons);
+    const { name, selections } = parseSelections(data);
+    const resolved = resolveSelected(modules, selections);
+    const files = selectedFiles(resolved);
 
     // Templates carry their own content; package.json, stanza.json, and
     // .env.example are synthesized — the CLI never ships them as templates, it
@@ -69,26 +59,24 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // manifest). Surface the same resolved files in the preview so the tree
     // matches what stanza actually writes. Only when something is selected, so
     // an empty builder still shows the empty state.
-    const hasSelection =
-      Object.keys(resolved).length > 0 ||
-      Object.values(resolvedAddons).some((entries) => (entries?.length ?? 0) > 0);
+    const hasSelection = Object.values(resolved).some((entries) => (entries?.length ?? 0) > 0);
     const previewFiles: { path: string; content: string }[] = files.map((file) => ({
       path: file.path,
       content: file.template.content ?? "",
     }));
     if (hasSelection) {
-      const pkgJsons = synthesizePackageJsons(resolved, resolvedAddons, { name });
+      const pkgJsons = synthesizePackageJsons(resolved, { name });
       for (const [path, pkg] of Object.entries(pkgJsons)) {
         previewFiles.push({ path, content: JSON.stringify(pkg, null, 2) + "\n" });
       }
-      const manifest = synthesizeManifest(resolved, resolvedAddons, { name });
+      const manifest = synthesizeManifest(resolved, { name });
       previewFiles.push({
         path: "stanza.json",
         content: JSON.stringify(manifest, null, 2) + "\n",
       });
       previewFiles.push({
         path: ".env.example",
-        content: synthesizeEnvExample(resolved, resolvedAddons),
+        content: synthesizeEnvExample(resolved),
       });
     }
 

@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "tanstack-start",
-  slot: "framework",
+  category: "framework",
   label: "TanStack Start",
   description: "Full-stack React framework on Vite + TanStack Router.",
   version: "0.1.0",

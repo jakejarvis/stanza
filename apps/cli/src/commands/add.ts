@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
-import type { AddonCategoryId, SlotId } from "@stanza/registry";
-import { KNOWN_ADDONS, KNOWN_SLOTS, resolveAdapter } from "@stanza/registry";
+import type { CategoryId } from "@stanza/registry";
+import { isMulti, KNOWN_CATEGORIES, resolveAdapter, selectedAll } from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -12,9 +12,9 @@ import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
 
 export const add = defineCommand({
-  meta: { name: "add", description: "Add a slot module or an add-on to the current project." },
+  meta: { name: "add", description: "Add a module to the current project." },
   args: {
-    slot: { type: "positional", required: true, description: "Slot or add-on category." },
+    slot: { type: "positional", required: true, description: "Category." },
     moduleId: { type: "positional", required: true, description: "Module id." },
     ...commonArgs,
   },
@@ -25,21 +25,18 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   const slot = typeof args.slot === "string" ? args.slot : undefined;
   const moduleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
   if (!slot || !moduleId) {
-    p.log.error("Usage: stanza add <slot|category> <module>");
+    p.log.error("Usage: stanza add <category> <module>");
     process.exitCode = 1;
     return;
   }
 
-  const isSlot = (KNOWN_SLOTS as readonly string[]).includes(slot);
-  const isCategory = (KNOWN_ADDONS as readonly string[]).includes(slot);
-  if (!isSlot && !isCategory) {
-    p.log.error(
-      `Unknown slot or category: ${slot}. Slots: ${KNOWN_SLOTS.join(", ")}. Add-ons: ${KNOWN_ADDONS.join(", ")}`,
-    );
+  if (!(KNOWN_CATEGORIES as readonly string[]).includes(slot)) {
+    p.log.error(`Unknown category: ${slot}. Categories: ${KNOWN_CATEGORIES.join(", ")}`);
     process.exitCode = 1;
     return;
   }
-  const group = slot;
+  const category = slot as CategoryId;
+  const group = category;
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -55,23 +52,21 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   }
 
   const manifest = readManifest(projectRoot);
-  if (isSlot) {
-    const slotId = group as SlotId;
-    if (manifest.modules[slotId]) {
-      p.log.error(
-        `Slot "${slotId}" is already filled by "${manifest.modules[slotId]!.id}". Run \`stanza remove ${slotId}\` first.`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-  } else {
-    // Add-on categories hold many modules. Only reject re-adding the same id.
-    const category = group as AddonCategoryId;
-    if (manifest.addons[category]?.some((r) => r.id === moduleId)) {
+  const existing = selectedAll(manifest, category);
+  if (isMulti(category)) {
+    // Multi-choice: only reject re-adding the same id.
+    if (existing.some((r) => r.id === moduleId)) {
       p.log.error(`"${category}/${moduleId}" is already added.`);
       process.exitCode = 1;
       return;
     }
+  } else if (existing.length > 0) {
+    // Single-choice: the category is already filled.
+    p.log.error(
+      `Category "${category}" is already filled by "${existing[0]!.id}". Run \`stanza remove ${category}\` first.`,
+    );
+    process.exitCode = 1;
+    return;
   }
 
   const registry = await loadRegistry();

@@ -1,4 +1,4 @@
-import type { AddonCategoryId, ModuleId, SlotId, StanzaManifest } from "@stanza/registry";
+import type { CategoryId, ModuleId, StanzaManifest } from "@stanza/registry";
 import type { Project } from "ts-morph";
 
 export type CodemodContext = {
@@ -10,11 +10,8 @@ export type CodemodContext = {
   project: () => Project;
   /** Current manifest snapshot (read-only inside a codemod). */
   manifest: StanzaManifest;
-  /**
-   * The slot-or-add-on/module this codemod is acting on behalf of. Exactly one
-   * of `slot` / `category` is set depending on the module kind.
-   */
-  owner: { slot?: SlotId; category?: AddonCategoryId; module: ModuleId };
+  /** The category/module this codemod is acting on behalf of. */
+  owner: { category: CategoryId; module: ModuleId };
   /** Adapter key the resolver selected — useful for adapter-specific branches. */
   adapter: string;
   /** Claim a region in stanza.json. Throws if a different owner already holds it. */

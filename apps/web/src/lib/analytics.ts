@@ -1,8 +1,8 @@
-import { KNOWN_SLOTS } from "@stanza/registry";
+import { KNOWN_CATEGORIES } from "@stanza/registry";
 import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 
-import type { AddonSelections, Selections } from "@/lib/selection";
+import type { Selections } from "@/lib/selection";
 
 /**
  * Stable `capture(event, properties)` bound to the client-side PostHog instance.
@@ -22,18 +22,15 @@ export function useAnalytics(): (event: string, properties?: Record<string, unkn
 }
 
 /**
- * Flatten the current builder selection into event properties: one key per slot
- * (`framework`, `db`, …) plus an `addons` array. Shared across the builder
- * events so they all carry the same selection shape.
+ * Flatten the current builder selection into event properties: one key per
+ * category, holding the comma-joined selected ids (empty → null). Shared across
+ * the builder events so they all carry the same selection shape.
  */
-export function selectionProperties(
-  selections: Selections,
-  addons: AddonSelections,
-): Record<string, unknown> {
+export function selectionProperties(selections: Selections): Record<string, unknown> {
   const props: Record<string, unknown> = {};
-  for (const slot of KNOWN_SLOTS) props[slot] = selections[slot] ?? null;
-  props.addons = Object.entries(addons).flatMap(([category, ids]) =>
-    (ids ?? []).map((id) => `${category}:${id}`),
-  );
+  for (const category of KNOWN_CATEGORIES) {
+    const ids = selections[category];
+    props[category] = ids && ids.length > 0 ? ids.join(",") : null;
+  }
   return props;
 }

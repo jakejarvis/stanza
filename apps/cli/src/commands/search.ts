@@ -1,4 +1,3 @@
-import { moduleGroup } from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -24,7 +23,7 @@ export async function cmdSearch(args: CliArgs): Promise<void> {
       m.id.toLowerCase().includes(q) ||
       m.label.toLowerCase().includes(q) ||
       m.description.toLowerCase().includes(q) ||
-      moduleGroup(m).includes(q)
+      m.category.includes(q)
     );
   });
 
@@ -34,7 +33,7 @@ export async function cmdSearch(args: CliArgs): Promise<void> {
   }
 
   for (const m of results) {
-    const head = `${pc.bold(m.label)} ${pc.dim(`(${moduleGroup(m)}/${m.id})`)}`;
+    const head = `${pc.bold(m.label)} ${pc.dim(`(${m.category}/${m.id})`)}`;
     const desc = m.description ? `  ${pc.dim(m.description)}` : "";
     console.log(`${head}\n${desc}`);
   }

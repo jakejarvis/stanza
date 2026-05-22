@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "tailwind",
-  slot: "styling",
+  category: "styling",
   label: "Tailwind CSS",
   description: "Utility-first CSS framework. Pairs with any web framework.",
   version: "0.1.0",

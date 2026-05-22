@@ -1,5 +1,5 @@
-import type { ModuleSummary, RegistryIndex, SlotId } from "@stanza/registry";
-import { moduleGroup, slotLabel } from "@stanza/registry";
+import type { CategoryId, ModuleSummary, RegistryIndex } from "@stanza/registry";
+import { categoryLabel } from "@stanza/registry";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
@@ -15,11 +15,11 @@ export function AdapterSwitcher({
   onChange,
 }: {
   index: RegistryIndex;
-  peerOptions: Partial<Record<SlotId, string[]>>;
-  resolvedPeers: Partial<Record<SlotId, string>>;
-  onChange: (slot: SlotId, id: string) => void;
+  peerOptions: Partial<Record<CategoryId, string[]>>;
+  resolvedPeers: Partial<Record<CategoryId, string>>;
+  onChange: (category: CategoryId, id: string) => void;
 }) {
-  const switchable = (Object.entries(peerOptions) as [SlotId, string[]][]).filter(
+  const switchable = (Object.entries(peerOptions) as [CategoryId, string[]][]).filter(
     ([, opts]) => opts.length > 1,
   );
   if (switchable.length === 0) return null;
@@ -31,7 +31,7 @@ export function AdapterSwitcher({
         return (
           <div key={slot} className="flex flex-wrap items-center gap-2">
             <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
-              {slotLabel(slot)}
+              {categoryLabel(slot)}
             </span>
             <ToggleGroup
               variant="outline"
@@ -44,7 +44,7 @@ export function AdapterSwitcher({
               }}
             >
               {options.map((id) => {
-                const summary = index.modules.find((m) => moduleGroup(m) === slot && m.id === id);
+                const summary = index.modules.find((m) => m.category === slot && m.id === id);
                 const label = summary?.label ?? id;
                 return (
                   <ToggleGroupItem
@@ -66,8 +66,8 @@ export function AdapterSwitcher({
 
 export function summaryFor(
   index: RegistryIndex,
-  slot: SlotId,
+  slot: CategoryId,
   id: string,
 ): ModuleSummary | undefined {
-  return index.modules.find((m) => moduleGroup(m) === slot && m.id === id);
+  return index.modules.find((m) => m.category === slot && m.id === id);
 }

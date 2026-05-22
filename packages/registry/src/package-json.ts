@@ -1,15 +1,13 @@
 import {
-  ADDON_PACKAGE_DIR,
-  type AddonCategoryId,
+  categoryHome,
+  type CategoryId,
   type EnvVar,
-  isAddon,
+  type InstallHome,
   type Module,
   type ModuleAdapter,
-  SLOT_PACKAGE_DIR,
-  SLOT_REPO_SCOPED,
-  type SlotId,
+  PACKAGE_DIRS,
 } from "./module";
-import { addonOrder, slotOrder } from "./resolver";
+import { categoryOrder } from "./resolver";
 
 export type PackageManager = "pnpm" | "bun" | "npm";
 
@@ -55,31 +53,11 @@ export function mergeInstallFields(module: Module, adapter: ModuleAdapter): Merg
   };
 }
 
-/**
- * Where a module's install fields (deps/scripts) and `scope`-less templates land.
- * The SINGLE decision point for install routing, shared by the CLI apply path
- * (`codemod-runner`) and the web preview (`synthesizePackageJsons`) so the two
- * can never disagree about which `package.json` a module writes to. Derived
- * entirely from slot/category metadata in `SLOTS` / `ADDON_CATEGORIES`:
- *  - package-scoped (`packageDir`) wins, then repo-scoped (`repoScoped`), else app.
- */
-export type InstallHome = { kind: "root" } | { kind: "app" } | { kind: "package"; dir: string };
-
-export function installHome(module: Module): InstallHome {
-  if (isAddon(module)) {
-    const dir = ADDON_PACKAGE_DIR[module.category];
-    return dir ? { kind: "package", dir } : { kind: "app" };
-  }
-  const dir = SLOT_PACKAGE_DIR[module.slot];
-  if (dir) return { kind: "package", dir };
-  return SLOT_REPO_SCOPED[module.slot] ? { kind: "root" } : { kind: "app" };
-}
-
 /** Repo-relative `package.json` a module's deps/scripts merge into. */
 export function installPackageJson(module: Module, appDir: string): string {
-  const home = installHome(module);
+  const home = categoryHome(module.category);
   if (home.kind === "package") return `packages/${home.dir}/package.json`;
-  if (home.kind === "root") return "package.json";
+  if (home.kind === "repo") return "package.json";
   return `${appDir.replace(/\/+$/, "")}/package.json`;
 }
 
@@ -143,12 +121,8 @@ export function slotPackageJsonBase(opts: { name: string; dir: string }): Packag
 }
 
 export type ResolvedEntry = { module: Module; adapter: ModuleAdapter };
-export type ResolvedSlots = Partial<Record<SlotId, ResolvedEntry>>;
-export type ResolvedAddons = Partial<Record<AddonCategoryId, ResolvedEntry[]>>;
-
-const KNOWN_PACKAGE_DIRS = new Set(
-  Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null),
-);
+/** Resolved selection, keyed by category. Each category holds 0..n entries. */
+export type Resolved = Partial<Record<CategoryId, ResolvedEntry[]>>;
 
 function addDep(pkg: PackageJson, name: string, range: string, dev = false): void {
   const key = dev ? "devDependencies" : "dependencies";
@@ -168,21 +142,20 @@ function applyFields(pkg: PackageJson, fields: MergedInstallFields): void {
 
 /**
  * Compute the `package.json` files stanza would write for a resolved selection —
- * root, app, and one per extracted slot package (`packages/<dir>/`). Pure: takes
- * the resolved modules/adapters and emits `{ repoRelativePath -> PackageJson }`.
+ * root, app, and one per extracted package (`packages/<dir>/`). Pure: takes the
+ * resolved modules/adapters and emits `{ repoRelativePath -> PackageJson }`.
  *
- * Mirrors the CLI's apply path: module/adapter install fields route to the slot's
- * package when `SLOT_PACKAGE_DIR[slot]` is non-null (otherwise the app), each
+ * Mirrors the CLI's apply path: install fields route via `categoryHome` (app,
+ * repo root, or `packages/<dir>/`), each
  * extracted package wires a `workspace:*` dep into the app, and `consumesPackages`
  * wires cross-package `workspace:*` deps into the consuming package. `env` is
  * intentionally ignored here — it lands in `.env.example`, not a `package.json`.
  *
- * Slots are processed in `slotOrder`, then add-ons in `addonOrder`, so the
- * emitted key order matches the order the CLI appends them on disk.
+ * Categories are processed in `categoryOrder`, so the emitted key order matches
+ * the order the CLI appends them on disk.
  */
 export function synthesizePackageJsons(
-  slots: ResolvedSlots,
-  addons: ResolvedAddons,
+  resolved: Resolved,
   opts: { name: string; appDir?: string; packageManager?: PackageManager },
 ): Record<string, PackageJson> {
   const name = opts.name;
@@ -202,7 +175,7 @@ export function synthesizePackageJsons(
     return pkg;
   };
 
-  // Routing target comes from `installHome` — the same decision the CLI applies.
+  // Routing target comes from `categoryHome` — the same decision the CLI applies.
   const route = (
     home: InstallHome,
     fields: MergedInstallFields,
@@ -216,31 +189,21 @@ export function synthesizePackageJsons(
       // Cross-package imports (e.g. auth → db) wire a workspace dep into this
       // package. The CLI does this in `ensureSlotPackage` — i.e. before the
       // module's own install fields — so wire it first to match emit order.
-      // Skip self-references and dirs that aren't real slot packages.
+      // Skip self-references and dirs that aren't real package homes.
       for (const peer of consumesPackages) {
-        if (peer === dir || !KNOWN_PACKAGE_DIRS.has(peer)) continue;
+        if (peer === dir || !PACKAGE_DIRS.has(peer)) continue;
         addDep(pkg, `@${name}/${peer}`, "workspace:*");
       }
       applyFields(pkg, fields);
     } else {
-      applyFields(home.kind === "root" ? root : app, fields);
+      applyFields(home.kind === "repo" ? root : app, fields);
     }
   };
 
-  for (const slot of slotOrder) {
-    const entry = slots[slot];
-    if (!entry) continue;
-    route(
-      installHome(entry.module),
-      mergeInstallFields(entry.module, entry.adapter),
-      entry.module.consumesPackages ?? [],
-    );
-  }
-
-  for (const category of addonOrder) {
-    for (const entry of addons[category] ?? []) {
+  for (const category of categoryOrder) {
+    for (const entry of resolved[category] ?? []) {
       route(
-        installHome(entry.module),
+        categoryHome(entry.module.category),
         mergeInstallFields(entry.module, entry.adapter),
         entry.module.consumesPackages ?? [],
       );

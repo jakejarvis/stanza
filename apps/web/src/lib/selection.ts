@@ -1,135 +1,96 @@
-import type { AddonCategoryId, Module, ModuleAdapter, SlotId, TemplateRef } from "@stanza/registry";
+import type {
+  CategoryId,
+  InstallHome,
+  Module,
+  Resolved,
+  ResolvedEntry,
+  TemplateRef,
+} from "@stanza/registry";
 import {
-  ADDON_PACKAGE_DIR,
-  addonOrder,
+  categoryHome,
+  categoryOrder,
   emptyManifest,
-  KNOWN_ADDONS,
-  KNOWN_SLOTS,
+  KNOWN_CATEGORIES,
+  PEER_CATEGORIES,
   resolveAdapter,
-  SLOT_PACKAGE_DIR,
-  slotOrder,
 } from "@stanza/registry";
 
 import type { PackageManager } from "@/lib/package-manager";
 
-export type Selections = Partial<Record<SlotId, string>>;
-/** Add-ons are multi-choice — each category holds a list of selected ids. */
-export type AddonSelections = Partial<Record<AddonCategoryId, string[]>>;
+/** Selected module ids per category. Single-choice categories hold ≤ 1. */
+export type Selections = Partial<Record<CategoryId, string[]>>;
 
-// One optional string per slot + add-on category, plus the project name.
-// Derived from the id types so it tracks the canonical tuples automatically.
-export type BuilderSearch = { name?: string } & Partial<Record<SlotId | AddonCategoryId, string>>;
+// One optional comma-joined string per category, plus the project name.
+export type BuilderSearch = { name?: string } & Partial<Record<CategoryId, string>>;
 
 export const DEFAULT_NAME = "my-app";
 
 /**
- * Parse the URL search params into a name + slot selections + add-on
- * selections. Slots are single-valued; add-on categories are comma-joined
- * lists (`?testing=vitest,playwright`) — the same syntax as the CLI flags.
- * Unrecognized keys are dropped.
+ * Parse URL search params into a name + per-category selections. Every category
+ * is a comma-joined list (`?testing=vitest,playwright`, `?framework=next`) — the
+ * same syntax as the CLI flags. Unrecognized keys are dropped.
  */
 export function parseSelections(search: BuilderSearch): {
   name: string;
   selections: Selections;
-  addons: AddonSelections;
 } {
   const selections: Selections = {};
-  for (const slot of KNOWN_SLOTS) {
-    const value = search[slot];
-    if (typeof value === "string" && value.length > 0) {
-      selections[slot] = value;
-    }
-  }
-  const addons: AddonSelections = {};
-  for (const category of KNOWN_ADDONS) {
+  for (const category of KNOWN_CATEGORIES) {
     const value = search[category];
     if (typeof value === "string" && value.length > 0) {
       const ids = value
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      if (ids.length > 0) addons[category] = ids;
+      if (ids.length > 0) selections[category] = ids;
     }
   }
   const name =
     typeof search.name === "string" && search.name.length > 0 ? search.name : DEFAULT_NAME;
-  return { name, selections, addons };
+  return { name, selections };
 }
 
 /**
- * Inverse of `parseSelections`. We omit empty fields so the URL stays terse —
- * a brand-new visit shows no query string, not `?name=my-app&framework=`.
+ * Inverse of `parseSelections`. Omits empty fields so the URL stays terse — a
+ * brand-new visit shows no query string.
  */
-export function toSearchParams(input: {
-  name: string;
-  selections: Selections;
-  addons?: AddonSelections;
-}): BuilderSearch {
+export function toSearchParams(input: { name: string; selections: Selections }): BuilderSearch {
   const out: BuilderSearch = {};
   if (input.name && input.name !== DEFAULT_NAME) out.name = input.name;
-  for (const slot of KNOWN_SLOTS) {
-    const v = input.selections[slot];
-    if (v) out[slot] = v;
-  }
-  for (const category of KNOWN_ADDONS) {
-    const ids = input.addons?.[category];
+  for (const category of KNOWN_CATEGORIES) {
+    const ids = input.selections[category];
     if (ids && ids.length > 0) out[category] = ids.join(",");
   }
   return out;
 }
 
-/**
- * Resolve the adapter for each selected slot against the current selections —
- * same logic the CLI uses on `stanza add`. Returns `null` for a slot whose
- * peers aren't satisfied yet (rare while typing).
- */
-export function resolveSelectedAdapters(
+/** Build the peer context — only one-cardinality categories can be peers. */
+function pendingPeers(
   modules: Record<string, Module>,
   selections: Selections,
-): Partial<Record<SlotId, { module: Module; adapter: ModuleAdapter }>> {
-  const pending: Partial<Record<SlotId, Module>> = {};
-  for (const slot of KNOWN_SLOTS) {
-    const id = selections[slot];
+): Partial<Record<CategoryId, Module>> {
+  const pending: Partial<Record<CategoryId, Module>> = {};
+  for (const category of PEER_CATEGORIES) {
+    const id = selections[category]?.[0];
     if (!id) continue;
-    const mod = modules[`${slot}:${id}`];
-    if (mod) pending[slot] = mod;
+    const mod = modules[`${category}:${id}`];
+    if (mod) pending[category] = mod;
   }
-  const out: Partial<Record<SlotId, { module: Module; adapter: ModuleAdapter }>> = {};
-  for (const slot of slotOrder) {
-    const mod = pending[slot];
-    if (!mod) continue;
-    const r = resolveAdapter(mod, { manifest: emptyManifest({ name: "t" }), pending });
-    if (r.ok) out[slot] = { module: mod, adapter: r.adapter };
-  }
-  return out;
+  return pending;
 }
 
-export type ResolvedAddons = Partial<
-  Record<AddonCategoryId, { module: Module; adapter: ModuleAdapter }[]>
->;
-
 /**
- * Resolve each selected add-on's adapter against the chosen slot modules
- * (so a framework-varying add-on like vitest dispatches on the framework).
- * Add-ons whose peers aren't satisfied are dropped from the result.
+ * Resolve each selected module's adapter against the chosen one-cardinality
+ * peers — the same logic the CLI uses. Modules whose peers aren't satisfied are
+ * dropped from the result.
  */
-export function resolveSelectedAddons(
-  modules: Record<string, Module>,
-  selections: Selections,
-  addons: AddonSelections,
-): ResolvedAddons {
-  const pending: Partial<Record<SlotId, Module>> = {};
-  for (const slot of KNOWN_SLOTS) {
-    const id = selections[slot];
-    if (!id) continue;
-    const mod = modules[`${slot}:${id}`];
-    if (mod) pending[slot] = mod;
-  }
-  const out: ResolvedAddons = {};
-  for (const category of addonOrder) {
-    const ids = addons[category];
+export function resolveSelected(modules: Record<string, Module>, selections: Selections): Resolved {
+  const pending = pendingPeers(modules, selections);
+  const out: Resolved = {};
+  for (const category of categoryOrder) {
+    const ids = selections[category];
     if (!ids?.length) continue;
-    const entries: { module: Module; adapter: ModuleAdapter }[] = [];
+    const entries: ResolvedEntry[] = [];
     for (const id of ids) {
       const mod = modules[`${category}:${id}`];
       if (!mod) continue;
@@ -142,89 +103,55 @@ export function resolveSelectedAddons(
 }
 
 /**
- * Drop any selection whose peers aren't satisfied. Deselecting a slot (or
+ * Drop any selection whose peers aren't satisfied. Deselecting a peer (or
  * landing on a shared URL like `?orm=drizzle` with no `db`) would otherwise
- * leave the orphaned dependent selected-but-unresolvable: its card renders
- * selected yet disabled (so it can't be toggled off) and it leaks an invalid
- * flag into the generated command. Pruning to a fixpoint keeps slots and
- * add-ons in lockstep with what the resolver — and therefore the CLI — accepts.
+ * leave the orphaned dependent selected-but-unresolvable. Pruning to a fixpoint
+ * keeps selections in lockstep with what the resolver — and the CLI — accepts.
  */
 export function pruneUnresolved(
   modules: Record<string, Module>,
   selections: Selections,
-  addons: AddonSelections,
-): { selections: Selections; addons: AddonSelections } {
-  let curSelections: Selections = { ...selections };
-  let curAddons: AddonSelections = { ...addons };
+): Selections {
+  let current: Selections = { ...selections };
   for (;;) {
-    const resolved = resolveSelectedAdapters(modules, curSelections);
-    const resolvedAddons = resolveSelectedAddons(modules, curSelections, curAddons);
+    const resolved = resolveSelected(modules, current);
     let removed = false;
-
-    const nextSelections: Selections = {};
-    for (const slot of KNOWN_SLOTS) {
-      const id = curSelections[slot];
-      if (!id) continue;
-      if (resolved[slot]) nextSelections[slot] = id;
-      else removed = true;
-    }
-
-    const nextAddons: AddonSelections = {};
-    for (const category of KNOWN_ADDONS) {
-      const ids = curAddons[category];
+    const next: Selections = {};
+    for (const category of KNOWN_CATEGORIES) {
+      const ids = current[category];
       if (!ids?.length) continue;
-      const okIds = new Set((resolvedAddons[category] ?? []).map((e) => e.module.id));
+      const okIds = new Set((resolved[category] ?? []).map((e) => e.module.id));
       const kept = ids.filter((id) => okIds.has(id));
       if (kept.length !== ids.length) removed = true;
-      if (kept.length > 0) nextAddons[category] = kept;
+      if (kept.length > 0) next[category] = kept;
     }
-
-    curSelections = nextSelections;
-    curAddons = nextAddons;
+    current = next;
     // Removing one entry can orphan another (a peer chain); loop until stable.
-    if (!removed) return { selections: nextSelections, addons: nextAddons };
+    if (!removed) return next;
   }
 }
 
 export type SelectedFile = {
   path: string;
   template: TemplateRef;
-  owner: { group: SlotId | AddonCategoryId; module: string };
+  owner: { category: CategoryId; module: string };
 };
 
 /**
  * Derive the full file list stanza will write for the current selection.
- * Mirrors codemod-runner's resolution:
- *  - `scope: "repo"`  → repo root
- *  - `scope: "app"`   → the active app dir (defaults to `apps/web/`)
- *  - `scope: "package"` → `packages/<dir>/`
- *
- * Slots are emitted in `slotOrder`, then add-ons in `addonOrder`.
+ * Mirrors codemod-runner's resolution via `categoryHome`:
+ *  - repo → repo root · app → the app dir · package → `packages/<dir>/`.
+ * Categories are emitted in `categoryOrder`.
  */
-export function selectedFiles(
-  resolved: Partial<Record<SlotId, { module: Module; adapter: ModuleAdapter }>>,
-  resolvedAddons: ResolvedAddons = {},
-  appDir = "apps/web",
-): SelectedFile[] {
+export function selectedFiles(resolved: Resolved, appDir = "apps/web"): SelectedFile[] {
   const out: SelectedFile[] = [];
-  for (const slot of slotOrder) {
-    const entry = resolved[slot];
-    if (!entry) continue;
-    for (const tpl of entry.adapter.templates ?? []) {
-      out.push({
-        path: resolveTemplatePath(tpl, SLOT_PACKAGE_DIR[slot], appDir),
-        template: tpl,
-        owner: { group: slot, module: entry.module.id },
-      });
-    }
-  }
-  for (const category of addonOrder) {
-    for (const entry of resolvedAddons[category] ?? []) {
+  for (const category of categoryOrder) {
+    for (const entry of resolved[category] ?? []) {
       for (const tpl of entry.adapter.templates ?? []) {
         out.push({
-          path: resolveTemplatePath(tpl, ADDON_PACKAGE_DIR[category], appDir),
+          path: resolveTemplatePath(tpl, categoryHome(category), appDir),
           template: tpl,
-          owner: { group: category, module: entry.module.id },
+          owner: { category, module: entry.module.id },
         });
       }
     }
@@ -232,42 +159,32 @@ export function selectedFiles(
   return out;
 }
 
-function resolveTemplatePath(tpl: TemplateRef, packageDir: string | null, appDir: string): string {
+function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, appDir: string): string {
   if (tpl.scope === "repo") return tpl.dest;
   if (tpl.scope === "package") {
-    // Defensive: if a module declares `scope: "package"` for a group with no
-    // package dir, the CLI runner would error; the preview just hides it.
-    return packageDir ? `packages/${packageDir}/${tpl.dest}` : tpl.dest;
+    // Defensive: if a module declares `scope: "package"` for a non-package home,
+    // the CLI runner would error; the preview just falls back to repo root.
+    return home.kind === "package" ? `packages/${home.dir}/${tpl.dest}` : tpl.dest;
   }
   return `${appDir.replace(/\/$/, "")}/${tpl.dest}`;
 }
 
 /**
- * Build the `<pm> create stanza` command from the current state. Used both by
- * the command preview display and by the copy-to-clipboard action. npm needs a
- * `--` separator to forward flags to the initializer; pnpm/bun/yarn pass them
- * through directly. Defaults to pnpm so the server OG card stays consistent.
+ * Build the `<pm> create stanza` command from the current state. npm needs a
+ * `--` separator to forward flags; pnpm/bun pass them through directly.
  */
 export function buildCommand(input: {
   name: string;
   selections: Selections;
-  addons?: AddonSelections;
   pm?: PackageManager;
 }): string {
   const pm = input.pm ?? "pnpm";
-  const slotFlags = slotOrder
-    .map((slot) => {
-      const v = input.selections[slot];
-      return v ? `--${slot}=${v}` : null;
-    })
-    .filter((s): s is string => Boolean(s));
-  const addonFlags = addonOrder
+  const flags = categoryOrder
     .map((category) => {
-      const ids = input.addons?.[category];
+      const ids = input.selections[category];
       return ids && ids.length > 0 ? `--${category}=${ids.join(",")}` : null;
     })
     .filter((s): s is string => Boolean(s));
-  const flags = [...slotFlags, ...addonFlags];
   const base = `${pm} create stanza ${input.name}`;
   if (flags.length === 0) return base;
   const separator = pm === "npm" ? " -- " : " ";

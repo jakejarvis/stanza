@@ -1,5 +1,5 @@
 import type { ModuleSummary } from "@stanza/registry";
-import { groupLabel, moduleGroup } from "@stanza/registry";
+import { categoryLabel } from "@stanza/registry";
 import type { CSSProperties, ReactElement } from "react";
 
 /**
@@ -115,7 +115,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
       <div style={HEADER_ROW}>
         <span style={WORDMARK}>stanza</span>
         <span style={DOT}>·</span>
-        <span style={SLOT}>{groupLabel(moduleGroup(summary))}</span>
+        <span style={SLOT}>{categoryLabel(summary.category)}</span>
       </div>
 
       <div style={BODY}>
@@ -135,7 +135,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
 
       <div style={FOOTER}>
         <span>
-          {moduleGroup(summary)}/{summary.id}
+          {summary.category}/{summary.id}
         </span>
         <span>v{summary.version}</span>
       </div>

@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "postgres",
-  slot: "db",
+  category: "db",
   label: "PostgreSQL",
   description: "Postgres via the `postgres` driver. Works locally or via Neon/Supabase.",
   version: "0.1.0",

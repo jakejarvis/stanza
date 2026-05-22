@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import { addonOrder, slotOrder, type SlotId } from "@stanza/registry";
+import { categoryOrder, isMulti, selectedAll } from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -21,16 +21,15 @@ export async function cmdList(): Promise<void> {
   }
   const manifest = readManifest(projectRoot);
 
-  const rows = slotOrder.map((slot: SlotId) => {
-    const m = manifest.modules[slot];
-    return m
-      ? `${pc.cyan(slot.padEnd(10))} ${m.id} ${pc.dim(`@${m.version}`)} ${pc.dim(`[${m.adapter}]`)}`
-      : `${pc.cyan(slot.padEnd(10))} ${pc.dim("(empty)")}`;
-  });
-
-  // Add-on rows after the slots — a category can list several.
-  for (const category of addonOrder) {
-    for (const m of manifest.addons[category] ?? []) {
+  const rows: string[] = [];
+  for (const category of categoryOrder) {
+    const records = selectedAll(manifest, category);
+    if (records.length === 0) {
+      // Show single-choice categories as empty; multi-choice ones stay hidden.
+      if (!isMulti(category)) rows.push(`${pc.cyan(category.padEnd(10))} ${pc.dim("(empty)")}`);
+      continue;
+    }
+    for (const m of records) {
       rows.push(
         `${pc.cyan(category.padEnd(10))} ${m.id} ${pc.dim(`@${m.version}`)} ${pc.dim(`[${m.adapter}]`)}`,
       );

@@ -1,39 +1,30 @@
-import type { StanzaManifest } from "./manifest";
+import { type StanzaManifest, selectedOne } from "./manifest";
 import {
-  type AddonCategoryId,
-  KNOWN_ADDONS,
-  KNOWN_SLOTS,
+  type CategoryId,
+  KNOWN_CATEGORIES,
   type Module,
   type ModuleAdapter,
-  type SlotId,
+  PEER_CATEGORIES,
 } from "./module";
 
 /**
- * Topological order slots are processed in. Derived from `SLOTS` array order;
- * earlier slots become peer candidates for later ones.
+ * Topological order categories are processed in (derived from `CATEGORIES`):
+ * a category appears after every category it can peer on, and `many` (leaf)
+ * categories come last.
  */
-export const slotOrder: readonly SlotId[] = KNOWN_SLOTS;
-
-/**
- * Order add-on categories are processed in — *after* every slot, so the
- * framework/orm/db picks are already in the manifest when an add-on resolves
- * its framework-varying adapter. Add-ons never participate in peer resolution
- * (they're not in `KNOWN_SLOTS`), so this order is purely about processing,
- * not about exposing earlier add-ons as peer candidates.
- */
-export const addonOrder: readonly AddonCategoryId[] = KNOWN_ADDONS;
+export const categoryOrder: readonly CategoryId[] = KNOWN_CATEGORIES;
 
 export type ResolveContext = {
   /** Manifest state at the moment of resolution (post any pending picks). */
   manifest: StanzaManifest;
   /** Modules the user has already chosen this run but not yet committed. */
-  pending: Partial<Record<SlotId, Module>>;
+  pending: Partial<Record<CategoryId, Module>>;
 };
 
 export type ResolveError =
-  | { kind: "no-adapter"; module: Module; peers: Partial<Record<SlotId, string>> }
-  | { kind: "missing-peer"; module: Module; slot: SlotId }
-  | { kind: "incompatible-peer"; module: Module; slot: SlotId; peer: string };
+  | { kind: "no-adapter"; module: Module; peers: Partial<Record<CategoryId, string>> }
+  | { kind: "missing-peer"; module: Module; category: CategoryId }
+  | { kind: "incompatible-peer"; module: Module; category: CategoryId; peer: string };
 
 export type ResolveResult =
   | { ok: true; adapter: ModuleAdapter }
@@ -49,17 +40,17 @@ export function resolveAdapter(module: Module, context: ResolveContext): Resolve
   const activePeers = activePeerIds(context);
 
   // Check declared peers are satisfied (id present + on allow-list if specified).
-  for (const slot of KNOWN_SLOTS) {
-    const allowed = module.peers?.[slot];
+  for (const category of PEER_CATEGORIES) {
+    const allowed = module.peers?.[category];
     if (allowed === undefined) continue;
-    const chosen = activePeers[slot];
+    const chosen = activePeers[category];
     if (!chosen) {
-      return { ok: false, error: { kind: "missing-peer", module, slot } };
+      return { ok: false, error: { kind: "missing-peer", module, category } };
     }
     if (allowed !== "any" && !allowed.includes(chosen)) {
       return {
         ok: false,
-        error: { kind: "incompatible-peer", module, slot, peer: chosen },
+        error: { kind: "incompatible-peer", module, category, peer: chosen },
       };
     }
   }
@@ -87,26 +78,33 @@ export function isCompatible(module: Module, context: ResolveContext): boolean {
   return resolveAdapter(module, context).ok;
 }
 
-function activePeerIds(context: ResolveContext): Partial<Record<SlotId, string>> {
-  const out: Partial<Record<SlotId, string>> = {};
-  for (const slot of KNOWN_SLOTS) {
-    const pending = context.pending[slot]?.id;
-    const installed = context.manifest.modules[slot]?.id;
+/**
+ * Active peer ids — only `cardinality: "one"` categories can be peers, so we
+ * iterate `PEER_CATEGORIES` and read the single installed/pending pick.
+ */
+function activePeerIds(context: ResolveContext): Partial<Record<CategoryId, string>> {
+  const out: Partial<Record<CategoryId, string>> = {};
+  for (const category of PEER_CATEGORIES) {
+    const pending = context.pending[category]?.id;
+    const installed = selectedOne(context.manifest, category)?.id;
     const chosen = pending ?? installed;
-    if (chosen) out[slot] = chosen;
+    if (chosen) out[category] = chosen;
   }
   return out;
 }
 
 /**
  * Returns -1 if the adapter is impossible (declares a peer match the active
- * peers contradict). Otherwise returns the number of matched constraints.
- * Adapters with an empty `match` map are universally applicable (specificity 0).
+ * peers contradict). Otherwise the number of matched constraints. Adapters with
+ * an empty `match` are universally applicable (specificity 0).
  */
-function matchSpecificity(adapter: ModuleAdapter, peers: Partial<Record<SlotId, string>>): number {
+function matchSpecificity(
+  adapter: ModuleAdapter,
+  peers: Partial<Record<CategoryId, string>>,
+): number {
   let score = 0;
-  for (const [slot, required] of Object.entries(adapter.match) as [SlotId, string][]) {
-    const actual = peers[slot];
+  for (const [category, required] of Object.entries(adapter.match) as [CategoryId, string][]) {
+    const actual = peers[category];
     if (actual !== required) return -1;
     score += 1;
   }

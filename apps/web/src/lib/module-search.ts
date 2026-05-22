@@ -1,15 +1,13 @@
-import type { AddonCategoryId, ModuleSummary, SlotId } from "@stanza/registry";
-import { moduleGroup } from "@stanza/registry";
+import type { CategoryId, ModuleSummary } from "@stanza/registry";
 
-export function groupBySlot(
+export function groupByCategory(
   modules: ModuleSummary[],
-): Array<{ group: SlotId | AddonCategoryId; modules: ModuleSummary[] }> {
-  const groups = new Map<SlotId | AddonCategoryId, ModuleSummary[]>();
+): Array<{ group: CategoryId; modules: ModuleSummary[] }> {
+  const groups = new Map<CategoryId, ModuleSummary[]>();
   for (const m of modules) {
-    const key = moduleGroup(m);
-    const list = groups.get(key) ?? [];
+    const list = groups.get(m.category) ?? [];
     list.push(m);
-    groups.set(key, list);
+    groups.set(m.category, list);
   }
   return [...groups.entries()].map(([group, mods]) => ({ group, modules: mods }));
 }

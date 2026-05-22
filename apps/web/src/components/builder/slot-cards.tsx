@@ -1,78 +1,54 @@
-import type {
-  AddonCategoryId,
-  Module,
-  ModuleSummary,
-  ResolveError,
-  SlotId,
-} from "@stanza/registry";
+import type { CategoryId, Module, ModuleSummary, ResolveError } from "@stanza/registry";
 import {
+  categoryLabel,
   emptyManifest,
-  groupLabel,
-  KNOWN_ADDONS,
-  KNOWN_SLOTS,
-  moduleGroup,
+  isMulti,
+  KNOWN_CATEGORIES,
+  PEER_CATEGORIES,
   resolveAdapter,
-  slotLabel,
 } from "@stanza/registry";
 import { IconCheck } from "@tabler/icons-react";
 import { useCallback } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
-import type { AddonSelections, Selections } from "@/lib/selection";
+import type { Selections } from "@/lib/selection";
 import { cn } from "@/lib/utils";
 
 export function SlotCards({
   modules,
   summaries,
   selections,
-  addonSelections,
-  onSelect,
-  onToggleAddon,
+  onToggle,
 }: {
   modules: Record<string, Module>;
   summaries: ModuleSummary[];
   selections: Selections;
-  addonSelections: AddonSelections;
-  onSelect: (slot: SlotId, id: string | undefined) => void;
-  onToggleAddon: (category: AddonCategoryId, id: string) => void;
+  onToggle: (category: CategoryId, id: string) => void;
 }) {
-  // Shared peer context: the chosen slot modules. Both slot and add-on cards
-  // resolve compatibility against this.
-  const pending: Partial<Record<SlotId, Module>> = {};
-  for (const s of KNOWN_SLOTS) {
-    const id = selections[s];
-    if (id && modules[`${s}:${id}`]) pending[s] = modules[`${s}:${id}`];
+  // Shared peer context: the chosen one-cardinality modules. Every card resolves
+  // compatibility against this.
+  const pending: Partial<Record<CategoryId, Module>> = {};
+  for (const c of PEER_CATEGORIES) {
+    const id = selections[c]?.[0];
+    if (id && modules[`${c}:${id}`]) pending[c] = modules[`${c}:${id}`];
   }
 
-  // Only render add-on categories that actually have modules in the registry.
-  const addonCategories = KNOWN_ADDONS.filter((c) => summaries.some((m) => moduleGroup(m) === c));
+  // Only render categories that actually have modules in the registry.
+  const categories = KNOWN_CATEGORIES.filter((c) => summaries.some((m) => m.category === c));
 
   return (
     <div className="space-y-8">
-      {KNOWN_SLOTS.map((slot, index) => (
-        <ModuleSection
-          key={slot}
-          group={slot}
-          summaries={summaries}
-          modulesById={modules}
-          pending={pending}
-          index={index + 1}
-          multi={false}
-          isSelected={(m) => selections[slot] === m.id}
-          onActivate={(m, selected) => onSelect(slot, selected ? undefined : m.id)}
-        />
-      ))}
-      {addonCategories.map((category, i) => (
+      {categories.map((category, index) => (
         <ModuleSection
           key={category}
           group={category}
           summaries={summaries}
           modulesById={modules}
           pending={pending}
-          index={KNOWN_SLOTS.length + i + 1}
-          multi
-          isSelected={(m) => Boolean(addonSelections[category]?.includes(m.id))}
-          onActivate={(m) => onToggleAddon(category, m.id)}
+          index={index + 1}
+          multi={isMulti(category)}
+          isSelected={(m) => Boolean(selections[category]?.includes(m.id))}
+          onActivate={(m) => onToggle(category, m.id)}
         />
       ))}
     </div>
@@ -89,16 +65,16 @@ function ModuleSection({
   isSelected,
   onActivate,
 }: {
-  group: SlotId | AddonCategoryId;
+  group: CategoryId;
   summaries: ModuleSummary[];
   modulesById: Record<string, Module>;
-  pending: Partial<Record<SlotId, Module>>;
+  pending: Partial<Record<CategoryId, Module>>;
   index: number;
   multi: boolean;
   isSelected: (m: ModuleSummary) => boolean;
   onActivate: (m: ModuleSummary, selected: boolean) => void;
 }) {
-  const modules = summaries.filter((m) => moduleGroup(m) === group);
+  const modules = summaries.filter((m) => m.category === group);
   if (modules.length === 0) return null;
 
   const manifest = emptyManifest({ name: "t" });
@@ -108,12 +84,12 @@ function ModuleSection({
         <span className="font-mono text-xs text-muted-foreground tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h2 className="text-lg font-semibold tracking-tight">{groupLabel(group)}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{categoryLabel(group)}</h2>
         {multi && <span className="text-xs text-muted-foreground">{"· choose any"}</span>}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {modules.map((m) => {
-          const full = modulesById[`${moduleGroup(m)}:${m.id}`];
+          const full = modulesById[`${m.category}:${m.id}`];
           const result = full ? resolveAdapter(full, { manifest, pending }) : undefined;
           const disabled = !result?.ok;
           const selected = isSelected(m);
@@ -189,9 +165,9 @@ function ModuleCard({
 function describeError(error: ResolveError): string {
   switch (error.kind) {
     case "missing-peer":
-      return `Pick a ${slotLabel(error.slot)} module first.`;
+      return `Pick a ${categoryLabel(error.category)} module first.`;
     case "incompatible-peer":
-      return `Doesn't pair with ${error.peer} (your ${slotLabel(error.slot)} pick).`;
+      return `Doesn't pair with ${error.peer} (your ${categoryLabel(error.category)} pick).`;
     case "no-adapter":
       return "No adapter matches your current stack.";
   }

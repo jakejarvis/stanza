@@ -14,16 +14,14 @@ import type {
   JsonValue,
   Module,
   ModuleAdapter,
-  SlotId,
   StanzaManifest,
   TemplateRef,
 } from "@stanza/registry";
 import {
-  installHome,
+  categoryHome,
   installPackageJson,
-  isAddon,
   mergeInstallFields,
-  SLOT_PACKAGE_DIR,
+  PACKAGE_DIRS,
   slotPackageJsonBase,
 } from "@stanza/registry";
 
@@ -64,21 +62,19 @@ export async function applyModule(args: {
   const appRoot = path.join(projectRoot, manifest.appDir);
 
   const owner = module.id;
-  // Add-on dirs are named `<category>-<id>` (e.g. `testing-vitest`); slot dirs
-  // `<slot>-<id>`. `categoryKey` is also the manifest write key below.
-  const categoryKey = isAddon(module) ? module.category : module.slot;
-  const moduleDir = path.join(registryRoot, "modules", `${categoryKey}-${module.id}`);
+  // Module dirs are named `<category>-<id>` (e.g. `testing-vitest`).
+  const moduleDir = path.join(registryRoot, "modules", `${module.category}-${module.id}`);
 
   // Module-level install fields (shared across adapters) are merged with the
   // adapter-level ones (variation per peer combination). Adapter wins per-key
   // on conflicts; env merges by `name`.
   const installFields = mergeInstallFields(module, adapter);
 
-  // `installHome` (in @stanza/registry) is the single decision point for where
+  // `categoryHome` (in @stanza/registry) is the single decision point for where
   // a module's templates/deps/scripts land — package (`packages/<dir>/`), repo
   // root, or the active app. The web preview's `synthesizePackageJsons` reads
   // the same helper, so the two can't disagree.
-  const home = installHome(module);
+  const home = categoryHome(module.category);
   const packageDir = home.kind === "package" ? home.dir : null;
   const packageRoot = packageDir ? path.join(projectRoot, "packages", packageDir) : null;
   const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
@@ -109,7 +105,13 @@ export async function applyModule(args: {
 
   // 1. Templates (claim regions per-template-file).
   for (const tpl of adapter.templates ?? []) {
-    const dest = resolveTemplateDest({ tpl, projectRoot, appRoot, packageRoot, slot: categoryKey });
+    const dest = resolveTemplateDest({
+      tpl,
+      projectRoot,
+      appRoot,
+      packageRoot,
+      category: module.category,
+    });
     const rel = path.relative(projectRoot, dest);
 
     manifest = claim(manifest, rel, "file", owner);
@@ -208,7 +210,7 @@ export async function applyModule(args: {
       const fn = CODEMOD_CATALOG[invocation.id];
       if (!fn) {
         throw new Error(
-          `Codemod "${invocation.id}" referenced by ${categoryKey}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
+          `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
         );
       }
       if (!dryRun) {
@@ -222,23 +224,17 @@ export async function applyModule(args: {
 
   if (!dryRun) {
     const record = { id: module.id, version: module.version, adapter: adapter.key };
-    if (isAddon(module)) {
-      // Push into the category array, replacing any same-id record so re-adds
-      // are idempotent. Other add-ons in the category are preserved.
-      const existing = manifest.addons[module.category] ?? [];
-      manifest = {
-        ...manifest,
-        addons: {
-          ...manifest.addons,
-          [module.category]: [...existing.filter((r) => r.id !== module.id), record],
-        },
-      };
-    } else {
-      manifest = {
-        ...manifest,
-        modules: { ...manifest.modules, [module.slot]: record },
-      };
-    }
+    // Push into the category's array, replacing any same-id record so re-adds
+    // are idempotent. Single-choice categories (cardinality "one") are kept to
+    // one record by `add`/`init` rejecting a second pick — not enforced here.
+    const existing = manifest.modules[module.category] ?? [];
+    manifest = {
+      ...manifest,
+      modules: {
+        ...manifest.modules,
+        [module.category]: [...existing.filter((r) => r.id !== module.id), record],
+      },
+    };
     writeManifest(projectRoot, manifest);
   }
 
@@ -250,15 +246,15 @@ function resolveTemplateDest(args: {
   projectRoot: string;
   appRoot: string;
   packageRoot: string | null;
-  slot: SlotId | string;
+  category: string;
 }): string {
-  const { tpl, projectRoot, appRoot, packageRoot, slot } = args;
+  const { tpl, projectRoot, appRoot, packageRoot, category } = args;
   if (tpl.scope === "repo") return path.join(projectRoot, tpl.dest);
   if (tpl.scope === "package") {
     if (!packageRoot) {
       throw new Error(
-        `Template scope "package" is not valid for slot "${slot}" — SLOT_PACKAGE_DIR has no entry for it. ` +
-          `Use scope "app" for framework/styling modules.`,
+        `Template scope "package" is not valid for category "${category}" — its home isn't a package. ` +
+          `Use scope "app" or "repo" for app/repo-scoped categories.`,
       );
     }
     return path.join(packageRoot, tpl.dest);
@@ -361,11 +357,10 @@ function ensureSlotPackage(args: {
   // peers (e.g. better-auth's auth.ts importing `db` from `@<project>/db`).
   // Skip self-references and unknown package dirs.
   if (consumesPackages.length > 0) {
-    const allowed = new Set(Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null));
     const ownPkgJson = path.join(packageRoot, "package.json");
     for (const peer of consumesPackages) {
       if (peer === packageDir) continue;
-      if (!allowed.has(peer)) continue;
+      if (!PACKAGE_DIRS.has(peer)) continue;
       const peerName = `@${args.manifest.name}/${peer}`;
       if (!fs.existsSync(ownPkgJson)) continue;
       const pkg = JSON.parse(fs.readFileSync(ownPkgJson, "utf8")) as {
@@ -450,9 +445,7 @@ function buildContext(args: {
     appRoot: args.appRoot,
     project: args.project,
     manifest: args.manifest,
-    owner: isAddon(args.module)
-      ? { category: args.module.category, module: args.module.id }
-      : { slot: args.module.slot, module: args.module.id },
+    owner: { category: args.module.category, module: args.module.id },
     adapter: args.adapter.key,
     claimRegion(file, region) {
       args.onClaim?.(file, region);
@@ -467,10 +460,10 @@ function buildContext(args: {
  * Build the render context used by both template-body substitution and
  * codemod-args substitution. Provides:
  *  - `{{appDir}}`, `{{projectName}}` — project-level
- *  - `{{packageName}}` — the active module's own package (empty for slots
- *    without a package mapping)
+ *  - `{{packageName}}` — the active module's own package (empty for categories
+ *    without a package home)
  *  - `{{<dir>PackageName}}` (e.g. `{{dbPackageName}}`) — shorthand for every
- *    slot package, so cross-package imports stay declarative
+ *    package home, so cross-package imports stay declarative
  */
 function buildRenderContext(manifest: StanzaManifest, packageName: string): Record<string, string> {
   const ctx: Record<string, string> = {
@@ -478,9 +471,7 @@ function buildRenderContext(manifest: StanzaManifest, packageName: string): Reco
     projectName: manifest.name,
     packageName,
   };
-  for (const dir of new Set(
-    Object.values(SLOT_PACKAGE_DIR).filter((d): d is string => d !== null),
-  )) {
+  for (const dir of PACKAGE_DIRS) {
     ctx[`${dir}PackageName`] = `@${manifest.name}/${dir}`;
   }
   return ctx;
@@ -525,7 +516,7 @@ export async function revertCodemods(args: {
   const codemods = adapter.codemods ?? [];
   if (codemods.length === 0) return { manifest, touchedFiles: [], dryRun, manualCleanup };
 
-  const home = installHome(module);
+  const home = categoryHome(module.category);
   const packageName = home.kind === "package" ? `@${manifest.name}/${home.dir}` : "";
   const renderContext = buildRenderContext(manifest, packageName);
 

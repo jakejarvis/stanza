@@ -1,21 +1,13 @@
 import { CommandPreview } from "@/components/command-preview";
-import type { AddonSelections, Selections } from "@/lib/selection";
+import type { Selections } from "@/lib/selection";
 
-export function TryIt({
-  name,
-  selections,
-  addons,
-}: {
-  name: string;
-  selections: Selections;
-  addons?: AddonSelections;
-}) {
+export function TryIt({ name, selections }: { name: string; selections: Selections }) {
   return (
     <section>
       <h3 className="mb-2 text-xs font-semibold tracking-tight text-muted-foreground uppercase">
         Try it
       </h3>
-      <CommandPreview name={name} selections={selections} addons={addons} />
+      <CommandPreview name={name} selections={selections} />
     </section>
   );
 }

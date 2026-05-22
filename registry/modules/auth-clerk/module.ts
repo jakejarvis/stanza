@@ -8,7 +8,7 @@ import { defineModule } from "@stanza/registry";
  */
 export default defineModule({
   id: "clerk",
-  slot: "auth",
+  category: "auth",
   label: "Clerk",
   description: "Hosted user management with pre-built UI components.",
   version: "0.1.0",

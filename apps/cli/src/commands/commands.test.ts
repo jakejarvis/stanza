@@ -62,11 +62,11 @@ describe("cmdInit --yes", () => {
     const projectRoot = path.join(tmp, "app");
     expect(fs.existsSync(path.join(projectRoot, "stanza.json"))).toBe(true);
     const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
-    expect(manifest.modules.framework.id).toBe("next");
-    expect(manifest.modules.styling.id).toBe("tailwind");
-    expect(manifest.modules.db.id).toBe("postgres");
-    expect(manifest.modules.orm.id).toBe("drizzle");
-    expect(manifest.modules.auth.id).toBe("better-auth");
+    expect(manifest.modules.framework[0].id).toBe("next");
+    expect(manifest.modules.styling[0].id).toBe("tailwind");
+    expect(manifest.modules.db[0].id).toBe("postgres");
+    expect(manifest.modules.orm[0].id).toBe("drizzle");
+    expect(manifest.modules.auth[0].id).toBe("better-auth");
 
     // Slot-package extraction wired both auth and db packages.
     expect(fs.existsSync(path.join(projectRoot, "packages/auth/package.json"))).toBe(true);
@@ -84,7 +84,7 @@ describe("cmdInit --yes", () => {
     expect(process.exitCode).toBeFalsy();
 
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, "minimal", "stanza.json"), "utf8"));
-    expect(manifest.modules.framework?.id).toBe("next");
+    expect(manifest.modules.framework?.[0]?.id).toBe("next");
     expect(manifest.modules.styling).toBeUndefined();
     expect(manifest.modules.auth).toBeUndefined();
   });
@@ -117,7 +117,7 @@ describe("cmdAdd", () => {
     expect(process.exitCode).toBeFalsy();
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-    expect(manifest.modules.db.id).toBe("postgres");
+    expect(manifest.modules.db[0].id).toBe("postgres");
     expect(fs.existsSync("packages/db/package.json")).toBe(true);
   });
 
@@ -130,7 +130,7 @@ describe("cmdAdd", () => {
 
     // Manifest still shows postgres.
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-    expect(manifest.modules.db.id).toBe("postgres");
+    expect(manifest.modules.db[0].id).toBe("postgres");
   });
 
   it("rejects an unknown slot", async () => {
@@ -154,7 +154,7 @@ describe("cmdRemove", () => {
 
     const afterOrm = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(afterOrm.modules.orm).toBeUndefined();
-    expect(afterOrm.modules.db?.id).toBe("postgres");
+    expect(afterOrm.modules.db?.[0]?.id).toBe("postgres");
     // packages/db/ still exists because postgres still owns regions there.
     expect(fs.existsSync("packages/db/package.json")).toBe(true);
 
@@ -174,7 +174,7 @@ describe("cmdRemove", () => {
     expect(process.exitCode).toBeFalsy();
     // Manifest unchanged.
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-    expect(manifest.modules.framework.id).toBe("next");
+    expect(manifest.modules.framework[0].id).toBe("next");
   });
 
   it("rejects an unknown slot", async () => {
@@ -192,7 +192,7 @@ describe("add-ons (multi-choice testing slot)", () => {
 
     const projectRoot = path.join(tmp, "app");
     const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
-    expect(manifest.addons.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
+    expect(manifest.modules.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
       "playwright",
       "vitest",
     ]);
@@ -224,7 +224,7 @@ describe("add-ons (multi-choice testing slot)", () => {
       expect(process.exitCode).toBeFalsy();
 
       const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-      expect(manifest.addons.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
+      expect(manifest.modules.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
         "playwright",
         "vitest",
       ]);
@@ -245,7 +245,7 @@ describe("add-ons (multi-choice testing slot)", () => {
       expect(process.exitCode).toBeFalsy();
 
       const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-      expect(manifest.addons.testing.map((r: { id: string }) => r.id)).toEqual(["playwright"]);
+      expect(manifest.modules.testing.map((r: { id: string }) => r.id)).toEqual(["playwright"]);
       // vitest's config gone, playwright's remains.
       expect(fs.existsSync("apps/web/vitest.config.ts")).toBe(false);
       expect(fs.existsSync("apps/web/playwright.config.ts")).toBe(true);
@@ -256,7 +256,7 @@ describe("add-ons (multi-choice testing slot)", () => {
       // Removing the last one drops the category key.
       await cmdRemove(args({ slot: "testing", moduleId: "playwright" }));
       const after = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-      expect(after.addons.testing).toBeUndefined();
+      expect(after.modules.testing).toBeUndefined();
     });
 
     it("errors when removing an add-on category without an id", async () => {
@@ -275,7 +275,7 @@ describe("tooling slot (single-choice, repo-scoped)", () => {
 
     const projectRoot = path.join(tmp, "app");
     const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
-    expect(manifest.modules.tooling).toMatchObject({ id: "eslint-prettier", adapter: "next" });
+    expect(manifest.modules.tooling?.[0]).toMatchObject({ id: "eslint-prettier", adapter: "next" });
 
     // Repo-scoped: config + scripts + devDeps land at the monorepo root, not the app.
     expect(fs.existsSync(path.join(projectRoot, "eslint.config.mjs"))).toBe(true);
@@ -311,7 +311,7 @@ describe("tooling slot (single-choice, repo-scoped)", () => {
     expect(process.exitCode).toBeFalsy();
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-    expect(manifest.modules.tooling).toMatchObject({ id: "biome", adapter: "default" });
+    expect(manifest.modules.tooling?.[0]).toMatchObject({ id: "biome", adapter: "default" });
     expect(fs.existsSync("biome.json")).toBe(true);
     const rootPkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
     expect(rootPkg.scripts.lint).toBe("biome lint .");
@@ -327,6 +327,6 @@ describe("tooling slot (single-choice, repo-scoped)", () => {
     expect(process.exitCode).toBe(1);
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
-    expect(manifest.modules.tooling.id).toBe("biome");
+    expect(manifest.modules.tooling[0].id).toBe("biome");
   });
 });

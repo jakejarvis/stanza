@@ -4,38 +4,27 @@ import { CopyButton } from "@/components/copy-button";
 import { PackageManagerSelect } from "@/components/package-manager-select";
 import { selectionProperties, useAnalytics } from "@/lib/analytics";
 import { usePackageManager } from "@/lib/package-manager";
-import { type AddonSelections, buildCommand, DEFAULT_NAME, type Selections } from "@/lib/selection";
+import { buildCommand, DEFAULT_NAME, type Selections } from "@/lib/selection";
 
 /**
  * The `<pm> create stanza …` command box: a package-manager picker, the command
  * text, and a copy button. Owns the persisted package-manager preference and
  * builds the command from the current selection.
  */
-export function CommandPreview({
-  name,
-  selections,
-  addons,
-}: {
-  name: string;
-  selections: Selections;
-  addons?: AddonSelections;
-}) {
+export function CommandPreview({ name, selections }: { name: string; selections: Selections }) {
   const { pm, setPm } = usePackageManager();
-  const command = buildCommand({ name, selections, addons, pm });
+  const command = buildCommand({ name, selections, pm });
   const capture = useAnalytics();
 
   const onCopied = useCallback(() => {
-    const addonSelections = addons ?? {};
     capture("builder_command_copied", {
       package_manager: pm,
       command,
       name_customized: name !== DEFAULT_NAME,
-      module_count:
-        Object.keys(selections).length +
-        Object.values(addonSelections).reduce((n, ids) => n + (ids?.length ?? 0), 0),
-      ...selectionProperties(selections, addonSelections),
+      module_count: Object.values(selections).reduce((n, ids) => n + (ids?.length ?? 0), 0),
+      ...selectionProperties(selections),
     });
-  }, [capture, pm, command, name, selections, addons]);
+  }, [capture, pm, command, name, selections]);
 
   return (
     <div className="flex items-stretch gap-2">

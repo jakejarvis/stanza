@@ -27,7 +27,7 @@ function setup(initial: string = BARREL, opts: { barrelPath?: string } = {}) {
     appRoot: "/repo/apps/web",
     project: () => inMem,
     manifest,
-    owner: { slot: "auth", module: "better-auth" },
+    owner: { category: "auth", module: "better-auth" },
     adapter: "default",
     claimRegion(file, region) {
       claimed.push({ file, region });

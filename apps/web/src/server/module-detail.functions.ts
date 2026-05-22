@@ -1,14 +1,13 @@
 import type {
-  AddonCategoryId,
+  CategoryId,
   EnvVar,
   Module,
   ModuleAdapter,
   ModuleSummary,
   PeerRequirement,
   RegistryIndex,
-  SlotId,
 } from "@stanza/registry";
-import { KNOWN_SLOTS, emptyManifest, moduleGroup, resolveAdapter } from "@stanza/registry";
+import { emptyManifest, PEER_CATEGORIES, resolveAdapter } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
 import type { Preview } from "@/server/highlighter";
@@ -16,14 +15,14 @@ import { renderPreview } from "@/server/highlighter.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type ModuleDetailInput = {
-  slot: SlotId | AddonCategoryId;
+  category: CategoryId;
   id: string;
   /**
    * Explicit peer choices from the URL search params. Any peer not present
    * here gets an auto-default chosen from the module's `peers` list (when
    * declared) or from the registry index.
    */
-  peers: Partial<Record<SlotId, string>>;
+  peers: Partial<Record<CategoryId, string>>;
 };
 
 export type EffectiveInstallFields = {
@@ -42,9 +41,9 @@ export type ModuleDetail = {
    * The detail page renders the switcher with these values pre-selected so the
    * UI reflects what's being shown even when the URL is empty.
    */
-  resolvedPeers: Partial<Record<SlotId, string>>;
+  resolvedPeers: Partial<Record<CategoryId, string>>;
   /** For each peer slot, the set of valid module ids the switcher can offer. */
-  peerOptions: Partial<Record<SlotId, string[]>>;
+  peerOptions: Partial<Record<CategoryId, string[]>>;
   /** Module-level + adapter-level fields merged with adapter-wins semantics. */
   effective: EffectiveInstallFields;
   /** Pre-rendered Shiki HTML for each template in the resolved adapter, keyed by `dest`. */
@@ -58,10 +57,10 @@ export const getModuleDetail = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ModuleDetail | null> => {
     const index = await loadRegistryFile<RegistryIndex>("index.json");
 
-    const summary = index.modules.find((m) => moduleGroup(m) === data.slot && m.id === data.id);
+    const summary = index.modules.find((m) => m.category === data.category && m.id === data.id);
     if (!summary) return null;
 
-    const module = await loadRegistryFile<Module>(`modules/${data.slot}-${data.id}.json`);
+    const module = await loadRegistryFile<Module>(`modules/${data.category}-${data.id}.json`);
 
     const peerOptions = computePeerOptions(module, index);
     const resolvedPeers = applyAutoDefaults(module, data.peers, peerOptions);
@@ -95,13 +94,13 @@ export const getModuleDetail = createServerFn({ method: "GET" })
 function computePeerOptions(
   module: Module,
   index: RegistryIndex,
-): Partial<Record<SlotId, string[]>> {
-  const out: Partial<Record<SlotId, string[]>> = {};
+): Partial<Record<CategoryId, string[]>> {
+  const out: Partial<Record<CategoryId, string[]>> = {};
   const declared = module.peers ?? ({} as PeerRequirement);
-  const referenced = new Set<SlotId>();
-  for (const slot of Object.keys(declared) as SlotId[]) referenced.add(slot);
+  const referenced = new Set<CategoryId>();
+  for (const slot of Object.keys(declared) as CategoryId[]) referenced.add(slot);
   for (const adapter of module.adapters) {
-    for (const slot of Object.keys(adapter.match) as SlotId[]) referenced.add(slot);
+    for (const slot of Object.keys(adapter.match) as CategoryId[]) referenced.add(slot);
   }
 
   for (const slot of referenced) {
@@ -110,7 +109,7 @@ function computePeerOptions(
       out[slot] = constraint;
     } else {
       // "any" or undefined — list every module that lives in this slot.
-      out[slot] = index.modules.filter((m) => moduleGroup(m) === slot).map((m) => m.id);
+      out[slot] = index.modules.filter((m) => m.category === slot).map((m) => m.id);
     }
     // De-dup and keep declaration order. Also union in any ids referenced by
     // adapters that weren't in the declared list — defensive against authors
@@ -141,11 +140,11 @@ function computePeerOptions(
  */
 function applyAutoDefaults(
   module: Module,
-  peers: Partial<Record<SlotId, string>>,
-  peerOptions: Partial<Record<SlotId, string[]>>,
-): Partial<Record<SlotId, string>> {
-  const out: Partial<Record<SlotId, string>> = { ...peers };
-  for (const slot of Object.keys(peerOptions) as SlotId[]) {
+  peers: Partial<Record<CategoryId, string>>,
+  peerOptions: Partial<Record<CategoryId, string[]>>,
+): Partial<Record<CategoryId, string>> {
+  const out: Partial<Record<CategoryId, string>> = { ...peers };
+  for (const slot of Object.keys(peerOptions) as CategoryId[]) {
     if (out[slot]) continue;
     const opts = peerOptions[slot];
     if (opts && opts.length > 0) out[slot] = opts[0];
@@ -164,16 +163,16 @@ function applyAutoDefaults(
  * Falls back to the first adapter if resolution fails — the page still has
  * something useful to render and the switcher will let the user fix it.
  */
-function pickAdapter(module: Module, peers: Partial<Record<SlotId, string>>): ModuleAdapter {
-  const pending: Partial<Record<SlotId, Module>> = {};
-  for (const slot of KNOWN_SLOTS) {
+function pickAdapter(module: Module, peers: Partial<Record<CategoryId, string>>): ModuleAdapter {
+  const pending: Partial<Record<CategoryId, Module>> = {};
+  for (const slot of PEER_CATEGORIES) {
     const id = peers[slot];
     if (!id) continue;
     // Build a minimal placeholder module — only `id`, `slot`, `adapters` are
     // read by the resolver path we hit.
     pending[slot] = {
       id,
-      slot,
+      category: slot,
       label: id,
       description: "",
       version: "0.0.0",

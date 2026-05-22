@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "oxlint-oxfmt",
-  slot: "tooling",
+  category: "tooling",
   label: "Oxlint + oxfmt",
   description: "Oxc's Rust-based linter and formatter — extremely fast.",
   version: "0.1.0",

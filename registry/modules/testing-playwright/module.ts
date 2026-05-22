@@ -1,7 +1,6 @@
 import { defineModule } from "@stanza/registry";
 
 export default defineModule({
-  kind: "addon",
   id: "playwright",
   category: "testing",
   label: "Playwright",

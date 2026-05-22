@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "prisma",
-  slot: "orm",
+  category: "orm",
   label: "Prisma",
   description: "Type-safe ORM with migrations, studio, and broad DB support.",
   version: "0.1.0",

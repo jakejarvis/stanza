@@ -1,5 +1,5 @@
 import type { ModuleSummary, RegistryIndex } from "@stanza/registry";
-import { groupLabel, moduleGroup } from "@stanza/registry";
+import { categoryLabel } from "@stanza/registry";
 import { IconSearch } from "@tabler/icons-react";
 import { formatForDisplay, useHotkey } from "@tanstack/react-hotkeys";
 import { useNavigate } from "@tanstack/react-router";
@@ -15,14 +15,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
-import { groupBySlot } from "@/lib/module-search";
+import { groupByCategory } from "@/lib/module-search";
 import { cn } from "@/lib/utils";
 
 const HOTKEY = "Mod+K";
 
 function matches(m: ModuleSummary, query: string): boolean {
   if (!query) return true;
-  const haystack = `${moduleGroup(m)} ${m.id} ${m.label} ${m.description}`.toLowerCase();
+  const haystack = `${m.category} ${m.id} ${m.label} ${m.description}`.toLowerCase();
   return query
     .toLowerCase()
     .split(/\s+/)
@@ -54,7 +54,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
     () => index.modules.filter((m) => matches(m, query)),
     [index.modules, query],
   );
-  const groups = useMemo(() => groupBySlot(filtered), [filtered]);
+  const groups = useMemo(() => groupByCategory(filtered), [filtered]);
   const flat = useMemo(() => groups.flatMap((g) => g.modules), [groups]);
 
   useEffect(() => setActiveIndex(0), [query]);
@@ -62,7 +62,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
   const selectModule = useCallback(
     (summary: ModuleSummary) => {
       setOpen(false);
-      void navigate({ to: "/m/$slot/$id", params: { slot: moduleGroup(summary), id: summary.id } });
+      void navigate({ to: "/m/$slot/$id", params: { slot: summary.category, id: summary.id } });
     },
     [navigate],
   );
@@ -142,13 +142,13 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
               groups.map(({ group, modules }) => (
                 <div key={group} className="overflow-hidden">
                   <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                    {groupLabel(group)}
+                    {categoryLabel(group)}
                   </div>
                   {modules.map((m) => {
                     const i = flatIndex++;
                     return (
                       <SearchResult
-                        key={`${moduleGroup(m)}:${m.id}`}
+                        key={`${m.category}:${m.id}`}
                         summary={m}
                         index={i}
                         active={i === activeIndex}

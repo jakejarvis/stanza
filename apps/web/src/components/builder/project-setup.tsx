@@ -5,19 +5,17 @@ import { CommandPreview } from "@/components/command-preview";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AddonSelections, Selections } from "@/lib/selection";
+import type { Selections } from "@/lib/selection";
 
 export function ProjectSetup({
   name,
   defaultName,
   selections,
-  addons,
   onNameChange,
 }: {
   name: string;
   defaultName: string;
   selections: Selections;
-  addons: AddonSelections;
   onNameChange: (name: string) => void;
 }) {
   // Keep the field responsive locally and debounce the upward push: each
@@ -59,7 +57,7 @@ export function ProjectSetup({
 
       <div className="space-y-1.5">
         <span className="text-xs font-medium text-muted-foreground">Run this</span>
-        <CommandPreview name={name} selections={selections} addons={addons} />
+        <CommandPreview name={name} selections={selections} />
       </div>
     </Card>
   );

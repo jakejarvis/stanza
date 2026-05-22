@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "eslint-prettier",
-  slot: "tooling",
+  category: "tooling",
   label: "ESLint + Prettier",
   description: "ESLint (flat config) for linting and Prettier for formatting.",
   version: "0.1.0",

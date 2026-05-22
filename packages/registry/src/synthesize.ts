@@ -2,11 +2,10 @@ import { emptyManifest, type StanzaManifest } from "./manifest";
 import {
   mergeInstallFields,
   type PackageManager,
-  type ResolvedAddons,
+  type Resolved,
   type ResolvedEntry,
-  type ResolvedSlots,
 } from "./package-json";
-import { addonOrder, slotOrder } from "./resolver";
+import { categoryOrder } from "./resolver";
 
 /** Header `stanza init` writes at the top of `.env.example`. */
 export const ENV_EXAMPLE_HEADER = "# Stanza-managed environment variables.\n";
@@ -46,23 +45,19 @@ export function appendEnvVar(
 
 /**
  * Compute the `.env.example` stanza would write for a resolved selection:
- * the managed header followed by every module's env vars, in the same order
- * the CLI applies modules (slots first, then add-ons). Mirrors the CLI apply
- * path, so the preview matches what `stanza init` produces byte-for-byte.
+ * the managed header followed by every module's env vars, in `categoryOrder`.
+ * Mirrors the CLI apply path, so the preview matches what `stanza init`
+ * produces byte-for-byte.
  */
-export function synthesizeEnvExample(slots: ResolvedSlots, addons: ResolvedAddons): string {
+export function synthesizeEnvExample(resolved: Resolved): string {
   let out = ENV_EXAMPLE_HEADER;
   const apply = (entry: ResolvedEntry) => {
     for (const v of mergeInstallFields(entry.module, entry.adapter).env) {
       out = appendEnvVar(out, v.name, v.example, v.description);
     }
   };
-  for (const slot of slotOrder) {
-    const entry = slots[slot];
-    if (entry) apply(entry);
-  }
-  for (const category of addonOrder) {
-    for (const entry of addons[category] ?? []) apply(entry);
+  for (const category of categoryOrder) {
+    for (const entry of resolved[category] ?? []) apply(entry);
   }
   return out;
 }
@@ -70,7 +65,7 @@ export function synthesizeEnvExample(slots: ResolvedSlots, addons: ResolvedAddon
 /**
  * Compute the `stanza.json` manifest for a resolved selection — the same shape
  * the CLI pins at install time: header (version/projectShape/packageManager/
- * name/appDir), one record per filled slot, and per-category add-on records.
+ * name/appDir) and per-category module records (arrays).
  *
  * `regions` is intentionally left empty: it's internal per-file ownership
  * bookkeeping the CLI accretes as it claims templates, deps, env keys, and
@@ -79,8 +74,7 @@ export function synthesizeEnvExample(slots: ResolvedSlots, addons: ResolvedAddon
  * manifest as a stack summary rather than the literal on-disk region map.
  */
 export function synthesizeManifest(
-  slots: ResolvedSlots,
-  addons: ResolvedAddons,
+  resolved: Resolved,
   opts: { name: string; appDir?: string; packageManager?: PackageManager },
 ): StanzaManifest {
   const base = emptyManifest({
@@ -90,26 +84,15 @@ export function synthesizeManifest(
   });
 
   const modules: StanzaManifest["modules"] = {};
-  for (const slot of slotOrder) {
-    const entry = slots[slot];
-    if (!entry) continue;
-    modules[slot] = {
-      id: entry.module.id,
-      version: entry.module.version,
-      adapter: entry.adapter.key,
-    };
-  }
-
-  const addonRecords: StanzaManifest["addons"] = {};
-  for (const category of addonOrder) {
-    const entries = addons[category];
+  for (const category of categoryOrder) {
+    const entries = resolved[category];
     if (!entries?.length) continue;
-    addonRecords[category] = entries.map((entry) => ({
+    modules[category] = entries.map((entry) => ({
       id: entry.module.id,
       version: entry.module.version,
       adapter: entry.adapter.key,
     }));
   }
 
-  return { ...base, modules, addons: addonRecords };
+  return { ...base, modules };
 }

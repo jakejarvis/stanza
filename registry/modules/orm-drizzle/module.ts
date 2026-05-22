@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "drizzle",
-  slot: "orm",
+  category: "orm",
   label: "Drizzle",
   description: "TypeScript-first ORM with schema-as-code and zero runtime overhead.",
   version: "0.1.0",

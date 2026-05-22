@@ -37,7 +37,7 @@ npx -y @stanza/cli@latest search
 
 2. Discover current module IDs with `stanza search [query]`. Registry contents evolve, so do not hardcode a module unless the user specified it or `search` confirms it.
 
-3. Scaffold with `init --yes`, passing every wanted slot/add-on explicitly:
+3. Scaffold with `init --yes`, passing every category you want explicitly:
 
 ```sh
 npx -y @stanza/cli@latest init my-app --yes \
@@ -61,20 +61,23 @@ pnpm dev
 ## Commands
 
 - `stanza init [name] --yes ...` scaffolds a new project in a child directory of the current working directory.
-- `stanza add <slot|category> <module>` adds one module to an existing Stanza project.
-- `stanza remove <slot|category> [id]` removes a slot module; add-ons require the module id.
-- `stanza list` prints installed slots and add-ons from the nearest `stanza.json`.
-- `stanza search [query]` lists registry modules and their `group/id` pairs.
+- `stanza add <category> <module>` adds one module to an existing Stanza project.
+- `stanza remove <category> [id]` removes a module. For single-choice categories the `id` is optional; for multi-choice categories it is required.
+- `stanza list` prints installed modules grouped by category from the nearest `stanza.json`.
+- `stanza search [query]` lists registry modules and their `category/id` pairs.
 
 Run `add`, `remove`, and `list` from the project root or any child directory containing a parent `stanza.json`.
 
-## Slots And Add-Ons
+## Categories
 
-Current slot names are `framework`, `styling`, `db`, `orm`, and `auth`. Slots are single-choice: adding a filled slot fails until the existing slot is removed.
+Every module belongs to exactly one **category**, and each category is either single-choice or multi-choice:
 
-Current add-on categories are `testing`, `tooling`, `deploy`, `email`, and `monorepo`. Add-ons are multi-choice, so multiple modules can coexist in one category. For `init --yes`, pass add-on ids as comma-separated values, for example `--testing=vitest,playwright`.
+- **Single-choice** categories: `framework`, `styling`, `db`, `orm`, `auth`, `tooling`. Adding a module to a filled single-choice category fails until the existing one is removed.
+- **Multi-choice** categories: `testing` (with `deploy`, `email`, `monorepo` planned). Multiple modules coexist in one category.
 
-`--yes` never chooses defaults for omitted slots or add-ons. Missing selections are skipped.
+For `init --yes`, pass each category's module ids as a comma-separated value; single-choice categories take exactly one, multi-choice take several — for example `--framework=next` and `--testing=vitest,playwright`.
+
+`--yes` never chooses defaults for omitted categories. Missing selections are skipped.
 
 ## Dependency Versions
 
@@ -94,7 +97,7 @@ Current add-on categories are `testing`, `tooling`, `deploy`, `email`, and `mono
 ## Error Handling
 
 - `Module not found`: run `stanza search` and use the displayed module id, not the label.
-- `missing-peer`, `incompatible-peer`, or `no-adapter`: the selected module does not fit the current stack. Search for alternatives or add required peer slots first.
+- `missing-peer`, `incompatible-peer`, or `no-adapter`: the selected module does not fit the current stack. Search for alternatives or add the required peer category first.
 - `No stanza.json found`: run from a generated Stanza project, not the parent directory.
 - Dirty worktree refusal: commit/stash user changes or ask before using `--dangerously-allow-dirty`.
 - After adding package-scoped modules such as db/auth/orm, run the selected package manager install command so workspace packages link correctly.

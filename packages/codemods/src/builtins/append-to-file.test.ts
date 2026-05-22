@@ -40,7 +40,7 @@ function setup(filePath: string, initial: string) {
     appRoot: path.join(tmp, "apps/web"),
     project: () => inMem,
     manifest,
-    owner: { slot: "auth", module: "better-auth" },
+    owner: { category: "auth", module: "better-auth" },
     adapter: "default",
     claimRegion(file, region) {
       claimed.push({ file, region });

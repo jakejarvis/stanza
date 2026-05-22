@@ -6,7 +6,7 @@ import { resolveAdapter } from "./resolver";
 
 const drizzle: Module = defineModule({
   id: "drizzle",
-  slot: "orm",
+  category: "orm",
   label: "Drizzle",
   description: "",
   version: "0.1.0",
@@ -19,7 +19,7 @@ const drizzle: Module = defineModule({
 
 const betterAuth: Module = defineModule({
   id: "better-auth",
-  slot: "auth",
+  category: "auth",
   label: "Better Auth",
   description: "",
   version: "0.1.0",
@@ -37,7 +37,7 @@ describe("resolveAdapter", () => {
       pending: {
         db: defineModule({
           id: "postgres",
-          slot: "db",
+          category: "db",
           label: "",
           description: "",
           version: "0.1.0",
@@ -66,7 +66,7 @@ describe("resolveAdapter", () => {
       pending: {
         orm: defineModule({
           id: "typeorm",
-          slot: "orm",
+          category: "orm",
           label: "",
           description: "",
           version: "0.1.0",
@@ -82,7 +82,7 @@ describe("resolveAdapter", () => {
   it("falls back to a default (empty-match) adapter when no peers are required", () => {
     const tailwind: Module = defineModule({
       id: "tailwind",
-      slot: "styling",
+      category: "styling",
       label: "",
       description: "",
       version: "0.1.0",
@@ -100,7 +100,7 @@ describe("resolveAdapter", () => {
 
 const next: Module = defineModule({
   id: "next",
-  slot: "framework",
+  category: "framework",
   label: "Next.js",
   description: "",
   version: "0.1.0",
@@ -108,7 +108,6 @@ const next: Module = defineModule({
 });
 
 const vitest: Module = defineModule({
-  kind: "addon",
   id: "vitest",
   category: "testing",
   label: "Vitest",
@@ -142,18 +141,18 @@ describe("resolveAdapter — add-ons", () => {
     expect(result.error.kind).toBe("missing-peer");
   });
 
-  it("never becomes a peer candidate — installed add-ons don't affect slot resolution", () => {
-    // A manifest where the testing category is populated must not change how a
-    // slot module (better-auth) resolves: add-ons aren't in KNOWN_SLOTS, so
-    // activePeerIds never surfaces them.
+  it("never becomes a peer candidate — multi-choice categories don't affect resolution", () => {
+    // A manifest where the (many-cardinality) testing category is populated must
+    // not change how a one-cardinality module (better-auth) resolves: only
+    // PEER_CATEGORIES surface in activePeerIds.
     const manifest = {
       ...emptyManifest({ name: "t" }),
-      addons: { testing: [{ id: "vitest", version: "0.1.0", adapter: "next" }] },
+      modules: { testing: [{ id: "vitest", version: "0.1.0", adapter: "next" }] },
     };
     const result = resolveAdapter(betterAuth, { manifest, pending: {} });
     expect(result.ok).toBe(false);
     assert(!result.ok);
-    // Still missing-peer for orm — the add-on did not satisfy or interfere.
+    // Still missing-peer for orm — the testing pick did not satisfy or interfere.
     expect(result.error.kind).toBe("missing-peer");
   });
 });

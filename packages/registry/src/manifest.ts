@@ -1,14 +1,8 @@
 import { z } from "zod";
 
-import {
-  type AddonCategoryId,
-  KNOWN_ADDONS,
-  KNOWN_SLOTS,
-  type ModuleId,
-  type SlotId,
-} from "./module";
+import { type CategoryId, KNOWN_CATEGORIES, type ModuleId } from "./module";
 
-export const CURRENT_MANIFEST_VERSION = "0.1" as const;
+export const CURRENT_MANIFEST_VERSION = "0.2" as const;
 
 /** Canonical public URL of the published `stanza.json` JSON Schema. */
 export const MANIFEST_SCHEMA_URL = "https://stanza.tools/schema.json";
@@ -20,17 +14,7 @@ export type StanzaModuleRecord = {
    * `swap` and `update` verbs can read it; not consumed yet.
    */
   version: string;
-  /** Adapter key chosen at install time (function of peer slots). */
-  adapter: string;
-};
-
-/**
- * One installed add-on. Same shape as `StanzaModuleRecord`, but stored in a
- * per-category array (a category holds 0..n) rather than one-per-slot.
- */
-export type StanzaAddonRecord = {
-  id: ModuleId;
-  version: string;
+  /** Adapter key chosen at install time (function of peer categories). */
   adapter: string;
 };
 
@@ -54,9 +38,11 @@ export type StanzaManifest = {
   name: string;
   /** Path of the primary web/native app inside the monorepo. */
   appDir: string;
-  modules: Partial<Record<SlotId, StanzaModuleRecord>>;
-  /** Multi-choice add-ons, keyed by category. Each category holds 0..n records. */
-  addons: Partial<Record<AddonCategoryId, StanzaAddonRecord[]>>;
+  /**
+   * Installed modules, keyed by category. Each category holds an array;
+   * `cardinality: "one"` categories are enforced to length ≤ 1 at install time.
+   */
+  modules: Partial<Record<CategoryId, StanzaModuleRecord[]>>;
   regions: RegionOwnership;
 };
 
@@ -67,30 +53,18 @@ export const StanzaManifestSchema = z.object({
   packageManager: z.enum(["pnpm", "bun", "npm"]),
   name: z.string(),
   appDir: z.string(),
-  // Zod 4: `z.record` over a finite key type requires all keys to be present.
-  // We want partial — not every slot needs to be filled — so use partialRecord.
+  // Zod 4: partialRecord because not every category is filled. Every category
+  // holds an array (single-choice categories carry 0 or 1 records).
   modules: z.partialRecord(
-    z.enum(KNOWN_SLOTS),
-    z.object({
-      id: z.string(),
-      version: z.string(),
-      adapter: z.string(),
-    }),
+    z.enum(KNOWN_CATEGORIES),
+    z.array(
+      z.object({
+        id: z.string(),
+        version: z.string(),
+        adapter: z.string(),
+      }),
+    ),
   ),
-  // `.default({})` keeps pre-add-on `stanza.json` files (which have no `addons`
-  // key) valid — they parse to an empty record.
-  addons: z
-    .partialRecord(
-      z.enum(KNOWN_ADDONS),
-      z.array(
-        z.object({
-          id: z.string(),
-          version: z.string(),
-          adapter: z.string(),
-        }),
-      ),
-    )
-    .default({}),
   regions: z.record(z.string(), z.record(z.string(), z.string())),
 }) satisfies z.ZodType<StanzaManifest>;
 
@@ -107,9 +81,21 @@ export function emptyManifest(input: {
     name: input.name,
     appDir: input.appDir ?? "apps/web",
     modules: {},
-    addons: {},
     regions: {},
   };
+}
+
+/** The single installed record for a category, or `undefined`. For `cardinality: "one"`. */
+export function selectedOne(
+  manifest: StanzaManifest,
+  category: CategoryId,
+): StanzaModuleRecord | undefined {
+  return manifest.modules[category]?.[0];
+}
+
+/** All installed records for a category (empty when none). */
+export function selectedAll(manifest: StanzaManifest, category: CategoryId): StanzaModuleRecord[] {
+  return manifest.modules[category] ?? [];
 }
 
 /**

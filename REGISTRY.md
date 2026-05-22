@@ -1,32 +1,36 @@
 # First-party module registry
 
 This is the canonical roadmap for the first-party modules stanza ships. Each
-entry maps to a `registry/modules/<slot>-<id>/` directory. Update this file
+entry maps to a `registry/modules/<category>-<id>/` directory. Update this file
 when a module lands, gets renamed, or is dropped.
 
 Legend: `[x]` added · `[ ]` planned
 
-## Categories: slots vs add-ons
+## Categories
 
-Stanza's module taxonomy splits into two categories. **Slots** are
-single-choice and constrain other modules' adapter dispatch (picking
-Next.js influences which auth adapters are available). **Add-ons** can
-coexist freely and don't influence anyone else's adapters (vitest doesn't
-constrain anything).
+Every module fills exactly one **category**. A category has two independent,
+explicit properties (`CATEGORIES` in [`module.ts`](packages/registry/src/module.ts)):
 
-| Category                                        | Type                                                                                  | Examples                                  |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `tooling`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma |
-| **Add-ons** (no constraints, many allowed)      | `testing`, `deploy`, `email`, `monorepo`                                              | vitest + playwright together              |
+- **`cardinality`** — `"one"` (single-choice: framework, auth) or `"many"`
+  (coexisting: testing, deploy). This is the only thing that decides single- vs
+  multi-select in the wizard/web and length in the manifest.
+- **`home`** — where the module's output lands: `app` (manifest.appDir), `repo`
+  (monorepo root), or `package` (`packages/<dir>/`).
 
-The add-on schema is **live** as of the `testing` modules. Add-ons are
-modeled with a `kind: "addon"` discriminator on `Module` (carrying a
-`category` instead of a `slot`) and a `manifest.addons` record keyed by
-category, each holding a list of records (`Partial<Record<AddonCategoryId,
-StanzaAddonRecord[]>>`). Add-on categories live in `KNOWN_ADDONS` /
-`ADDON_CATEGORIES`, deliberately disjoint from `KNOWN_SLOTS` so they never
-participate in peer resolution — yet they can still declare a one-way
-`peers` (e.g. `{ framework: [...] }`) and framework-varying adapters.
+Constraint-bearing is **emergent**, not a category property: a category is a
+peer candidate only if some module declares `peers`/`match` against it, and the
+resolver only treats `cardinality: "one"` categories as peers (`PEER_CATEGORIES`).
+
+| Cardinality        | Categories                                                                            | Examples                                  |
+| ------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **one** (single)   | `framework`, `styling`, `db`, `orm`, `auth`, `tooling`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma |
+| **many** (coexist) | `testing`, `deploy`, `email`, `monorepo`                                              | vitest + playwright together              |
+
+A `Module` carries a single `category` field (no `kind`/`slot`/`category`
+discriminator). The manifest stores everything in one `modules` record keyed by
+category, each holding an array (`Partial<Record<CategoryId,
+StanzaModuleRecord[]>>`); `cardinality: "one"` categories are kept to ≤ 1 record
+at install time. `selectedOne`/`selectedAll` read it ergonomically.
 
 ## framework
 
@@ -83,13 +87,13 @@ _New **slot** (single-choice, constraint-bearing)._ In addition to adding exampl
 
 ## email
 
-_New **add-on** (multi-allowed, no constraints)._
+_`cardinality: many`, app-scoped._
 
 - [ ] **resend** — Resend SDK + React Email templates
 
 ## tooling
 
-_**Slot** (single-choice)._ Lint/format toolchain. Modeled as a slot rather than an add-on because the three toolchains are mutually exclusive substitutes — you run one, not several. It bears no _outbound_ dispatch constraints (nothing peers on `tooling`) but consumes a `framework` peer where the config varies.
+_`cardinality: one`, repo-scoped._ Lint/format toolchain — single-choice because the three toolchains are mutually exclusive substitutes. Bears no _outbound_ dispatch constraints (nothing peers on `tooling`) but consumes a `framework` peer where the config varies.
 
 - [x] **eslint-prettier** — ESLint flat config + Prettier; per-framework adapters (next, tanstack-start)
 - [x] **biome** — Biome (lint + format), framework-agnostic
@@ -97,14 +101,14 @@ _**Slot** (single-choice)._ Lint/format toolchain. Modeled as a slot rather than
 
 ## testing
 
-_New **add-on**._ Vitest and Playwright are independent and routinely coexist.
+_`cardinality: many`, app-scoped._ Vitest and Playwright are independent and routinely coexist.
 
 - [x] **vitest** — unit + integration; per-framework adapters (next, tanstack-start), `jsdom` + RTL, `test`/`test:watch` scripts
 - [x] **playwright** — e2e; per-framework `webServer` (`next dev` / `vite dev`), `test:e2e`/`test:e2e:ui` scripts (disjoint from vitest's)
 
 ## deploy
 
-_New **slot**._
+_`cardinality: many`, repo-scoped._
 
 - [ ] **vercel** — `vercel.json` + framework-specific output, add the nitro vite plugin for tanstack start
 - [ ] **cloudflare** — Workers / Pages adapter per framework
@@ -113,7 +117,7 @@ _New **slot**._
 
 ## monorepo
 
-_Currently hardcoded in `bootstrapShell` as Turborepo. Promotes to an **add-on** when a second option (Nx, Moonrepo) lands._
+_`cardinality: many`, repo-scoped. Currently hardcoded in `bootstrapShell` as Turborepo; becomes a real category when a second option (Nx, Moonrepo) lands._
 
 - [x] **turborepo** — Turbo 2.x (current default; not yet a configurable choice)
 
@@ -126,18 +130,16 @@ _Not a slot — a top-level field in `stanza.json` (`packageManager: "pnpm" | "b
 - [x] npm
 - [ ] yarn — needs lockfile/workspace handling that differs from the others
 
-## Slot-package extraction
+## Install homes (package extraction)
 
-Generated projects place each slot's output in one of three homes:
+A category's `home` places its modules' output in one of three places:
 
-- **App-scoped** (`framework`, `styling`) — files land in `manifest.appDir` (e.g. `apps/web/`). These slots wire the app shell itself, so there's no useful extraction boundary.
-- **Package-scoped** (`auth`, `db`, `orm`) — files land in `packages/<dir>/`, named `@<manifest.name>/<dir>`, and the app gets a `workspace:*` dep. `db` and `orm` share a single `packages/db/` package so the ORM client sits next to the schema it queries.
-- **Repo-scoped** (`tooling`) — config files land at the repo root and scripts/devDeps merge into the root `package.json`, because one lint/format config governs every workspace.
+- **`app`** (`framework`, `styling`, `testing`, `email`) — files land in `manifest.appDir` (e.g. `apps/web/`). For categories that wire the app shell or test it.
+- **`package`** (`auth`, `db`, `orm`) — files land in `packages/<dir>/`, named `@<manifest.name>/<dir>`, and the app gets a `workspace:*` dep. `db` and `orm` share a single `packages/db/` package so the ORM client sits next to the schema it queries.
+- **`repo`** (`tooling`, `deploy`, `monorepo`) — config files land at the repo root and scripts/devDeps merge into the root `package.json`, because one config governs every workspace.
 
-The mapping lives in the canonical [`SLOTS`](packages/registry/src/module.ts) array: `packageDir` (non-null → package-scoped) and `repoScoped` (true → repo root). `SLOT_PACKAGE_DIR` / `SLOT_REPO_SCOPED` are `Record<SlotId, ...>` views derived from it. When you add a new slot, decide whether it extracts (data layer, payments → `packageDir`), wires the shell (router, global CSS → app), or governs the whole repo (lint/format → `repoScoped`).
+The mapping lives in the canonical [`CATEGORIES`](packages/registry/src/module.ts) array as the `home` tagged union. `categoryHome(id)` and `PACKAGE_DIRS` are derived views. When adding a category, pick the home that matches: data layer/payments → `package`; app shell/router → `app`; repo-wide tooling → `repo`.
 
-## Slot taxonomy changes required
+## Adding a category
 
-Adding a new slot is now a **one-line edit**: append a `Slot` entry to `SLOTS` with `{ id, label, description, packageDir }` (plus `repoScoped: true` for repo-wide tooling). `SlotId` and `KNOWN_SLOTS` are derived from `SLOTS`, so there's nothing else to keep in sync. Order is topological — earlier slots become peer candidates for later ones. Existing `stanza.json` files don't break: new slots are optional, so adding them is additive.
-
-Adding an add-on **category** is the same one-line edit against `ADDON_CATEGORIES` (`AddonCategoryId` + `KNOWN_ADDONS` derive from it). Authoring an add-on **module** sets `kind: "addon"` + `category` (instead of `slot`) on `defineModule`; the manifest's `addons` record and the runner/CLI/web surfaces already handle multi-choice. See the category table at the top of this file for which planned modules are add-ons vs slots.
+A **one-line edit**: append a `Category` entry to `CATEGORIES` with `{ id, label, description, cardinality, home }`. `CategoryId`, `KNOWN_CATEGORIES`, `PEER_CATEGORIES`, and `PACKAGE_DIRS` all derive from it — nothing else to keep in sync. Order is topological: a category must appear after every category it can peer on, and `many` (leaf) categories come last. Authoring a **module** sets a single `category` field on `defineModule`; the runner/CLI/web handle single- vs multi-choice off the category's `cardinality`. Existing `stanza.json` files don't break (new categories are optional).

@@ -6,7 +6,7 @@ import {
   DEFAULT_NAME,
   parseSelections,
   pruneUnresolved,
-  resolveSelectedAdapters,
+  resolveSelected,
   selectedFiles,
   toSearchParams,
 } from "./selection";
@@ -18,33 +18,26 @@ describe("parseSelections", () => {
     expect(selections).toEqual({});
   });
 
-  it("preserves recognized slot keys and ignores unknown keys", () => {
+  it("preserves recognized category keys and ignores unknown keys", () => {
     const { name, selections } = parseSelections({
       name: "my-thing",
       framework: "next",
       orm: "drizzle",
-      // @ts-expect-error unknown slot — should be silently dropped
+      // @ts-expect-error unknown category — should be silently dropped
       flooble: "ignored",
     });
     expect(name).toBe("my-thing");
-    expect(selections).toEqual({ framework: "next", orm: "drizzle" });
+    expect(selections).toEqual({ framework: ["next"], orm: ["drizzle"] });
   });
 
-  it("drops empty string slot values", () => {
+  it("splits comma-joined multi-choice categories into id lists", () => {
+    const { selections } = parseSelections({ testing: "vitest,playwright" });
+    expect(selections.testing).toEqual(["vitest", "playwright"]);
+  });
+
+  it("drops empty category values", () => {
     const { selections } = parseSelections({ framework: "" });
     expect(selections.framework).toBeUndefined();
-  });
-});
-
-describe("parseSelections — add-ons", () => {
-  it("splits comma-joined add-on categories into id lists", () => {
-    const { addons } = parseSelections({ testing: "vitest,playwright" });
-    expect(addons.testing).toEqual(["vitest", "playwright"]);
-  });
-
-  it("drops empty add-on categories", () => {
-    const { addons } = parseSelections({ testing: "" });
-    expect(addons.testing).toBeUndefined();
   });
 });
 
@@ -52,18 +45,16 @@ describe("toSearchParams", () => {
   it("round-trips a populated state", () => {
     const input = {
       name: "my-app",
-      selections: { framework: "next" as const, orm: "drizzle" as const },
-      addons: {},
+      selections: { framework: ["next"], orm: ["drizzle"] },
     };
     const search = toSearchParams(input);
     expect(parseSelections(search)).toEqual(input);
   });
 
-  it("round-trips add-on selections as comma-joined params", () => {
+  it("round-trips multi-choice selections as comma-joined params", () => {
     const input = {
       name: DEFAULT_NAME,
-      selections: { framework: "next" as const },
-      addons: { testing: ["vitest", "playwright"] },
+      selections: { framework: ["next"], testing: ["vitest", "playwright"] },
     };
     const search = toSearchParams(input);
     expect(search.testing).toBe("vitest,playwright");
@@ -80,17 +71,16 @@ describe("buildCommand", () => {
     expect(
       buildCommand({
         name: "my-app",
-        selections: { framework: "next", db: "sqlite" },
+        selections: { framework: ["next"], db: ["sqlite"] },
       }),
     ).toBe("pnpm create stanza my-app --framework=next --db=sqlite");
   });
 
-  it("appends add-on flags after slot flags", () => {
+  it("emits multi-choice flags as comma-joined ids", () => {
     expect(
       buildCommand({
         name: "my-app",
-        selections: { framework: "next" },
-        addons: { testing: ["vitest", "playwright"] },
+        selections: { framework: ["next"], testing: ["vitest", "playwright"] },
       }),
     ).toBe("pnpm create stanza my-app --framework=next --testing=vitest,playwright");
   });
@@ -100,13 +90,13 @@ describe("buildCommand", () => {
   });
 
   it("uses the chosen package manager as the prefix", () => {
-    expect(buildCommand({ name: "my-app", selections: { framework: "next" }, pm: "bun" })).toBe(
+    expect(buildCommand({ name: "my-app", selections: { framework: ["next"] }, pm: "bun" })).toBe(
       "bun create stanza my-app --framework=next",
     );
   });
 
   it("inserts a -- separator before flags for npm", () => {
-    expect(buildCommand({ name: "my-app", selections: { framework: "next" }, pm: "npm" })).toBe(
+    expect(buildCommand({ name: "my-app", selections: { framework: ["next"] }, pm: "npm" })).toBe(
       "npm create stanza my-app -- --framework=next",
     );
   });
@@ -121,7 +111,7 @@ describe("buildCommand", () => {
 describe("selectedFiles", () => {
   const drizzle: Module = defineModule({
     id: "drizzle",
-    slot: "orm",
+    category: "orm",
     label: "Drizzle",
     description: "",
     version: "0.1.0",
@@ -130,16 +120,15 @@ describe("selectedFiles", () => {
         key: "default",
         match: {},
         templates: [
-          { src: "schema.ts", dest: "src/db/schema.ts", scope: "app" },
-          { src: "drizzle.config.ts", dest: "drizzle.config.ts", scope: "app" },
+          { src: "schema.ts", dest: "src/index.ts", scope: "package" },
+          { src: "drizzle.config.ts", dest: "drizzle.config.ts", scope: "package" },
         ],
       },
     ],
   });
 
-  it("prefixes scope:app with the active app dir and leaves scope:repo bare", () => {
+  it("routes scope:package to packages/<dir> and scope:repo bare", () => {
     const adapter = drizzle.adapters[0]!;
-    // Add a repo-scoped template to the same fixture
     const adapterWithRepo = {
       ...adapter,
       templates: [
@@ -148,19 +137,19 @@ describe("selectedFiles", () => {
       ],
     };
     const files = selectedFiles({
-      orm: { module: drizzle, adapter: adapterWithRepo },
+      orm: [{ module: drizzle, adapter: adapterWithRepo }],
     });
     expect(files.map((f) => f.path)).toEqual([
-      "apps/web/src/db/schema.ts",
-      "apps/web/drizzle.config.ts",
+      "packages/db/src/index.ts",
+      "packages/db/drizzle.config.ts",
       "turbo.json",
     ]);
   });
 
-  it("groups files by slot order", () => {
+  it("groups files by category order", () => {
     const framework: Module = defineModule({
       id: "next",
-      slot: "framework",
+      category: "framework",
       label: "Next.js",
       description: "",
       version: "0.1.0",
@@ -173,16 +162,15 @@ describe("selectedFiles", () => {
       ],
     });
     const files = selectedFiles({
-      orm: { module: drizzle, adapter: drizzle.adapters[0]! },
-      framework: { module: framework, adapter: framework.adapters[0]! },
+      orm: [{ module: drizzle, adapter: drizzle.adapters[0]! }],
+      framework: [{ module: framework, adapter: framework.adapters[0]! }],
     });
-    // framework comes before orm in slotOrder, so its files should appear first
+    // framework comes before orm in categoryOrder, so its files appear first.
     expect(files[0]!.path).toBe("apps/web/app/layout.tsx");
   });
 
-  it("appends add-on templates after slot templates", () => {
+  it("emits multi-choice templates after one-choice templates", () => {
     const vitest: Module = defineModule({
-      kind: "addon",
       id: "vitest",
       category: "testing",
       label: "Vitest",
@@ -196,21 +184,20 @@ describe("selectedFiles", () => {
         },
       ],
     });
-    const files = selectedFiles(
-      { orm: { module: drizzle, adapter: drizzle.adapters[0]! } },
-      { testing: [{ module: vitest, adapter: vitest.adapters[0]! }] },
-    );
-    // Slot files come first, the add-on's config last.
+    const files = selectedFiles({
+      orm: [{ module: drizzle, adapter: drizzle.adapters[0]! }],
+      testing: [{ module: vitest, adapter: vitest.adapters[0]! }],
+    });
     expect(files.at(-1)!.path).toBe("apps/web/vitest.config.ts");
-    expect(files.at(-1)!.owner.group).toBe("testing");
+    expect(files.at(-1)!.owner.category).toBe("testing");
   });
 });
 
-describe("resolveSelectedAdapters", () => {
+describe("resolveSelected", () => {
   it("picks the adapter whose match aligns with active peers", () => {
     const drizzleMod: Module = defineModule({
       id: "drizzle",
-      slot: "orm",
+      category: "orm",
       label: "Drizzle",
       description: "",
       version: "0.1.0",
@@ -222,7 +209,7 @@ describe("resolveSelectedAdapters", () => {
     });
     const postgresMod: Module = defineModule({
       id: "postgres",
-      slot: "db",
+      category: "db",
       label: "Postgres",
       description: "",
       version: "0.1.0",
@@ -232,16 +219,16 @@ describe("resolveSelectedAdapters", () => {
       "orm:drizzle": drizzleMod,
       "db:postgres": postgresMod,
     };
-    const out = resolveSelectedAdapters(modules, { orm: "drizzle", db: "postgres" });
-    expect(out.orm?.adapter.key).toBe("postgres");
-    expect(out.db?.adapter.key).toBe("default");
+    const out = resolveSelected(modules, { orm: ["drizzle"], db: ["postgres"] });
+    expect(out.orm?.[0]?.adapter.key).toBe("postgres");
+    expect(out.db?.[0]?.adapter.key).toBe("default");
   });
 });
 
 describe("pruneUnresolved", () => {
   const postgres: Module = defineModule({
     id: "postgres",
-    slot: "db",
+    category: "db",
     label: "Postgres",
     description: "",
     version: "0.1.0",
@@ -249,7 +236,7 @@ describe("pruneUnresolved", () => {
   });
   const drizzle: Module = defineModule({
     id: "drizzle",
-    slot: "orm",
+    category: "orm",
     label: "Drizzle",
     description: "",
     version: "0.1.0",
@@ -258,14 +245,13 @@ describe("pruneUnresolved", () => {
   });
   const next: Module = defineModule({
     id: "next",
-    slot: "framework",
+    category: "framework",
     label: "Next.js",
     description: "",
     version: "0.1.0",
     adapters: [{ key: "default", match: {} }],
   });
   const vitest: Module = defineModule({
-    kind: "addon",
     id: "vitest",
     category: "testing",
     label: "Vitest",
@@ -281,34 +267,31 @@ describe("pruneUnresolved", () => {
     "testing:vitest": vitest,
   };
 
-  it("drops a slot whose peer is missing", () => {
-    const { selections } = pruneUnresolved(modules, { orm: "drizzle" }, {});
-    expect(selections).toEqual({});
+  it("drops a category whose peer is missing", () => {
+    expect(pruneUnresolved(modules, { orm: ["drizzle"] })).toEqual({});
   });
 
-  it("keeps a slot once its peer is present", () => {
-    const { selections } = pruneUnresolved(modules, { orm: "drizzle", db: "postgres" }, {});
-    expect(selections).toEqual({ orm: "drizzle", db: "postgres" });
+  it("keeps a category once its peer is present", () => {
+    expect(pruneUnresolved(modules, { orm: ["drizzle"], db: ["postgres"] })).toEqual({
+      orm: ["drizzle"],
+      db: ["postgres"],
+    });
   });
 
-  it("drops an add-on whose framework peer is missing", () => {
-    const { addons } = pruneUnresolved(modules, {}, { testing: ["vitest"] });
-    expect(addons).toEqual({});
+  it("drops a multi-choice module whose framework peer is missing", () => {
+    expect(pruneUnresolved(modules, { testing: ["vitest"] })).toEqual({});
   });
 
-  it("keeps an add-on once its framework peer is present", () => {
-    const { selections, addons } = pruneUnresolved(
-      modules,
-      { framework: "next" },
-      { testing: ["vitest"] },
-    );
-    expect(selections).toEqual({ framework: "next" });
-    expect(addons).toEqual({ testing: ["vitest"] });
+  it("keeps a multi-choice module once its framework peer is present", () => {
+    expect(pruneUnresolved(modules, { framework: ["next"], testing: ["vitest"] })).toEqual({
+      framework: ["next"],
+      testing: ["vitest"],
+    });
   });
 
   it("cascades: dropping db strands orm and its dependents in one call", () => {
-    // orm depends on db; remove db and orm must go too, leaving only framework.
-    const { selections } = pruneUnresolved(modules, { framework: "next", orm: "drizzle" }, {});
-    expect(selections).toEqual({ framework: "next" });
+    expect(pruneUnresolved(modules, { framework: ["next"], orm: ["drizzle"] })).toEqual({
+      framework: ["next"],
+    });
   });
 });

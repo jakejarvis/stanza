@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "sqlite",
-  slot: "db",
+  category: "db",
   label: "SQLite",
   description: "Local SQLite via better-sqlite3. Zero-config for development.",
   version: "0.1.0",

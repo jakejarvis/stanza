@@ -1,15 +1,12 @@
 import * as p from "@clack/prompts";
-import type { AddonCategoryId, Module, RegistryIndex, SlotId } from "@stanza/registry";
+import type { CategoryId, Module, RegistryIndex } from "@stanza/registry";
 import {
-  addonLabel,
-  addonOrder,
+  categoryLabel,
+  categoryOrder,
   emptyManifest,
-  KNOWN_ADDONS,
-  KNOWN_SLOTS,
-  moduleGroup,
+  isMulti,
+  KNOWN_CATEGORIES,
   resolveAdapter,
-  slotLabel,
-  slotOrder,
 } from "@stanza/registry";
 import pc from "picocolors";
 
@@ -19,9 +16,8 @@ export type WizardResult = {
   name: string;
   appDir: string;
   packageManager: "pnpm" | "bun" | "npm";
-  modules: Partial<Record<SlotId, Module>>;
-  /** Multi-choice add-ons, keyed by category. Applied after all slots. */
-  addons: Partial<Record<AddonCategoryId, Module[]>>;
+  /** Chosen modules, keyed by category. Single-choice categories hold one. */
+  selections: Partial<Record<CategoryId, Module[]>>;
 };
 
 /**
@@ -32,21 +28,18 @@ export type WizardResult = {
 export type WizardOverrides = {
   name?: string;
   packageManager?: "pnpm" | "bun" | "npm";
-  /** Slot → module id. Missing slots are skipped, not defaulted. */
-  modules: Partial<Record<SlotId, string>>;
-  /** Category → module ids (comma-separated on the CLI). Empty = none. */
-  addons?: Partial<Record<AddonCategoryId, string[]>>;
+  /** Category → module ids (comma-separated on the CLI). Missing = skipped. */
+  selections: Partial<Record<CategoryId, string[]>>;
 };
 
 /**
- * Run the interactive `stanza init` wizard. Topological prompt order (defined
- * by slotOrder); slots that don't have any compatible modules given prior
- * picks are skipped. Returns the user's selections.
+ * Run the interactive `stanza init` wizard. Topological prompt order
+ * (`categoryOrder`); categories with no compatible modules given prior picks
+ * are skipped. Single-choice categories prompt a `select`; multi-choice ones a
+ * `multiselect`. Returns the user's selections.
  *
- * When `overrides` is provided, the wizard runs in non-interactive mode:
- * picks come from `overrides` instead of prompts. Invalid picks (unknown
- * module id, resolver rejection) cause the function to log an error and
- * return null — mirroring the cancel path.
+ * When `overrides` is provided, the wizard runs non-interactively: picks come
+ * from `overrides`. Invalid picks log an error and return null.
  */
 export async function runInitWizard(args: {
   registry: Registry;
@@ -70,53 +63,42 @@ export async function runInitWizard(args: {
     return null;
   }
 
-  const modules: Partial<Record<SlotId, Module>> = {};
+  const selections: Partial<Record<CategoryId, Module[]>> = {};
+  // One-cardinality picks double as the peer context for later categories.
+  const pending: Partial<Record<CategoryId, Module>> = {};
 
-  for (const slot of slotOrder) {
-    const candidates = candidatesForSlot(registry.index, slot, modules);
-    if (candidates.length === 0) {
-      continue;
-    }
-
-    const choices = candidates.map((m) => ({
-      value: m.id,
-      label: m.label,
-      hint: m.description,
-    }));
-
-    const choice = await p.select({
-      message: `${slotLabel(slot)}?`,
-      options: [...choices, { value: "__skip__", label: pc.dim("Skip this slot") }],
-    });
-    if (p.isCancel(choice)) {
-      p.cancel("Cancelled.");
-      return null;
-    }
-    if (choice === "__skip__") continue;
-
-    const full = await registry.loadModule(slot, choice as string);
-    modules[slot] = full;
-  }
-
-  // Add-on phase — multi-choice per category, processed after slots so the
-  // framework pick is available for peer-filtering.
-  const addons: Partial<Record<AddonCategoryId, Module[]>> = {};
-  for (const category of addonOrder) {
-    const candidates = addonCandidates(registry.index, category, modules);
+  for (const category of categoryOrder) {
+    const candidates = candidatesFor(registry.index, category, pending);
     if (candidates.length === 0) continue;
 
-    const picks = await p.multiselect({
-      message: `${addonLabel(category)}? ${pc.dim("(space to toggle, enter to confirm)")}`,
-      options: candidates.map((m) => ({ value: m.id, label: m.label, hint: m.description })),
-      required: false,
-    });
-    if (p.isCancel(picks)) {
-      p.cancel("Cancelled.");
-      return null;
+    if (isMulti(category)) {
+      const picks = await p.multiselect({
+        message: `${categoryLabel(category)}? ${pc.dim("(space to toggle, enter to confirm)")}`,
+        options: candidates.map((m) => ({ value: m.id, label: m.label, hint: m.description })),
+        required: false,
+      });
+      if (p.isCancel(picks)) {
+        p.cancel("Cancelled.");
+        return null;
+      }
+      const ids = picks as string[];
+      if (ids.length === 0) continue;
+      selections[category] = await Promise.all(ids.map((id) => registry.loadModule(category, id)));
+    } else {
+      const choices = candidates.map((m) => ({ value: m.id, label: m.label, hint: m.description }));
+      const choice = await p.select({
+        message: `${categoryLabel(category)}?`,
+        options: [...choices, { value: "__skip__", label: pc.dim("Skip") }],
+      });
+      if (p.isCancel(choice)) {
+        p.cancel("Cancelled.");
+        return null;
+      }
+      if (choice === "__skip__") continue;
+      const full = await registry.loadModule(category, choice as string);
+      selections[category] = [full];
+      pending[category] = full;
     }
-    const ids = picks as string[];
-    if (ids.length === 0) continue;
-    addons[category] = await Promise.all(ids.map((id) => registry.loadModule(category, id)));
   }
 
   const pmChoice = await p.select({
@@ -134,21 +116,18 @@ export async function runInitWizard(args: {
   }
 
   // Summary screen — what we're about to write.
-  const addonRows = Object.entries(addons).flatMap(([category, mods]) =>
-    (mods ?? []).map(
-      (mod) =>
-        `${pc.bold(addonLabel(category as AddonCategoryId).padEnd(16))} ${mod.label} ${pc.dim(`(${mod.id})`)}`,
-    ),
+  const rows = (Object.entries(selections) as [CategoryId, Module[]][]).flatMap(
+    ([category, mods]) =>
+      mods.map(
+        (mod) =>
+          `${pc.bold(categoryLabel(category).padEnd(16))} ${mod.label} ${pc.dim(`(${mod.id})`)}`,
+      ),
   );
   const summary = [
     `${pc.bold("Name:")}            ${String(name)}`,
     `${pc.bold("Package manager:")} ${String(pmChoice)}`,
     "",
-    ...Object.entries(modules).map(
-      ([slot, mod]) =>
-        `${pc.bold(slotLabel(slot as SlotId).padEnd(16))} ${mod!.label} ${pc.dim(`(${mod!.id})`)}`,
-    ),
-    ...addonRows,
+    ...rows,
   ].join("\n");
   p.note(summary, "Summary");
 
@@ -162,47 +141,32 @@ export async function runInitWizard(args: {
     name: String(name),
     appDir: "apps/web",
     packageManager: pmChoice as "pnpm" | "bun" | "npm",
-    modules,
-    addons,
+    selections,
   };
 }
 
-function candidatesForSlot(
-  index: RegistryIndex,
-  slot: SlotId,
-  picked: Partial<Record<SlotId, Module>>,
-): RegistryIndex["modules"] {
-  const manifest = emptyManifest({ name: "tmp" });
-  return index.modules
-    .filter((m) => moduleGroup(m) === slot)
-    .filter((m) => peerCheckOk(m, manifest, picked));
-}
-
 /**
- * Add-ons in `category` that are compatible with the chosen slot modules.
- * Same peer-check trick as `candidatesForSlot`, but filters on `category` and
- * resolves against the already-picked slot modules (so a framework-gated
- * add-on like vitest only shows once a framework is chosen).
+ * Modules in `category` compatible with the chosen one-cardinality picks.
+ * Peer-checks each candidate against `pending` so e.g. a framework-gated
+ * module only shows once a framework is chosen.
  */
-function addonCandidates(
+function candidatesFor(
   index: RegistryIndex,
-  category: AddonCategoryId,
-  pickedSlots: Partial<Record<SlotId, Module>>,
+  category: CategoryId,
+  pending: Partial<Record<CategoryId, Module>>,
 ): RegistryIndex["modules"] {
   const manifest = emptyManifest({ name: "tmp" });
   return index.modules
-    .filter((m) => moduleGroup(m) === category)
-    .filter((m) => peerCheckOk(m, manifest, pickedSlots));
+    .filter((m) => m.category === category)
+    .filter((m) => peerCheckOk(m, manifest, pending));
 }
 
 function peerCheckOk(
   m: RegistryIndex["modules"][number],
   manifest: ReturnType<typeof emptyManifest>,
-  pending: Partial<Record<SlotId, Module>>,
+  pending: Partial<Record<CategoryId, Module>>,
 ): boolean {
-  // Use the resolver with summary adapters — we only need the peer check, not
-  // the full adapter selection. Build a temp Module with empty adapter bodies
-  // just to validate peers.
+  // Use the resolver with summary adapters — we only need the peer check.
   const synthetic = { ...m, adapters: m.adapters.map((a) => ({ ...a })) } as Module;
   return resolveAdapter(synthetic, { manifest, pending }).ok;
 }
@@ -220,28 +184,18 @@ async function runNonInteractive(args: {
   }
 
   const manifest = emptyManifest({ name: "tmp" });
-  const modules: Partial<Record<SlotId, Module>> = {};
-  for (const slot of slotOrder) {
-    const moduleId = overrides.modules[slot];
-    if (!moduleId) continue;
-    const mod = await registry.loadModule(slot, moduleId).catch(() => null);
-    if (!mod) {
-      p.log.error(`Module not found: ${slot}/${moduleId}`);
-      return null;
-    }
-    const result = resolveAdapter(mod, { manifest, pending: modules });
-    if (!result.ok) {
-      p.log.error(`Cannot use ${slot}/${moduleId}: ${result.error.kind} (check peer slots).`);
-      return null;
-    }
-    modules[slot] = mod;
-  }
+  const selections: Partial<Record<CategoryId, Module[]>> = {};
+  const pending: Partial<Record<CategoryId, Module>> = {};
 
-  // Add-ons resolve against the chosen slot modules (framework now present).
-  const addons: Partial<Record<AddonCategoryId, Module[]>> = {};
-  for (const category of addonOrder) {
-    const ids = overrides.addons?.[category];
+  for (const category of categoryOrder) {
+    const ids = overrides.selections[category];
     if (!ids?.length) continue;
+    if (!isMulti(category) && ids.length > 1) {
+      p.log.error(
+        `Category "${category}" is single-choice — pass only one id, got: ${ids.join(", ")}.`,
+      );
+      return null;
+    }
     const loaded: Module[] = [];
     for (const id of ids) {
       const mod = await registry.loadModule(category, id).catch(() => null);
@@ -249,27 +203,24 @@ async function runNonInteractive(args: {
         p.log.error(`Module not found: ${category}/${id}`);
         return null;
       }
-      const result = resolveAdapter(mod, { manifest, pending: modules });
+      const result = resolveAdapter(mod, { manifest, pending });
       if (!result.ok) {
-        p.log.error(`Cannot use ${category}/${id}: ${result.error.kind} (check peer slots).`);
+        p.log.error(`Cannot use ${category}/${id}: ${result.error.kind} (check peer categories).`);
         return null;
       }
       loaded.push(mod);
     }
-    addons[category] = loaded;
+    selections[category] = loaded;
+    if (!isMulti(category)) pending[category] = loaded[0]!;
   }
 
   return {
     name,
     appDir: "apps/web",
     packageManager: overrides.packageManager ?? "pnpm",
-    modules,
-    addons,
+    selections,
   };
 }
 
-/** Slot flag names accepted on the command line — one per known slot. */
-export const SLOT_FLAGS: readonly SlotId[] = KNOWN_SLOTS;
-
-/** Add-on category flag names accepted on the command line (comma-separated). */
-export const ADDON_FLAGS: readonly AddonCategoryId[] = KNOWN_ADDONS;
+/** Category flag names accepted on the command line (comma-separated values). */
+export const CATEGORY_FLAGS: readonly CategoryId[] = KNOWN_CATEGORIES;

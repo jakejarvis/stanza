@@ -2,7 +2,7 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "next",
-  slot: "framework",
+  category: "framework",
   label: "Next.js",
   description: "React framework with App Router, RSC, and edge runtime.",
   version: "0.1.0",

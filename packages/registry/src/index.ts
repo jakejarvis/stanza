@@ -1,13 +1,11 @@
 export type {
-  Slot,
-  SlotId,
-  AddonCategory,
-  AddonCategoryId,
+  Category,
+  CategoryId,
+  Cardinality,
+  InstallHome,
   ModuleId,
   PeerRequirement,
   Module,
-  SlotModule,
-  AddonModule,
   ModuleAdapter,
   ModuleSummary,
   RegistryIndex,
@@ -19,50 +17,39 @@ export type {
 } from "./module";
 export {
   defineModule,
-  isAddon,
-  moduleGroup,
-  KNOWN_SLOTS,
-  KNOWN_ADDONS,
-  SLOT_PACKAGE_DIR,
-  SLOT_REPO_SCOPED,
-  ADDON_PACKAGE_DIR,
-  SLOTS,
-  ADDON_CATEGORIES,
-  slotLabel,
-  addonLabel,
-  groupLabel,
+  CATEGORIES,
+  KNOWN_CATEGORIES,
+  PEER_CATEGORIES,
+  PACKAGE_DIRS,
+  categoryLabel,
+  categoryHome,
+  categoryCardinality,
+  isMulti,
 } from "./module";
 
-export type {
-  StanzaManifest,
-  StanzaModuleRecord,
-  StanzaAddonRecord,
-  RegionMap,
-  RegionOwnership,
-} from "./manifest";
+export type { StanzaManifest, StanzaModuleRecord, RegionMap, RegionOwnership } from "./manifest";
 export {
   StanzaManifestSchema,
   CURRENT_MANIFEST_VERSION,
   MANIFEST_SCHEMA_URL,
   emptyManifest,
+  selectedOne,
+  selectedAll,
   manifestJsonSchema,
 } from "./manifest";
 
 export type { ResolveContext, ResolveResult, ResolveError } from "./resolver";
-export { resolveAdapter, isCompatible, slotOrder, addonOrder } from "./resolver";
+export { resolveAdapter, isCompatible, categoryOrder } from "./resolver";
 
 export type {
   PackageManager,
   PackageJson,
   MergedInstallFields,
-  InstallHome,
   ResolvedEntry,
-  ResolvedSlots,
-  ResolvedAddons,
+  Resolved,
 } from "./package-json";
 export {
   mergeInstallFields,
-  installHome,
   installPackageJson,
   rootPackageJson,
   appPackageJsonBase,

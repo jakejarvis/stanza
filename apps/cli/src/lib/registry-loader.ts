@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Module, RegistryIndex } from "@stanza/registry";
-import { ADDON_CATEGORIES, SLOTS } from "@stanza/registry";
+import { CATEGORIES } from "@stanza/registry";
 
 /**
  * In dev (when running from the stanza monorepo), modules are imported
@@ -88,8 +88,7 @@ async function loadFsRegistry(rootDir: string): Promise<Registry> {
   const index: RegistryIndex = {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
-    slots: [...SLOTS],
-    addons: [...ADDON_CATEGORIES],
+    categories: [...CATEGORIES],
     modules: summaries,
   };
 
