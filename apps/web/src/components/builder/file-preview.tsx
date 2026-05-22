@@ -10,6 +10,29 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Preview } from "@/server/highlighter";
 
+// @pierre/trees' middle-truncate mashes both halves together with no visible
+// ellipsis when the content cell is narrow. Flatten it to a plain single-line
+// ellipsis instead.
+const TRUNCATE_FIX_CSS = `
+[data-item-section="content"] [data-truncate-group-container="middle"] {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+[data-item-section="content"] [data-truncate-group-container="middle"] * {
+  display: inline !important;
+  position: static !important;
+  height: auto !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+[data-item-section="content"] [data-truncate-group-container="middle"] [data-truncate-content="overflow"],
+[data-item-section="content"] [data-truncate-group-container="middle"] [data-truncate-marker-cell] {
+  display: none !important;
+}`;
+
 // Every ancestor directory of each file path, e.g. "a/b/c.ts" → ["a", "a/b"].
 function directoryPaths(paths: readonly string[]): string[] {
   const dirs = new Set<string>();
@@ -40,6 +63,7 @@ export function FilePreview({
   const { model } = useFileTree({
     paths: filePaths,
     search: false,
+    unsafeCSS: TRUNCATE_FIX_CSS,
   });
 
   // The parent's loader reruns on every selection change, handing us a fresh
