@@ -4,6 +4,7 @@
  * default export, writes:
  *   - dist/registry/index.json           — registry index (slot/module summaries)
  *   - dist/registry/modules/<slot>-<id>.json — per-module full manifests
+ *   - dist/schema.json                   — JSON Schema for stanza.json (served at the web root)
  *
  * The output directory is what gets uploaded to the CDN (Vercel) and what
  * the CLI's HTTP loader hits at runtime.
@@ -13,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Logo, Module, RegistryIndex } from "@stanza/registry";
-import { ADDON_CATEGORIES, isAddon, SLOTS } from "@stanza/registry";
+import { ADDON_CATEGORIES, isAddon, manifestJsonSchema, SLOTS } from "@stanza/registry";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = findRepoRoot(here);
@@ -83,7 +84,14 @@ async function main() {
 
   fs.writeFileSync(path.join(outDir, "index.json"), JSON.stringify(index, null, 2));
 
-  console.log(`Wrote ${summaries.length} modules to ${outDir}`);
+  // The stanza.json JSON Schema is served at the web root (not under /registry/),
+  // so it lands at dist/ rather than dist/registry/.
+  fs.writeFileSync(
+    path.join(repoRoot, "dist", "schema.json"),
+    JSON.stringify(manifestJsonSchema(), null, 2),
+  );
+
+  console.log(`Wrote ${summaries.length} modules to ${outDir} (+ dist/schema.json)`);
 }
 
 /**

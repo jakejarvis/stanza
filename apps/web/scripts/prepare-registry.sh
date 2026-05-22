@@ -19,10 +19,10 @@ repo_root="$(cd "$app_dir/../.." && pwd)"
 src="$repo_root/dist/registry"
 dest="$app_dir/public/registry"
 
-if [[ ! -d "$src" ]]; then
+if [[ ! -d "$src" || ! -f "$repo_root/dist/schema.json" ]]; then
   echo "[prepare-registry] $src not found — building registry..." >&2
-  # Prefer bun for maintainer convenience; fall back to tsx (resolvable via
-  # the workspace's vite/vitest) on node-only deploy targets like Vercel.
+  # Prefer bun for maintainer convenience; fall back to tsx on node-only deploy
+  # targets like Vercel.
   if command -v bun >/dev/null 2>&1; then
     (cd "$repo_root" && bun scripts/registry-build.ts)
   else
@@ -34,3 +34,7 @@ rm -rf "$dest"
 mkdir -p "$(dirname "$dest")"
 cp -R "$src" "$dest"
 echo "[prepare-registry] ${src#"$repo_root/"} → ${dest#"$repo_root/"}"
+
+# The stanza.json JSON Schema is served at the web root (https://stanza.tools/schema.json).
+cp "$repo_root/dist/schema.json" "$app_dir/public/schema.json"
+echo "[prepare-registry] dist/schema.json → ${app_dir#"$repo_root/"}/public/schema.json"

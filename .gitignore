@@ -33,3 +33,4 @@ __snapshots__/.tmp/
 
 # misc
 apps/web/public/registry/
+apps/web/public/schema.json

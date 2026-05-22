@@ -39,7 +39,13 @@ export type {
   RegionMap,
   RegionOwnership,
 } from "./manifest";
-export { StanzaManifestSchema, CURRENT_MANIFEST_VERSION, emptyManifest } from "./manifest";
+export {
+  StanzaManifestSchema,
+  CURRENT_MANIFEST_VERSION,
+  MANIFEST_SCHEMA_URL,
+  emptyManifest,
+  manifestJsonSchema,
+} from "./manifest";
 
 export type { ResolveContext, ResolveResult, ResolveError } from "./resolver";
 export { resolveAdapter, isCompatible, slotOrder, addonOrder } from "./resolver";

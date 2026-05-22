@@ -10,6 +10,9 @@ import {
 
 export const CURRENT_MANIFEST_VERSION = "0.1" as const;
 
+/** Canonical public URL of the published `stanza.json` JSON Schema. */
+export const MANIFEST_SCHEMA_URL = "https://stanza.tools/schema.json";
+
 export type StanzaModuleRecord = {
   id: ModuleId;
   /**
@@ -42,6 +45,8 @@ export type RegionMap = Record<string, ModuleId>;
 export type RegionOwnership = Record<string, RegionMap>;
 
 export type StanzaManifest = {
+  /** Editor-facing pointer to the published JSON Schema. */
+  $schema?: string;
   version: typeof CURRENT_MANIFEST_VERSION;
   projectShape: "monorepo";
   packageManager: "pnpm" | "bun" | "npm";
@@ -56,6 +61,7 @@ export type StanzaManifest = {
 };
 
 export const StanzaManifestSchema = z.object({
+  $schema: z.string().optional(),
   version: z.literal(CURRENT_MANIFEST_VERSION),
   projectShape: z.literal("monorepo"),
   packageManager: z.enum(["pnpm", "bun", "npm"]),
@@ -94,6 +100,7 @@ export function emptyManifest(input: {
   packageManager?: StanzaManifest["packageManager"];
 }): StanzaManifest {
   return {
+    $schema: MANIFEST_SCHEMA_URL,
     version: CURRENT_MANIFEST_VERSION,
     projectShape: "monorepo",
     packageManager: input.packageManager ?? "pnpm",
@@ -102,5 +109,19 @@ export function emptyManifest(input: {
     modules: {},
     addons: {},
     regions: {},
+  };
+}
+
+/**
+ * JSON Schema for `stanza.json`, derived from the single Zod source of truth.
+ * Published at {@link MANIFEST_SCHEMA_URL} so editors can validate and
+ * autocomplete the manifest.
+ */
+export function manifestJsonSchema(): Record<string, unknown> {
+  return {
+    $id: MANIFEST_SCHEMA_URL,
+    title: "Stanza manifest",
+    description: "Schema for stanza.json — a Stanza monorepo manifest.",
+    ...z.toJSONSchema(StanzaManifestSchema),
   };
 }

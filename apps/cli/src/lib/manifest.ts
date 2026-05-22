@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { StanzaManifestSchema, type StanzaManifest, emptyManifest } from "@stanza/registry";
+import {
+  StanzaManifestSchema,
+  type StanzaManifest,
+  emptyManifest,
+  MANIFEST_SCHEMA_URL,
+} from "@stanza/registry";
 
 const MANIFEST_FILENAME = "stanza.json";
 
@@ -27,7 +32,10 @@ export function readManifest(projectRoot: string): StanzaManifest {
 
 export function writeManifest(projectRoot: string, manifest: StanzaManifest): void {
   const file = manifestPath(projectRoot);
-  fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  // Spread the constant first so `$schema` lands at the top and pre-existing
+  // manifests gain it on their next write; an explicit `$schema` still wins.
+  const withSchema = { $schema: MANIFEST_SCHEMA_URL, ...manifest };
+  fs.writeFileSync(file, JSON.stringify(withSchema, null, 2) + "\n", "utf8");
 }
 
 export function findProjectRoot(cwd: string = process.cwd()): string | undefined {
