@@ -14,10 +14,10 @@ Next.js influences which auth adapters are available). **Add-ons** can
 coexist freely and don't influence anyone else's adapters (vitest doesn't
 constrain anything).
 
-| Category                                        | Type                                                                       | Examples                                      |
-| ----------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
-| **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma     |
-| **Add-ons** (no constraints, many allowed)      | `testing`, `tooling`, `deploy`, `email`, `monorepo`                        | vitest + playwright together; eslint or biome |
+| Category                                        | Type                                                                                  | Examples                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------- |
+| **Slots** (constraint-bearing, one choice each) | `framework`, `styling`, `db`, `orm`, `auth`, `tooling`, `api`, `ai`, `ui`, `payments` | next vs tanstack-start; drizzle vs prisma |
+| **Add-ons** (no constraints, many allowed)      | `testing`, `deploy`, `email`, `monorepo`                                              | vitest + playwright together              |
 
 The add-on schema is **live** as of the `testing` modules. Add-ons are
 modeled with a `kind: "addon"` discriminator on `Module` (carrying a
@@ -87,11 +87,11 @@ _New **add-on** (multi-allowed, no constraints)._
 
 ## tooling
 
-_New **add-on**._ Lint/format toolchain. Conventionally one per project but doesn't constrain others.
+_**Slot** (single-choice)._ Lint/format toolchain. Modeled as a slot rather than an add-on because the three toolchains are mutually exclusive substitutes — you run one, not several. It bears no _outbound_ dispatch constraints (nothing peers on `tooling`) but consumes a `framework` peer where the config varies.
 
-- [ ] **eslint-prettier** — ESLint + Prettier
-- [ ] **biome** — Biome (lint + format)
-- [ ] **oxlint-oxfmt** — Oxlint + oxfmt
+- [x] **eslint-prettier** — ESLint flat config + Prettier; per-framework adapters (next, tanstack-start)
+- [x] **biome** — Biome (lint + format), framework-agnostic
+- [x] **oxlint-oxfmt** — Oxlint + oxfmt, framework-agnostic
 
 ## testing
 

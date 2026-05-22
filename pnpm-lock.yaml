@@ -53,6 +53,9 @@ importers:
       ts-morph:
         specifier: ^28.0.0
         version: 28.0.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@stanza/codemods':
         specifier: workspace:*

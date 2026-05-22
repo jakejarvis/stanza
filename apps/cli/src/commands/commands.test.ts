@@ -267,3 +267,58 @@ describe("add-ons (multi-choice testing slot)", () => {
     });
   });
 });
+
+describe("tooling slot (single-choice)", () => {
+  it("init --yes installs a tooling pick alongside the framework", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next", tooling: "eslint-prettier" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const projectRoot = path.join(tmp, "app");
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(manifest.modules.tooling).toMatchObject({ id: "eslint-prettier", adapter: "next" });
+
+    // Per-framework adapter wrote the next eslint config + shared prettier config.
+    expect(fs.existsSync(path.join(projectRoot, "apps/web/eslint.config.mjs"))).toBe(true);
+    expect(fs.existsSync(path.join(projectRoot, "apps/web/prettier.config.mjs"))).toBe(true);
+
+    const appPkg = JSON.parse(
+      fs.readFileSync(path.join(projectRoot, "apps/web/package.json"), "utf8"),
+    );
+    // framework-next no longer ships `lint`, so the tooling module owns it cleanly.
+    expect(appPkg.scripts.lint).toBe("eslint .");
+    expect(appPkg.scripts.format).toBe("prettier --write .");
+    expect(appPkg.devDependencies.eslint).toBeTruthy();
+  });
+
+  it("framework-next ships no lint script on its own", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    const appPkg = JSON.parse(
+      fs.readFileSync(path.join(tmp, "app", "apps/web/package.json"), "utf8"),
+    );
+    expect(appPkg.scripts.lint).toBeUndefined();
+  });
+
+  it("add installs a framework-agnostic tooling module and records modules.tooling", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "tanstack-start" }));
+    process.chdir(path.join(tmp, "app"));
+
+    await cmdAdd(args({ slot: "tooling", moduleId: "biome" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.tooling).toMatchObject({ id: "biome", adapter: "default" });
+    expect(fs.existsSync("apps/web/biome.json")).toBe(true);
+  });
+
+  it("rejects a second tooling pick (slot already filled)", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next", tooling: "biome" }));
+    process.chdir(path.join(tmp, "app"));
+    process.exitCode = undefined;
+
+    await cmdAdd(args({ slot: "tooling", moduleId: "oxlint-oxfmt" }));
+    expect(process.exitCode).toBe(1);
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.tooling.id).toBe("biome");
+  });
+});

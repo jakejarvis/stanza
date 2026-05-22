@@ -25,7 +25,6 @@ export default defineModule({
         dev: "next dev",
         build: "next build",
         start: "next start",
-        lint: "next lint",
       },
       templates: [
         { src: "tsconfig.json", dest: "tsconfig.json", scope: "app" },

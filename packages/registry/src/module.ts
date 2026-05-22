@@ -1,70 +1,54 @@
 import { z } from "zod";
 
 /**
- * Ordered tuple of legal slot ids. The order is topological — earlier slots
- * become peer candidates for later ones. The `as const` is load-bearing:
- * Zod's `z.enum(KNOWN_SLOTS)` uses the literal-tuple type to produce a
- * properly-narrowed schema.
- *
- * Keep this in sync with `SLOTS` below. TypeScript will fail to typecheck
- * `SLOTS` if any entry's id is outside this tuple.
+ * `packageDir` controls slot-package extraction:
+ *  - `null` — files land in the active app dir (`manifest.appDir`); for slots
+ *    that wire the app shell itself (framework, styling).
+ *  - a string — files land in `packages/<dir>/` (named `@<manifest.name>/<dir>`)
+ *    and the app gets a `workspace:*` dep. `db` + `orm` share `packages/db/`.
  */
-export const KNOWN_SLOTS = ["framework", "styling", "db", "orm", "auth"] as const;
-
-export type SlotId = (typeof KNOWN_SLOTS)[number];
-
 export type Slot = {
   id: SlotId;
   label: string;
   description: string;
-  /**
-   * Internal-package directory under `packages/` for slot-package extraction.
-   *  - `null` — files land in the active app dir (`manifest.appDir`). Use for
-   *    slots that wire the app shell itself (framework, styling).
-   *  - A string — files land in `packages/<dir>/`, named `@<manifest.name>/<dir>`,
-   *    and the app gets a `workspace:*` dep. Many-to-one is intentional: `db`
-   *    and `orm` share `packages/db/` so the ORM client sits next to the schema.
-   */
   packageDir: string | null;
 };
 
 /**
- * Single source of truth for slot metadata. Adding a new slot is a two-line
- * edit: append the id to `KNOWN_SLOTS` and append a `Slot` here. Iteration
- * order matches `KNOWN_SLOTS` (also the processing order).
+ * Single source of truth for slots — `SlotId` and `KNOWN_SLOTS` are derived
+ * from this, so adding a slot is a one-place edit. Order is topological:
+ * earlier slots are peer candidates for later ones, and it's the prompt order.
  */
-export const SLOTS: readonly Slot[] = [
+export const SLOTS = [
   {
     id: "framework",
     label: "Framework",
     description: "Web/native app framework.",
     packageDir: null,
   },
+  { id: "styling", label: "Styling", description: "CSS / styling system.", packageDir: null },
+  { id: "db", label: "Database", description: "Database engine.", packageDir: "db" },
+  { id: "orm", label: "ORM", description: "Database query layer.", packageDir: "db" },
+  { id: "auth", label: "Auth", description: "Authentication provider.", packageDir: "auth" },
   {
-    id: "styling",
-    label: "Styling",
-    description: "CSS / styling system.",
+    id: "tooling",
+    label: "Tooling",
+    description: "Linter + formatter toolchain.",
     packageDir: null,
   },
-  {
-    id: "db",
-    label: "Database",
-    description: "Database engine.",
-    packageDir: "db",
-  },
-  {
-    id: "orm",
-    label: "ORM",
-    description: "Database query layer.",
-    packageDir: "db",
-  },
-  {
-    id: "auth",
-    label: "Auth",
-    description: "Authentication provider.",
-    packageDir: "auth",
-  },
-];
+  // Inline shape (not `Slot`) so `SlotId` can derive from this without a cycle.
+] as const satisfies readonly {
+  id: string;
+  label: string;
+  description: string;
+  packageDir: string | null;
+}[];
+
+/** Legal slot ids, derived from `SLOTS`. */
+export type SlotId = (typeof SLOTS)[number]["id"];
+
+/** Slot ids as a non-empty tuple — the shape `z.enum` needs. */
+export const KNOWN_SLOTS = SLOTS.map((s) => s.id) as [SlotId, ...SlotId[]];
 
 /**
  * Lookup form of slot → package dir. Equivalent to finding the slot in
@@ -84,46 +68,41 @@ export function slotLabel(slot: SlotId): string {
   return SLOT_BY_ID[slot].label;
 }
 
-/**
- * Ordered tuple of add-on category ids. Deliberately DISJOINT from
- * `KNOWN_SLOTS`: keeping these out of the slot tuple is what makes add-ons
- * invisible to peer resolution — `activePeerIds` and the peer-check loop in
- * `resolveAdapter` both iterate `KNOWN_SLOTS` only, so an add-on never blocks
- * anyone and never becomes a peer candidate. Add-ons are processed *after*
- * all slots (see `addonOrder`), so a framework/orm/db pick is already in the
- * manifest when an add-on resolves its framework-varying adapter.
- *
- * Unlike slots, an add-on category holds 0..n modules (vitest + playwright
- * coexist).
- */
-export const KNOWN_ADDONS = ["testing", "tooling", "deploy", "email", "monorepo"] as const;
-
-export type AddonCategoryId = (typeof KNOWN_ADDONS)[number];
-
+/** Mirrors `Slot.packageDir`; every first-party add-on is app/repo-scoped (`null`) today. */
 export type AddonCategory = {
   id: AddonCategoryId;
   label: string;
   description: string;
-  /**
-   * Same semantics as `Slot.packageDir`. Add-ons are overwhelmingly app- or
-   * repo-scoped (test/lint configs, deploy manifests), so this is `null` for
-   * every first-party add-on today. Kept for symmetry and future extraction.
-   */
   packageDir: string | null;
 };
 
-/** Single source of truth for add-on category metadata — parallel to `SLOTS`. */
-export const ADDON_CATEGORIES: readonly AddonCategory[] = [
+/**
+ * Single source of truth for add-on categories — `AddonCategoryId` and
+ * `KNOWN_ADDONS` are derived from this. Deliberately DISJOINT from `SLOTS`:
+ * add-on ids never appear in `KNOWN_SLOTS`, and the resolver iterates
+ * `KNOWN_SLOTS` for peer checks, so an add-on never constrains anyone or
+ * becomes a peer candidate. Unlike a slot, a category holds 0..n modules.
+ */
+export const ADDON_CATEGORIES = [
   { id: "testing", label: "Testing", description: "Test runners (unit, e2e).", packageDir: null },
-  { id: "tooling", label: "Tooling", description: "Lint / format toolchain.", packageDir: null },
   { id: "deploy", label: "Deploy", description: "Deploy targets.", packageDir: null },
   { id: "email", label: "Email", description: "Transactional email.", packageDir: null },
-  {
-    id: "monorepo",
-    label: "Monorepo",
-    description: "Monorepo build tooling.",
-    packageDir: null,
-  },
+  { id: "monorepo", label: "Monorepo", description: "Monorepo build tooling.", packageDir: null },
+  // Inline shape (not `AddonCategory`) so the id type derives without a cycle.
+] as const satisfies readonly {
+  id: string;
+  label: string;
+  description: string;
+  packageDir: string | null;
+}[];
+
+/** Legal add-on category ids, derived from `ADDON_CATEGORIES`. */
+export type AddonCategoryId = (typeof ADDON_CATEGORIES)[number]["id"];
+
+/** Category ids as a non-empty tuple — the shape `z.enum` needs. */
+export const KNOWN_ADDONS = ADDON_CATEGORIES.map((c) => c.id) as [
+  AddonCategoryId,
+  ...AddonCategoryId[],
 ];
 
 export const ADDON_PACKAGE_DIR: Record<AddonCategoryId, string | null> = Object.fromEntries(

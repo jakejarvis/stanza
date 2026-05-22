@@ -9,5 +9,7 @@ ignoredBuiltDependencies:
 ignoredOptionalDependencies: []
 
 onlyBuiltDependencies:
+  - core-js
   - esbuild
   - msw
+  - protobufjs
