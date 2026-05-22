@@ -10,19 +10,22 @@ export function CopyButton({
   value,
   label = "Copy command",
   className,
+  onCopied,
 }: {
   value: string;
   label?: string;
   className?: string;
+  onCopied?: () => void;
 }) {
   const onCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(value);
       toast.success("Copied to clipboard");
+      onCopied?.();
     } catch {
       toast.error("Couldn't access the clipboard");
     }
-  }, [value]);
+  }, [value, onCopied]);
 
   const trigger = useMemo(
     () => (

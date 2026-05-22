@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/react";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { PostHogProvider } from "@/components/posthog-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -84,18 +85,20 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className="min-h-svh bg-background font-sans text-foreground antialiased">
-        <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
-          <TooltipProvider>
-            <div className="flex min-h-svh flex-col">
-              <Header />
-              <main className="flex-1">
-                <Outlet />
-              </main>
-              <Footer />
-            </div>
-            <Toaster />
-          </TooltipProvider>
-        </ThemeProvider>
+        <PostHogProvider>
+          <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
+            <TooltipProvider>
+              <div className="flex min-h-svh flex-col">
+                <Header />
+                <main className="flex-1">
+                  <Outlet />
+                </main>
+                <Footer />
+              </div>
+              <Toaster />
+            </TooltipProvider>
+          </ThemeProvider>
+        </PostHogProvider>
         <TanStackDevtools config={DEVTOOLS_CONFIG} plugins={DEVTOOLS_PLUGINS} />
         <Analytics />
         <Scripts />

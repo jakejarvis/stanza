@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { FilePreview } from "@/components/builder/file-preview";
 import { ProjectSetup } from "@/components/builder/project-setup";
 import { SlotCards } from "@/components/builder/slot-cards";
+import { useAnalytics } from "@/lib/analytics";
 import {
   type AddonSelections,
   type BuilderSearch,
@@ -19,6 +20,7 @@ import type { BuilderState } from "@/server/builder-state.functions";
 
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });
+  const capture = useAnalytics();
   const { name, selections, addons } = parseSelections(search);
   const resolved = resolveSelectedAdapters(state.modules, selections);
   const resolvedAddons = resolveSelectedAddons(state.modules, selections, addons);
@@ -42,29 +44,33 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
       const next: Selections = { ...selections };
       if (id) next[slot] = id;
       else delete next[slot];
+      if (id) capture("builder_module_selected", { slot, module: id });
+      else capture("builder_module_deselected", { slot });
       void navigate({
         search: toSearchParams({ name, selections: next, addons }),
         replace: true,
         resetScroll: false,
       });
     },
-    [navigate, name, selections, addons],
+    [capture, navigate, name, selections, addons],
   );
 
   const toggleAddon = useCallback(
     (category: AddonCategoryId, id: string) => {
       const current = addons[category] ?? [];
-      const nextIds = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+      const enabled = !current.includes(id);
+      const nextIds = enabled ? [...current, id] : current.filter((x) => x !== id);
       const next: AddonSelections = { ...addons };
       if (nextIds.length > 0) next[category] = nextIds;
       else delete next[category];
+      capture("builder_addon_toggled", { category, addon: id, enabled });
       void navigate({
         search: toSearchParams({ name, selections, addons: next }),
         replace: true,
         resetScroll: false,
       });
     },
-    [navigate, name, selections, addons],
+    [capture, navigate, name, selections, addons],
   );
 
   const commandBar = (
