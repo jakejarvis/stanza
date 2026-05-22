@@ -9,7 +9,7 @@ export function TryIt({ name, selections }: { name: string; selections: Selectio
   return (
     <section>
       <h3 className="mb-2 text-xs font-semibold tracking-tight text-muted-foreground uppercase">
-        Try it
+        Install
       </h3>
       <CommandPreview name={name} selections={selections} pm={pm} onPmChange={setPm} />
     </section>

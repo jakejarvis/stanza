@@ -9,7 +9,6 @@ import { PostHogProvider } from "@/components/posthog-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { getRegistryIndex } from "@/server/registry-index.functions";
 
 import appCss from "../styles.css?url";
@@ -87,16 +86,14 @@ function RootComponent() {
       <body className="min-h-svh bg-background font-sans text-foreground antialiased">
         <PostHogProvider>
           <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
-            <TooltipProvider>
-              <div className="flex min-h-svh flex-col">
-                <Header />
-                <main className="flex-1">
-                  <Outlet />
-                </main>
-                <Footer />
-              </div>
-              <Toaster />
-            </TooltipProvider>
+            <div className="flex min-h-svh flex-col">
+              <Header />
+              <main className="flex-1">
+                <Outlet />
+              </main>
+              <Footer />
+            </div>
+            <Toaster />
           </ThemeProvider>
         </PostHogProvider>
         <TanStackDevtools config={DEVTOOLS_CONFIG} plugins={DEVTOOLS_PLUGINS} />

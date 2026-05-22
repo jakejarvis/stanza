@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dialog";
 import { Kbd } from "@/components/ui/kbd";
 import { groupByCategory } from "@/lib/module-search";
-import { cn } from "@/lib/utils";
 
 const HOTKEY = "Mod+K";
 
@@ -108,14 +107,13 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
         className="gap-2 bg-background px-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:min-w-[180px] sm:px-2.5"
       >
         <IconSearch data-icon="inline-start" />
-        <span className="hidden flex-1 text-left sm:inline">Search modules…</span>
-        {hotkeyLabel && <Kbd className="hidden sm:inline">{hotkeyLabel}</Kbd>}
+        <span className="hidden flex-1 text-left text-[13px] font-normal sm:inline">
+          Search modules…
+        </span>
+        {hotkeyLabel && <Kbd className="ml-2 hidden sm:inline">{hotkeyLabel}</Kbd>}
       </Button>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          className="top-1/3 translate-y-0 gap-0 overflow-hidden rounded-none p-0"
-          showCloseButton={false}
-        >
+        <DialogContent className="gap-0 overflow-hidden rounded-none p-0" showCloseButton={false}>
           <DialogHeader className="sr-only">
             <DialogTitle>Search modules</DialogTitle>
             <DialogDescription>Search the registry for a module to add.</DialogDescription>
@@ -132,10 +130,7 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
               className="h-10 w-full bg-transparent text-xs outline-hidden placeholder:text-muted-foreground"
             />
           </div>
-          <div
-            ref={listRef}
-            className="no-scrollbar max-h-72 overflow-x-hidden overflow-y-auto p-1"
-          >
+          <div ref={listRef} className="max-h-72 overflow-x-hidden overflow-y-auto p-1">
             {flat.length === 0 ? (
               <div className="py-6 text-center text-xs text-muted-foreground">No matches.</div>
             ) : (
@@ -189,10 +184,7 @@ function SearchResult({
       data-selected={active || undefined}
       onClick={handleSelect}
       onPointerMove={handlePointerMove}
-      className={cn(
-        "flex w-full cursor-pointer items-center gap-2 rounded-none px-2 py-2 text-left text-xs outline-hidden",
-        active && "bg-muted text-foreground",
-      )}
+      className="flex w-full cursor-pointer items-center gap-2 rounded-none px-2 py-2 text-left text-xs outline-hidden hover:bg-muted hover:text-foreground"
     >
       <ModuleLogo logo={summary.logo} label={summary.label} size="sm" />
       <div className="min-w-0 flex-1">

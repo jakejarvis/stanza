@@ -1,4 +1,4 @@
-import { IconMoon, IconSun } from "@tabler/icons-react";
+import { IconDeviceLaptop, IconMoon, IconSun } from "@tabler/icons-react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,15 @@ export function ModeToggle() {
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
           <DropdownMenuRadioItem value="light" closeOnClick className="cursor-pointer">
+            <IconSun className="text-muted-foreground" />
             Light
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark" closeOnClick className="cursor-pointer">
+            <IconMoon className="text-muted-foreground" />
             Dark
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system" closeOnClick className="cursor-pointer">
+            <IconDeviceLaptop className="text-muted-foreground" />
             System
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

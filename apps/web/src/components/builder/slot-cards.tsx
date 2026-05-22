@@ -11,6 +11,7 @@ import { IconCheck } from "@tabler/icons-react";
 import { useCallback } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Selections } from "@/lib/selection";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ function ModuleSection({
   modulesById,
   pending,
   index,
-  multi,
+  multi: _multi, // TODO: add back in via a info tooltip
   isSelected,
   onActivate,
 }: {
@@ -85,7 +86,6 @@ function ModuleSection({
           {String(index).padStart(2, "0")}
         </span>
         <h2 className="text-lg font-semibold tracking-tight">{categoryLabel(group)}</h2>
-        {multi && <span className="text-xs text-muted-foreground">{"· choose any"}</span>}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {modules.map((m) => {
@@ -128,15 +128,14 @@ function ModuleCard({
     onActivate();
   }, [disabled, onActivate]);
 
-  return (
+  const card = (
     <button
       type="button"
       disabled={disabled}
       aria-pressed={selected}
-      title={disabled ? reason : undefined}
       onClick={onClick}
       className={cn(
-        "relative flex flex-col gap-3 rounded-none border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors",
+        "relative flex h-full w-full flex-col gap-3 rounded-none border border-border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors",
         "outline-none focus-visible:ring-2 focus-visible:ring-ring",
         !disabled && "cursor-pointer hover:bg-accent/40",
         selected && "border-foreground ring-1 ring-foreground",
@@ -153,12 +152,18 @@ function ModuleCard({
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
         </div>
       </div>
-      {disabled && reason ? (
-        <p className="rounded-none bg-muted/60 px-2 py-1 text-[11px] leading-snug text-muted-foreground">
-          {reason}
-        </p>
-      ) : null}
     </button>
+  );
+
+  if (!disabled || !reason) return card;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger nativeButton={false} render={<span className="block h-full" />}>
+        {card}
+      </TooltipTrigger>
+      <TooltipContent>{reason}</TooltipContent>
+    </Tooltip>
   );
 }
 

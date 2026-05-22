@@ -1,23 +1,55 @@
+"use client";
+
 import { ScrollArea as ScrollAreaPrimitive } from "@base-ui/react/scroll-area";
-import * as React from "react";
+import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function ScrollArea({ className, children, ...props }: ScrollAreaPrimitive.Root.Props) {
+type ScrollAreaProps = ScrollAreaPrimitive.Root.Props & {
+  scrollFade?: boolean;
+  scrollbarGutter?: boolean;
+  hideScrollbar?: boolean;
+  scrollRef?: React.Ref<HTMLDivElement>;
+  contentRef?: React.Ref<HTMLDivElement>;
+};
+
+function ScrollArea({
+  className,
+  children,
+  scrollFade = true,
+  scrollbarGutter = false,
+  hideScrollbar = false,
+  scrollRef,
+  contentRef,
+  ...props
+}: ScrollAreaProps) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn("relative", className)}
+      className={cn("relative flex min-h-0 min-w-0 overflow-hidden", className)}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        ref={scrollRef}
+        className={cn(
+          "flex-1 [scrollbar-width:none] rounded-[inherit] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-1 data-has-overflow-x:overscroll-x-contain [&::-webkit-scrollbar]:hidden",
+          scrollFade &&
+            "mask-t-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-start)))] mask-r-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-end)))] mask-b-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-y-end)))] mask-l-from-[calc(100%-min(var(--fade-size),var(--scroll-area-overflow-x-start)))] [--fade-size:1.5rem]",
+          scrollbarGutter && "data-has-overflow-x:pb-2.5 data-has-overflow-y:pr-2.5",
+        )}
       >
-        {children}
+        <ScrollAreaPrimitive.Content data-slot="scroll-area-content" ref={contentRef}>
+          {children}
+        </ScrollAreaPrimitive.Content>
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
-      <ScrollAreaPrimitive.Corner />
+      {!hideScrollbar && (
+        <>
+          <ScrollBar orientation="vertical" />
+          <ScrollBar orientation="horizontal" />
+        </>
+      )}
+      <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" />
     </ScrollAreaPrimitive.Root>
   );
 }
@@ -30,17 +62,16 @@ function ScrollBar({
   return (
     <ScrollAreaPrimitive.Scrollbar
       data-slot="scroll-area-scrollbar"
-      data-orientation={orientation}
       orientation={orientation}
       className={cn(
-        "flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent",
+        "m-1 flex opacity-0 transition-opacity delay-300 data-hovering:opacity-100 data-hovering:delay-0 data-hovering:duration-100 data-scrolling:opacity-100 data-scrolling:delay-0 data-scrolling:duration-100 data-[orientation=horizontal]:h-1 data-[orientation=horizontal]:flex-col data-[orientation=vertical]:w-1",
         className,
       )}
       {...props}
     >
       <ScrollAreaPrimitive.Thumb
         data-slot="scroll-area-thumb"
-        className="relative flex-1 rounded-none bg-border"
+        className="relative flex-1 rounded-full bg-foreground/40"
       />
     </ScrollAreaPrimitive.Scrollbar>
   );

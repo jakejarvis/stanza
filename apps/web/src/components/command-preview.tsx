@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
-import { CopyButton } from "@/components/copy-button";
 import { PackageManagerSelect } from "@/components/package-manager-select";
+import { CopyableField } from "@/components/ui/copyable-field";
 import { selectionProperties, useAnalytics } from "@/lib/analytics";
 import type { PackageManager } from "@/lib/package-manager";
 import { buildCommand, DEFAULT_NAME, type Selections } from "@/lib/selection";
@@ -26,7 +26,7 @@ export function CommandPreview({
   const command = buildCommand({ name, selections, pm });
   const capture = useAnalytics();
 
-  const onCopied = useCallback(() => {
+  const onCopy = useCallback(() => {
     capture("builder_command_copied", {
       package_manager: pm,
       command,
@@ -37,12 +37,16 @@ export function CommandPreview({
   }, [capture, pm, command, name, selections]);
 
   return (
-    <div className="flex items-stretch gap-2">
+    <div className="flex items-center gap-1.5">
       <PackageManagerSelect value={pm} onValueChange={onPmChange} />
-      <pre className="no-scrollbar flex h-8 min-w-0 flex-1 items-center overflow-x-auto rounded-none border border-border bg-muted/50 px-3 font-mono text-[11px] whitespace-pre [font-variant-ligatures:none] sm:text-xs">
-        <code>{command}</code>
-      </pre>
-      <CopyButton value={command} onCopied={onCopied} />
+      <CopyableField
+        label="Install command"
+        value={command}
+        showLabel={false}
+        copyLabel="Copy command"
+        className="flex-1 [font-variant-ligatures:none]"
+        onCopy={onCopy}
+      />
     </div>
   );
 }
