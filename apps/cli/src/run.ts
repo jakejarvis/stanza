@@ -1,101 +1,52 @@
-import kleur from "kleur";
-import type { Argv } from "mri";
+import { defineCommand, runMain } from "citty";
 
-import { cmdAdd } from "./commands/add";
-import { cmdInit } from "./commands/init";
-import { cmdList } from "./commands/list";
-import { cmdRemove } from "./commands/remove";
-import { cmdSearch } from "./commands/search";
+import { version } from "../package.json" with { type: "json" };
+import { add } from "./commands/add";
+import { init } from "./commands/init";
+import { list } from "./commands/list";
+import { remove } from "./commands/remove";
+import { search } from "./commands/search";
 import * as telemetry from "./lib/telemetry";
 
-const VERSION = "0.1.0";
+let startedAt = 0;
 
-const HELP = `${kleur.bold("stanza")} — modular monorepo template CLI
-
-${kleur.bold("Usage")}
-  stanza <command> [options]
-
-${kleur.bold("Commands")}
-  init [name]                  Scaffold a new monorepo via the interactive wizard.
-  add <slot|category> <module> Add a slot module or an add-on to the current project.
-  remove <slot|category> [id]  Remove a slot module, or a specific add-on (id required).
-  list                         List installed modules.
-  search [query]               Search the registry.
-
-${kleur.bold("Options")}
-  -h, --help                   Show this help.
-  -v, --version                Print the CLI version.
-  --yes                        Non-interactive mode. With \`init\`, takes picks
-                               from --framework / --styling / --db / --orm /
-                               --auth / --pm flags, plus add-ons via
-                               --testing / --tooling / --deploy / --email
-                               (comma-separated). Missing slots are skipped.
-  --dry-run                    Print the actions that would be taken; write nothing.
-  --dangerously-allow-dirty    Allow mutating commands to run with a dirty git
-                               working tree (by default they refuse).
-  --no-telemetry               Disable telemetry for this invocation. Set
-                               STANZA_TELEMETRY=0 to disable it persistently
-                               (also honors DO_NOT_TRACK and skips CI).
-
-${kleur.bold("Examples")}
-  stanza init my-app --yes --framework=next --orm=drizzle --db=postgres --testing=vitest,playwright
-  stanza add auth better-auth
-  stanza add testing vitest
-  stanza remove testing vitest
-  stanza remove styling
-
-${kleur.dim("Docs: https://stanza.tools")}
-`;
-
-export async function run(argv: Argv): Promise<void> {
-  if (argv.version) {
-    console.log(VERSION);
-    return;
-  }
-
-  const [command, ...rest] = argv._;
-  if (!command || argv.help) {
-    console.log(HELP);
-    return;
-  }
-
-  telemetry.configure({
-    command,
-    version: VERSION,
-    disabled: telemetry.isTelemetryDisabled(argv),
-  });
-
-  let failed = false;
-  const startedAt = Date.now();
-  try {
-    switch (command) {
-      case "init":
-        await cmdInit({ name: rest[0], argv });
-        return;
-      case "add":
-        await cmdAdd({ slot: rest[0], moduleId: rest[1], argv });
-        return;
-      case "remove":
-        await cmdRemove({ slot: rest[0], moduleId: rest[1], argv });
-        return;
-      case "list":
-        await cmdList({ argv });
-        return;
-      case "search":
-        await cmdSearch({ query: rest.join(" "), argv });
-        return;
-      default:
-        console.error(kleur.red(`Unknown command: ${command}`));
-        console.error(HELP);
-        process.exitCode = 1;
-    }
-  } catch (err) {
-    failed = true;
-    throw err;
-  } finally {
-    // Covers thrown errors, handled `process.exitCode = 1` returns, and success.
-    const status = failed || process.exitCode ? "failure" : "success";
+const main = defineCommand({
+  meta: {
+    name: "stanza",
+    version,
+    description:
+      "Modular monorepo template CLI — shadcn for stacks.\n\n" +
+      "Examples\n" +
+      "  stanza init my-app --yes --framework=next --orm=drizzle --db=postgres --testing=vitest,playwright\n" +
+      "  stanza add auth better-auth\n" +
+      "  stanza add testing vitest\n" +
+      "  stanza remove testing vitest\n" +
+      "  stanza remove styling\n\n" +
+      "Docs: https://stanza.tools",
+  },
+  subCommands: { init, add, remove, list, search },
+  setup({ rawArgs }) {
+    const command = rawArgs.find((arg) => !arg.startsWith("-"));
+    // No verb (bare `stanza`/help/version): leave telemetry unconfigured so
+    // cleanup's capture/flush no-op.
+    if (!command) return;
+    startedAt = Date.now();
+    telemetry.configure({
+      command,
+      version,
+      disabled: telemetry.isTelemetryDisabled(rawArgs),
+    });
+  },
+  // citty awaits cleanup before runMain's process.exit, so the flush lands. It
+  // can't see the run error, so only handled errors (process.exitCode) read as
+  // failure; thrown ones record as success.
+  async cleanup() {
+    const status = process.exitCode ? "failure" : "success";
     telemetry.capture("cli_command", { status, duration_ms: Date.now() - startedAt });
     await telemetry.flush();
-  }
+  },
+});
+
+export function run(rawArgs: string[] = process.argv.slice(2)): Promise<void> {
+  return runMain(main, { rawArgs });
 }

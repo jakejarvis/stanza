@@ -36,28 +36,27 @@ afterEach(() => {
   delete process.env.STANZA_NO_NPM_LOOKUP;
 });
 
-/**
- * Build the argv shape `mri` produces for `stanza init <name> --yes <flags>`.
- * Kept here (not shared with bin.ts) because the few tests that need it
- * benefit from being explicit about which flags they're passing.
- */
-function argv(flags: Record<string, string | boolean>): Record<string, unknown> {
+// The parsed-args shape citty hands a handler: named args (incl. positionals
+// like name/slot/moduleId) plus an empty `_`.
+function args(flags: Record<string, string | boolean> = {}): Record<string, unknown> & {
+  _: (string | number)[];
+} {
   return { _: [], ...flags };
 }
 
 describe("cmdInit --yes", () => {
   it("scaffolds a project with the canonical 5-slot stack", async () => {
-    await cmdInit({
-      name: "app",
-      argv: argv({
+    await cmdInit(
+      args({
+        name: "app",
         yes: true,
         framework: "next",
         styling: "tailwind",
         db: "postgres",
         orm: "drizzle",
         auth: "better-auth",
-      }) as never,
-    });
+      }),
+    );
     expect(process.exitCode).toBeFalsy();
 
     const projectRoot = path.join(tmp, "app");
@@ -81,10 +80,7 @@ describe("cmdInit --yes", () => {
   });
 
   it("skips slots not provided as flags", async () => {
-    await cmdInit({
-      name: "minimal",
-      argv: argv({ yes: true, framework: "next" }) as never,
-    });
+    await cmdInit(args({ name: "minimal", yes: true, framework: "next" }));
     expect(process.exitCode).toBeFalsy();
 
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, "minimal", "stanza.json"), "utf8"));
@@ -94,19 +90,13 @@ describe("cmdInit --yes", () => {
   });
 
   it("aborts when a flag references an unknown module id", async () => {
-    await cmdInit({
-      name: "bad",
-      argv: argv({ yes: true, framework: "nonexistent" }) as never,
-    });
+    await cmdInit(args({ name: "bad", yes: true, framework: "nonexistent" }));
     // Wizard returns null → cmdInit just returns without writing a project.
     expect(fs.existsSync(path.join(tmp, "bad"))).toBe(false);
   });
 
   it("respects --pm for package manager", async () => {
-    await cmdInit({
-      name: "bun-app",
-      argv: argv({ yes: true, framework: "next", pm: "bun" }) as never,
-    });
+    await cmdInit(args({ name: "bun-app", yes: true, framework: "next", pm: "bun" }));
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, "bun-app", "stanza.json"), "utf8"));
     expect(manifest.packageManager).toBe("bun");
     const rootPkg = JSON.parse(fs.readFileSync(path.join(tmp, "bun-app", "package.json"), "utf8"));
@@ -118,12 +108,12 @@ describe("cmdInit --yes", () => {
 
 describe("cmdAdd", () => {
   beforeEach(async () => {
-    await cmdInit({ name: "app", argv: argv({ yes: true, framework: "next" }) as never });
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
   });
 
   it("adds a module to an existing project", async () => {
-    await cmdAdd({ slot: "db", moduleId: "postgres", argv: argv({}) as never });
+    await cmdAdd(args({ slot: "db", moduleId: "postgres" }));
     expect(process.exitCode).toBeFalsy();
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
@@ -132,10 +122,10 @@ describe("cmdAdd", () => {
   });
 
   it("rejects a slot that is already filled", async () => {
-    await cmdAdd({ slot: "db", moduleId: "postgres", argv: argv({}) as never });
+    await cmdAdd(args({ slot: "db", moduleId: "postgres" }));
     process.exitCode = undefined;
 
-    await cmdAdd({ slot: "db", moduleId: "sqlite", argv: argv({}) as never });
+    await cmdAdd(args({ slot: "db", moduleId: "sqlite" }));
     expect(process.exitCode).toBe(1);
 
     // Manifest still shows postgres.
@@ -144,28 +134,22 @@ describe("cmdAdd", () => {
   });
 
   it("rejects an unknown slot", async () => {
-    await cmdAdd({ slot: "nonsense", moduleId: "x", argv: argv({}) as never });
+    await cmdAdd(args({ slot: "nonsense", moduleId: "x" }));
     expect(process.exitCode).toBe(1);
   });
 });
 
 describe("cmdRemove", () => {
   beforeEach(async () => {
-    await cmdInit({
-      name: "app",
-      argv: argv({
-        yes: true,
-        framework: "next",
-        db: "postgres",
-        orm: "drizzle",
-      }) as never,
-    });
+    await cmdInit(
+      args({ name: "app", yes: true, framework: "next", db: "postgres", orm: "drizzle" }),
+    );
     process.chdir(path.join(tmp, "app"));
   });
 
   it("removes a module and sweeps an emptied slot package", async () => {
     // Drop orm first (orm + db share packages/db/; removing orm alone keeps the package).
-    await cmdRemove({ slot: "orm", argv: argv({}) as never });
+    await cmdRemove(args({ slot: "orm" }));
     expect(process.exitCode).toBeFalsy();
 
     const afterOrm = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
@@ -175,7 +159,7 @@ describe("cmdRemove", () => {
     expect(fs.existsSync("packages/db/package.json")).toBe(true);
 
     // Now drop db too — packages/db/ should be swept entirely.
-    await cmdRemove({ slot: "db", argv: argv({}) as never });
+    await cmdRemove(args({ slot: "db" }));
     const afterDb = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(afterDb.modules.db).toBeUndefined();
     expect(fs.existsSync("packages/db")).toBe(false);
@@ -186,7 +170,7 @@ describe("cmdRemove", () => {
   });
 
   it("warns and returns when slot is empty", async () => {
-    await cmdRemove({ slot: "auth", argv: argv({}) as never });
+    await cmdRemove(args({ slot: "auth" }));
     expect(process.exitCode).toBeFalsy();
     // Manifest unchanged.
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
@@ -194,21 +178,16 @@ describe("cmdRemove", () => {
   });
 
   it("rejects an unknown slot", async () => {
-    await cmdRemove({ slot: "nonsense", argv: argv({}) as never });
+    await cmdRemove(args({ slot: "nonsense" }));
     expect(process.exitCode).toBe(1);
   });
 });
 
 describe("add-ons (multi-choice testing slot)", () => {
   it("init --yes installs two add-ons in one category without a region conflict", async () => {
-    await cmdInit({
-      name: "app",
-      argv: argv({
-        yes: true,
-        framework: "next",
-        testing: "vitest,playwright",
-      }) as never,
-    });
+    await cmdInit(
+      args({ name: "app", yes: true, framework: "next", testing: "vitest,playwright" }),
+    );
     expect(process.exitCode).toBeFalsy();
 
     const projectRoot = path.join(tmp, "app");
@@ -234,14 +213,14 @@ describe("add-ons (multi-choice testing slot)", () => {
 
   describe("add / remove", () => {
     beforeEach(async () => {
-      await cmdInit({ name: "app", argv: argv({ yes: true, framework: "next" }) as never });
+      await cmdInit(args({ name: "app", yes: true, framework: "next" }));
       process.chdir(path.join(tmp, "app"));
     });
 
     it("accepts a second add-on in a category that already has one", async () => {
-      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
       expect(process.exitCode).toBeFalsy();
-      await cmdAdd({ slot: "testing", moduleId: "playwright", argv: argv({}) as never });
+      await cmdAdd(args({ slot: "testing", moduleId: "playwright" }));
       expect(process.exitCode).toBeFalsy();
 
       const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
@@ -252,17 +231,17 @@ describe("add-ons (multi-choice testing slot)", () => {
     });
 
     it("rejects re-adding the same add-on id", async () => {
-      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
       process.exitCode = undefined;
-      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
       expect(process.exitCode).toBe(1);
     });
 
     it("removes only the named add-on, leaving siblings intact", async () => {
-      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
-      await cmdAdd({ slot: "testing", moduleId: "playwright", argv: argv({}) as never });
+      await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
+      await cmdAdd(args({ slot: "testing", moduleId: "playwright" }));
 
-      await cmdRemove({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      await cmdRemove(args({ slot: "testing", moduleId: "vitest" }));
       expect(process.exitCode).toBeFalsy();
 
       const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
@@ -275,15 +254,15 @@ describe("add-ons (multi-choice testing slot)", () => {
       expect(appPkg.scripts["test:e2e"]).toBe("playwright test");
 
       // Removing the last one drops the category key.
-      await cmdRemove({ slot: "testing", moduleId: "playwright", argv: argv({}) as never });
+      await cmdRemove(args({ slot: "testing", moduleId: "playwright" }));
       const after = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
       expect(after.addons.testing).toBeUndefined();
     });
 
     it("errors when removing an add-on category without an id", async () => {
-      await cmdAdd({ slot: "testing", moduleId: "vitest", argv: argv({}) as never });
+      await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
       process.exitCode = undefined;
-      await cmdRemove({ slot: "testing", argv: argv({}) as never });
+      await cmdRemove(args({ slot: "testing" }));
       expect(process.exitCode).toBe(1);
     });
   });

@@ -1,23 +1,18 @@
 #!/usr/bin/env node
 import { run } from "@stanza/cli";
-import mri from "mri";
 
-/**
- * `pnpm create stanza my-app` lands here. We forward straight to the CLI's
- * init command — no extra logic, since the wizard wants to live in one place.
- *
- * The argv shape from npm's `create-` convention is the same as a normal CLI
- * invocation, with the project name as the first positional arg.
- */
-const argv = mri(process.argv.slice(2), {
-  alias: { h: "help", v: "version" },
-  boolean: ["help", "version", "yes", "dry-run", "no-telemetry"],
-});
+import { version } from "../package.json" with { type: "json" };
 
-// Inject the `init` verb so the user-facing command stays terse.
-argv._ = ["init", ...argv._];
+// `pnpm create stanza my-app` forwards straight to the CLI's init command.
+const argv = process.argv.slice(2);
 
-run(argv).catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exitCode = 1;
-});
+// Injecting `init` means runMain never sees `-v` as the lone arg, so handle the
+// version request here rather than launching the wizard.
+if (argv.includes("-v") || argv.includes("--version")) {
+  console.log(version);
+} else {
+  run(["init", ...argv]).catch((err: unknown) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exitCode = 1;
+  });
+}

@@ -5,8 +5,8 @@ import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
 import type { AddonCategoryId, SlotId, StanzaModuleRecord } from "@stanza/registry";
 import { KNOWN_ADDONS, KNOWN_SLOTS, SLOT_PACKAGE_DIR } from "@stanza/registry";
-import kleur from "kleur";
-import type { Argv } from "mri";
+import { defineCommand } from "citty";
+import pc from "picocolors";
 
 import { revertCodemods } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
@@ -14,25 +14,41 @@ import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regionsOwnedBy } from "../lib/region-tracker";
 import { loadRegistry } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
+import { commonArgs, type CliArgs } from "./_args";
 
-export async function cmdRemove(args: {
-  slot?: string;
-  moduleId?: string;
-  argv: Argv;
-}): Promise<void> {
-  if (!args.slot) {
+export const remove = defineCommand({
+  meta: {
+    name: "remove",
+    description: "Remove a slot module, or a specific add-on (id required).",
+  },
+  args: {
+    slot: { type: "positional", required: true, description: "Slot or add-on category." },
+    moduleId: {
+      type: "positional",
+      required: false,
+      description: "Add-on id (required for add-ons).",
+    },
+    ...commonArgs,
+  },
+  run: ({ args }) => cmdRemove(args),
+});
+
+export async function cmdRemove(args: CliArgs): Promise<void> {
+  const slot = typeof args.slot === "string" ? args.slot : undefined;
+  const moduleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
+  if (!slot) {
     p.log.error("Usage: stanza remove <slot|category> [id]");
     process.exitCode = 1;
     return;
   }
-  const isSlot = (KNOWN_SLOTS as readonly string[]).includes(args.slot);
-  const isCategory = (KNOWN_ADDONS as readonly string[]).includes(args.slot);
+  const isSlot = (KNOWN_SLOTS as readonly string[]).includes(slot);
+  const isCategory = (KNOWN_ADDONS as readonly string[]).includes(slot);
   if (!isSlot && !isCategory) {
-    p.log.error(`Unknown slot or category: ${args.slot}`);
+    p.log.error(`Unknown slot or category: ${slot}`);
     process.exitCode = 1;
     return;
   }
-  const group = args.slot;
+  const group = slot;
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -41,8 +57,8 @@ export async function cmdRemove(args: {
     return;
   }
 
-  const dryRun = Boolean(args.argv["dry-run"]);
-  if (!dryRun && !ensureCleanWorktree(projectRoot, Boolean(args.argv["dangerously-allow-dirty"]))) {
+  const dryRun = Boolean(args["dry-run"]);
+  if (!dryRun && !ensureCleanWorktree(projectRoot, Boolean(args["dangerously-allow-dirty"]))) {
     process.exitCode = 1;
     return;
   }
@@ -52,16 +68,16 @@ export async function cmdRemove(args: {
   // Resolve which record we're removing — one-per-slot, or a named add-on.
   let installed: StanzaModuleRecord;
   if (isSlot) {
-    const slot = group as SlotId;
-    const record = manifest.modules[slot];
+    const slotId = group as SlotId;
+    const record = manifest.modules[slotId];
     if (!record) {
-      p.log.warn(`Slot "${slot}" is not filled.`);
+      p.log.warn(`Slot "${slotId}" is not filled.`);
       return;
     }
     installed = record;
   } else {
     const category = group as AddonCategoryId;
-    if (!args.moduleId) {
+    if (!moduleId) {
       const present = (manifest.addons[category] ?? []).map((r) => r.id).join(", ");
       p.log.error(
         `Add-on category "${category}" can hold several modules — specify which: ` +
@@ -70,9 +86,9 @@ export async function cmdRemove(args: {
       process.exitCode = 1;
       return;
     }
-    const record = manifest.addons[category]?.find((r) => r.id === args.moduleId);
+    const record = manifest.addons[category]?.find((r) => r.id === moduleId);
     if (!record) {
-      p.log.warn(`"${category}/${args.moduleId}" is not installed.`);
+      p.log.warn(`"${category}/${moduleId}" is not installed.`);
       return;
     }
     installed = record;
@@ -191,7 +207,7 @@ export async function cmdRemove(args: {
   if (!dryRun) writeManifest(projectRoot, manifest);
 
   telemetry.capture("cli_module", { action: "remove", group, module: installed.id });
-  p.log.success(`${kleur.green("✓")} Removed ${installed.id} from ${group}`);
+  p.log.success(`${pc.green("✓")} Removed ${installed.id} from ${group}`);
   if (sweptPackages.length > 0) {
     p.log.info(`Swept packages/${sweptPackages.join(", packages/")} (no remaining slot owns it).`);
   }
@@ -201,5 +217,5 @@ export async function cmdRemove(args: {
         manualCleanup.map((r) => `  • ${r}`).join("\n"),
     );
   }
-  if (dryRun) p.log.info(kleur.yellow("[dry-run] no files were written"));
+  if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
 }

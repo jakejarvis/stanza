@@ -13,8 +13,8 @@ import {
   rootPackageJson,
   slotOrder,
 } from "@stanza/registry";
-import kleur from "kleur";
-import type { Argv } from "mri";
+import { type ArgsDef, defineCommand } from "citty";
+import pc from "picocolors";
 
 import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
@@ -22,18 +22,49 @@ import { initManifest } from "../lib/manifest";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
+import { commonArgs, type CliArgs } from "./_args";
 
-export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void> {
+// Derived from the registry constants so new slots/categories surface in
+// `--help` automatically.
+const slotArgs = Object.fromEntries(
+  KNOWN_SLOTS.map((slot) => [
+    slot,
+    { type: "string", description: `Pick the ${slot} module (with --yes).` },
+  ]),
+) satisfies ArgsDef;
+const addonArgs = Object.fromEntries(
+  KNOWN_ADDONS.map((category) => [
+    category,
+    { type: "string", description: `Comma-separated ${category} add-ons (with --yes).` },
+  ]),
+) satisfies ArgsDef;
+
+export const init = defineCommand({
+  meta: { name: "init", description: "Scaffold a new monorepo via the interactive wizard." },
+  args: {
+    name: { type: "positional", required: false, description: "Project directory name." },
+    yes: {
+      type: "boolean",
+      default: false,
+      description: "Non-interactive; take picks from flags.",
+    },
+    pm: { type: "string", description: "Package manager: pnpm | bun | npm." },
+    ...slotArgs,
+    ...addonArgs,
+    ...commonArgs,
+  },
+  run: ({ args }) => cmdInit(args),
+});
+
+export async function cmdInit(args: CliArgs): Promise<void> {
+  const name = typeof args.name === "string" ? args.name : undefined;
   const registry = await loadRegistry();
-  const defaultName = args.name ?? path.basename(process.cwd());
+  const defaultName = name ?? path.basename(process.cwd());
 
-  const dryRun = Boolean(args.argv["dry-run"]);
+  const dryRun = Boolean(args["dry-run"]);
   // Guard the cwd's repo (init scaffolds into a new subdir of it). Skipped in
   // dry-run, which writes nothing. Fails fast — before the interactive wizard.
-  if (
-    !dryRun &&
-    !ensureCleanWorktree(process.cwd(), Boolean(args.argv["dangerously-allow-dirty"]))
-  ) {
+  if (!dryRun && !ensureCleanWorktree(process.cwd(), Boolean(args["dangerously-allow-dirty"]))) {
     process.exitCode = 1;
     return;
   }
@@ -41,7 +72,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
   // --yes turns CLI flags into the wizard's answers (each `--<slot>=<id>` picks
   // a module for that slot; `--pm=<...>` picks the package manager). Missing
   // slots are simply skipped — no auto-defaulting, explicit is better.
-  const overrides = args.argv.yes ? overridesFromArgv(args.name, args.argv) : undefined;
+  const overrides = args.yes ? overridesFromArgv(name, args) : undefined;
 
   const result = await runInitWizard({ registry, defaultName, overrides });
   if (!result) return;
@@ -72,7 +103,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
 
   const registryRoot = pickRegistryRoot();
 
-  if (dryRun) p.log.info(kleur.yellow("[dry-run] no files will be written"));
+  if (dryRun) p.log.info(pc.yellow("[dry-run] no files will be written"));
 
   const spinner = p.spinner();
 
@@ -82,7 +113,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
     spinner.start(`Installing ${mod.label}`);
     const adapter = resolveAdapter(mod, { manifest, pending: {} });
     if (!adapter.ok) {
-      spinner.stop(`${mod.label} ${kleur.red("failed")}`);
+      spinner.stop(`${mod.label} ${pc.red("failed")}`);
       throw new Error(`Could not resolve adapter for ${slot}/${mod.id}: ${adapter.error.kind}`);
     }
     const r = await applyModule({
@@ -95,7 +126,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
     });
     manifest = r.manifest;
     telemetry.capture("cli_module", { action: "install", group: slot, module: mod.id });
-    spinner.stop(`${kleur.green("✓")} ${mod.label}`);
+    spinner.stop(`${pc.green("✓")} ${mod.label}`);
   }
 
   // Add-ons apply after all slots, so framework-varying adapters resolve
@@ -105,7 +136,7 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
       spinner.start(`Installing ${mod.label}`);
       const adapter = resolveAdapter(mod, { manifest, pending: {} });
       if (!adapter.ok) {
-        spinner.stop(`${mod.label} ${kleur.red("failed")}`);
+        spinner.stop(`${mod.label} ${pc.red("failed")}`);
         throw new Error(
           `Could not resolve adapter for ${category}/${mod.id}: ${adapter.error.kind}`,
         );
@@ -120,17 +151,17 @@ export async function cmdInit(args: { name?: string; argv: Argv }): Promise<void
       });
       manifest = r.manifest;
       telemetry.capture("cli_module", { action: "install", group: category, module: mod.id });
-      spinner.stop(`${kleur.green("✓")} ${mod.label}`);
+      spinner.stop(`${pc.green("✓")} ${mod.label}`);
     }
   }
 
   p.outro(
     [
-      kleur.green("Done."),
+      pc.green("Done."),
       "",
-      `  ${kleur.dim("$")} cd ${result.name}`,
-      `  ${kleur.dim("$")} ${result.packageManager} install`,
-      `  ${kleur.dim("$")} ${result.packageManager} dev`,
+      `  ${pc.dim("$")} cd ${result.name}`,
+      `  ${pc.dim("$")} ${result.packageManager} install`,
+      `  ${pc.dim("$")} ${result.packageManager} dev`,
     ].join("\n"),
   );
 }
@@ -176,16 +207,16 @@ function bootstrapShell(
   fs.mkdirSync(path.join(projectRoot, "packages"), { recursive: true });
 }
 
-function overridesFromArgv(name: string | undefined, argv: Argv): WizardOverrides {
+function overridesFromArgv(name: string | undefined, args: CliArgs): WizardOverrides {
   const modules: Partial<Record<SlotId, string>> = {};
   for (const slot of KNOWN_SLOTS) {
-    const value = argv[slot];
+    const value = args[slot];
     if (typeof value === "string" && value.length > 0) modules[slot] = value;
   }
   // Add-on flags are comma-separated lists (e.g. `--testing vitest,playwright`).
   const addons: Partial<Record<AddonCategoryId, string[]>> = {};
   for (const category of KNOWN_ADDONS) {
-    const value = argv[category];
+    const value = args[category];
     if (typeof value === "string" && value.length > 0) {
       const ids = value
         .split(",")
@@ -194,7 +225,7 @@ function overridesFromArgv(name: string | undefined, argv: Argv): WizardOverride
       if (ids.length > 0) addons[category] = ids;
     }
   }
-  const pm = argv.pm;
+  const pm = args.pm;
   return {
     name,
     packageManager: pm === "pnpm" || pm === "bun" || pm === "npm" ? pm : undefined,

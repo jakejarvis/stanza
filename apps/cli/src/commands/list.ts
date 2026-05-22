@@ -1,11 +1,18 @@
 import * as p from "@clack/prompts";
 import { addonOrder, slotOrder, type SlotId } from "@stanza/registry";
-import kleur from "kleur";
-import type { Argv } from "mri";
+import { defineCommand } from "citty";
+import pc from "picocolors";
 
 import { findProjectRoot, readManifest } from "../lib/manifest";
+import { commonArgs } from "./_args";
 
-export async function cmdList(_args: { argv: Argv }): Promise<void> {
+export const list = defineCommand({
+  meta: { name: "list", description: "List installed modules." },
+  args: { ...commonArgs },
+  run: () => cmdList(),
+});
+
+export async function cmdList(): Promise<void> {
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
     p.log.error("No stanza.json found.");
@@ -17,15 +24,15 @@ export async function cmdList(_args: { argv: Argv }): Promise<void> {
   const rows = slotOrder.map((slot: SlotId) => {
     const m = manifest.modules[slot];
     return m
-      ? `${kleur.cyan(slot.padEnd(10))} ${m.id} ${kleur.dim(`@${m.version}`)} ${kleur.dim(`[${m.adapter}]`)}`
-      : `${kleur.cyan(slot.padEnd(10))} ${kleur.dim("(empty)")}`;
+      ? `${pc.cyan(slot.padEnd(10))} ${m.id} ${pc.dim(`@${m.version}`)} ${pc.dim(`[${m.adapter}]`)}`
+      : `${pc.cyan(slot.padEnd(10))} ${pc.dim("(empty)")}`;
   });
 
   // Add-on rows after the slots — a category can list several.
   for (const category of addonOrder) {
     for (const m of manifest.addons[category] ?? []) {
       rows.push(
-        `${kleur.cyan(category.padEnd(10))} ${m.id} ${kleur.dim(`@${m.version}`)} ${kleur.dim(`[${m.adapter}]`)}`,
+        `${pc.cyan(category.padEnd(10))} ${m.id} ${pc.dim(`@${m.version}`)} ${pc.dim(`[${m.adapter}]`)}`,
       );
     }
   }

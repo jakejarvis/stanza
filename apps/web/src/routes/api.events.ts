@@ -51,12 +51,12 @@ export const Route = createFileRoute("/api/events")({
         const payload = parsePayload(body);
         if (!payload) return new Response("Invalid payload", { status: 400 });
 
-        const apiKey = process.env.POSTHOG_API_KEY;
+        const apiKey = process.env.VITE_PUBLIC_POSTHOG_KEY;
         // No key configured (local dev / self-host without analytics): accept
         // and discard so the CLI never sees an error.
         if (!apiKey) return new Response(null, { status: 204 });
 
-        const host = process.env.POSTHOG_HOST ?? "https://us.i.posthog.com";
+        const host = process.env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
         const batch = payload.events.map((e) => ({
           event: e.event,
           distinct_id: payload.distinctId,

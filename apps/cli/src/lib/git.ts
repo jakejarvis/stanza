@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 
 import * as p from "@clack/prompts";
-import kleur from "kleur";
+import pc from "picocolors";
 
 export type WorktreeStatus = { dirty: false } | { dirty: true; changes: string[] };
 
@@ -44,7 +44,7 @@ export function ensureCleanWorktree(dir: string, allowDirty: boolean): boolean {
   const status = worktreeStatus(dir);
   if (!status.dirty) return true;
   if (allowDirty) {
-    p.log.warn(kleur.yellow("[dangerously-allow-dirty] proceeding despite uncommitted changes."));
+    p.log.warn(pc.yellow("[dangerously-allow-dirty] proceeding despite uncommitted changes."));
     return true;
   }
 
@@ -58,7 +58,7 @@ export function ensureCleanWorktree(dir: string, allowDirty: boolean): boolean {
       ...preview.map((c) => `  ${c}`),
       ...(more > 0 ? [`  …and ${more} more`] : []),
       "",
-      `Re-run with ${kleur.cyan("--dangerously-allow-dirty")} to override.`,
+      `Re-run with ${pc.cyan("--dangerously-allow-dirty")} to override.`,
     ].join("\n"),
   );
   return false;

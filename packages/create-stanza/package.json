@@ -33,8 +33,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@stanza/cli": "workspace:*",
-    "mri": "^1.2.0"
+    "@stanza/cli": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

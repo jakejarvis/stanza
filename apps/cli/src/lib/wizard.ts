@@ -11,7 +11,7 @@ import {
   slotLabel,
   slotOrder,
 } from "@stanza/registry";
-import kleur from "kleur";
+import pc from "picocolors";
 
 import type { Registry } from "./registry-loader";
 
@@ -57,7 +57,7 @@ export async function runInitWizard(args: {
 
   if (overrides) return runNonInteractive({ registry, defaultName, overrides });
 
-  p.intro(kleur.bold().cyan("stanza"));
+  p.intro(pc.bold(pc.cyan("stanza")));
 
   const name = await p.text({
     message: "Project name",
@@ -86,7 +86,7 @@ export async function runInitWizard(args: {
 
     const choice = await p.select({
       message: `${slotLabel(slot)}?`,
-      options: [...choices, { value: "__skip__", label: kleur.dim("Skip this slot") }],
+      options: [...choices, { value: "__skip__", label: pc.dim("Skip this slot") }],
     });
     if (p.isCancel(choice)) {
       p.cancel("Cancelled.");
@@ -106,7 +106,7 @@ export async function runInitWizard(args: {
     if (candidates.length === 0) continue;
 
     const picks = await p.multiselect({
-      message: `${addonLabel(category)}? ${kleur.dim("(space to toggle, enter to confirm)")}`,
+      message: `${addonLabel(category)}? ${pc.dim("(space to toggle, enter to confirm)")}`,
       options: candidates.map((m) => ({ value: m.id, label: m.label, hint: m.description })),
       required: false,
     });
@@ -137,16 +137,16 @@ export async function runInitWizard(args: {
   const addonRows = Object.entries(addons).flatMap(([category, mods]) =>
     (mods ?? []).map(
       (mod) =>
-        `${kleur.bold(addonLabel(category as AddonCategoryId).padEnd(16))} ${mod.label} ${kleur.dim(`(${mod.id})`)}`,
+        `${pc.bold(addonLabel(category as AddonCategoryId).padEnd(16))} ${mod.label} ${pc.dim(`(${mod.id})`)}`,
     ),
   );
   const summary = [
-    `${kleur.bold("Name:")}            ${String(name)}`,
-    `${kleur.bold("Package manager:")} ${String(pmChoice)}`,
+    `${pc.bold("Name:")}            ${String(name)}`,
+    `${pc.bold("Package manager:")} ${String(pmChoice)}`,
     "",
     ...Object.entries(modules).map(
       ([slot, mod]) =>
-        `${kleur.bold(slotLabel(slot as SlotId).padEnd(16))} ${mod!.label} ${kleur.dim(`(${mod!.id})`)}`,
+        `${pc.bold(slotLabel(slot as SlotId).padEnd(16))} ${mod!.label} ${pc.dim(`(${mod!.id})`)}`,
     ),
     ...addonRows,
   ].join("\n");

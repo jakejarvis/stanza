@@ -1,5 +1,3 @@
-import type { Argv } from "mri";
-
 /**
  * Lightweight, dependency-free analytics for the CLI. Events accumulate in
  * memory during a run and are flushed once as a single plain-`fetch` POST to
@@ -36,17 +34,15 @@ function envFlag(value: string | undefined, truthy: readonly string[]): boolean 
 function isCI(): boolean {
   return Boolean(
     process.env.CI ||
-      process.env.GITHUB_ACTIONS ||
-      process.env.GITLAB_CI ||
-      process.env.CIRCLECI ||
-      process.env.BUILD_NUMBER,
+    process.env.GITHUB_ACTIONS ||
+    process.env.GITLAB_CI ||
+    process.env.CIRCLECI ||
+    process.env.BUILD_NUMBER,
   );
 }
 
-export function isTelemetryDisabled(argv: Argv): boolean {
-  // `mri` parses `--no-telemetry` into `{ telemetry: false }` via its `--no-`
-  // prefix convention (the flag is declared `telemetry` boolean in bin.ts).
-  if (argv.telemetry === false) return true;
+export function isTelemetryDisabled(rawArgs: string[]): boolean {
+  if (rawArgs.includes("--no-telemetry")) return true;
   if (envFlag(process.env.STANZA_TELEMETRY, ["0", "false", "off", "no"])) return true;
   if (envFlag(process.env.DO_NOT_TRACK, ["1", "true"])) return true;
   if (isCI()) return true;
