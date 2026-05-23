@@ -1,3 +1,5 @@
+"use client";
+
 import type { ModuleSummary, RegistryIndex } from "@stanza/registry";
 import { categoryLabel } from "@stanza/registry";
 import { IconSearch } from "@tabler/icons-react";

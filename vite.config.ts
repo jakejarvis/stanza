@@ -44,6 +44,7 @@ export default defineConfig({
           allowEmptyCatch: true,
         },
       ],
+      "no-underscore-dangle": "off",
       "no-await-in-loop": "off",
       "unicorn/no-null": "off",
       "unicorn/filename-case": "off",

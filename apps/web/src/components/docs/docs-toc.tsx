@@ -1,3 +1,5 @@
+"use client";
+
 import { AnchorProvider, useActiveAnchor } from "fumadocs-core/toc";
 import type { TOCItemType } from "fumadocs-core/toc";
 

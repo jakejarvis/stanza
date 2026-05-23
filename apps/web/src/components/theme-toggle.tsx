@@ -1,3 +1,5 @@
+"use client";
+
 import { IconDeviceLaptop, IconMoon, IconSun } from "@tabler/icons-react";
 
 import { useTheme } from "@/components/theme-provider";

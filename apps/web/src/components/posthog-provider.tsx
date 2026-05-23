@@ -1,3 +1,5 @@
+"use client";
+
 import { posthog } from "posthog-js";
 import { PostHogProvider as PostHogReactProvider } from "posthog-js/react";
 
@@ -13,7 +15,6 @@ import { PostHogProvider as PostHogReactProvider } from "posthog-js/react";
 
 const key = import.meta.env.VITE_PUBLIC_POSTHOG_KEY;
 
-// oxlint-disable-next-line no-underscore-dangle
 if (typeof window !== "undefined" && key && !posthog.__loaded) {
   posthog.init(key, {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",

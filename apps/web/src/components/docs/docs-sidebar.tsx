@@ -1,3 +1,5 @@
+"use client";
+
 import { IconChevronRight } from "@tabler/icons-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { Node, Root } from "fumadocs-core/page-tree";

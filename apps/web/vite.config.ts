@@ -2,6 +2,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react from "@vitejs/plugin-react";
+import rsc from "@vitejs/plugin-rsc";
 import mdx from "fumadocs-mdx/vite";
 import { nitro } from "nitro/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
@@ -9,11 +10,15 @@ import { defineConfig, lazyPlugins } from "vite-plus";
 import { listPrerenderPages } from "./src/lib/prerender.ts";
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+  },
   plugins: lazyPlugins(async () => [
     mdx(await import("./source.config.ts")),
     devtools(),
     tailwindcss(),
     tanstackStart({
+      rsc: { enabled: true },
       pages: listPrerenderPages(),
       prerender: {
         enabled: true,
@@ -24,6 +29,7 @@ export default defineConfig({
         host: "https://stanza.tools",
       },
     }),
+    rsc(),
     react(),
     nitro({
       serverAssets: [
@@ -32,27 +38,34 @@ export default defineConfig({
           dir: "public/registry",
         },
       ],
-      vercel: {
-        config: {
-          version: 3,
-          routes: [
-            { src: "/llms.txt", dest: "/docs/llms.txt" },
-            { src: "/llms-full.txt", dest: "/docs/llms-full.txt" },
-          ],
-        },
-      },
     }),
   ]),
   resolve: {
     tsconfigPaths: true,
+    dedupe: ["react", "react-dom"],
     alias: {
-      // tslib's CJS UMD sets __esModule: true without providing a default
-      // export, which breaks Vite 8 / Rolldown's consistent CJS interop.
-      // Alias to the native ESM build to avoid the interop entirely.
       tslib: "tslib/tslib.es6.mjs",
     },
   },
   ssr: {
-    external: ["@takumi-rs/image-response"],
+    external: ["@takumi-rs/image-response", "@vercel/functions"],
+  },
+  optimizeDeps: {
+    include: [
+      "@base-ui/react/button",
+      "@base-ui/react/checkbox",
+      "@base-ui/react/dialog",
+      "@base-ui/react/input",
+      "@base-ui/react/menu",
+      "@base-ui/react/popover",
+      "@base-ui/react/scroll-area",
+      "@base-ui/react/separator",
+      "@base-ui/react/tabs",
+      "@base-ui/react/toggle",
+      "@base-ui/react/toggle-group",
+      "@base-ui/react/tooltip",
+      "@base-ui/react/merge-props",
+      "@base-ui/react/use-render",
+    ],
   },
 });

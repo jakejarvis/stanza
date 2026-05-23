@@ -1,7 +1,6 @@
 import { themeToTreeStyles } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelection } from "@pierre/trees/react";
 import { IconLoader2 } from "@tabler/icons-react";
-import { useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
@@ -11,9 +10,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Preview } from "@/server/highlighter";
 
-// @pierre/trees' middle-truncate mashes both halves together with no visible
-// ellipsis when the content cell is narrow. Flatten it to a plain single-line
-// ellipsis instead.
+// Flatten @pierre/trees' middle-truncate to a single-line ellipsis — its
+// default mashes both halves together with no visible ellipsis when narrow.
 const TRUNCATE_FIX_CSS = `
 [data-item-section="content"] [data-truncate-group-container="middle"] {
   display: block !important;
@@ -34,13 +32,12 @@ const TRUNCATE_FIX_CSS = `
   display: none !important;
 }`;
 
-// Default file to display: the synthesized root `package.json` (the most
-// useful at-a-glance summary of the stack) when it exists, else the first file.
+// Prefer the root `package.json` — best at-a-glance summary of the stack.
 function defaultPathFor(filePaths: string[]): string | undefined {
   return filePaths.includes("package.json") ? "package.json" : filePaths[0];
 }
 
-// Every ancestor directory of each file path, e.g. "a/b/c.ts" → ["a", "a/b"].
+// "a/b/c.ts" → ["a", "a/b"].
 function directoryPaths(paths: readonly string[]): string[] {
   const dirs = new Set<string>();
   for (const path of paths) {
@@ -58,26 +55,26 @@ function directoryPaths(paths: readonly string[]): string[] {
 export function FilePreview({
   filePaths,
   previews,
+  isReloading,
   header,
 }: {
   filePaths: string[];
   previews: Record<string, Preview>;
+  /** True while the route's loader is rerunning — drives the overlay. */
+  isReloading: boolean;
   /** Rendered into the pane's header bar (the install command row). */
   header: ReactNode;
 }) {
-  // @pierre/trees is path-driven. `useFileTree` builds the model once (lazy
-  // `useState` init), so it does NOT react to later `paths` changes on its own.
+  // `useFileTree` builds the model once (lazy init) and doesn't react to later
+  // `paths` changes — we re-seed manually in the effect below.
   const { model } = useFileTree({
     paths: filePaths,
     search: false,
     unsafeCSS: TRUNCATE_FIX_CSS,
   });
 
-  // The parent's loader reruns on every selection change, handing us a fresh
-  // `filePaths`. Re-seed the existing model so the tree reflects the new set.
-  // `resetPaths` collapses everything by default, so first snapshot which
-  // directories the user had expanded (against the *previous* path set, still
-  // live in the model) and replay them via `initialExpandedPaths`.
+  // Re-seed the model when `filePaths` changes. `resetPaths` collapses
+  // everything and clears selection, so we replay both manually.
   const prevPathsRef = useRef(filePaths);
   useEffect(() => {
     const expandedSet = new Set(
@@ -86,11 +83,10 @@ export function FilePreview({
         return item != null && "isExpanded" in item && item.isExpanded();
       }),
     );
-    // Collapsing a directory only clears its *own* expanded flag — descendants
-    // stay flagged expanded while hidden. `initialExpandedPaths` re-expands the
-    // full ancestor chain of every path it's given, so replaying such a
-    // descendant would re-open the parent the user just collapsed. Keep only
-    // directories whose entire ancestor chain is still expanded.
+    // Collapsing a directory leaves its descendants flagged expanded.
+    // `initialExpandedPaths` re-expands the full ancestor chain of every path
+    // given, so replaying such a descendant would re-open the just-collapsed
+    // parent. Keep only dirs whose entire ancestor chain is still expanded.
     const expanded = [...expandedSet].filter((dir) => {
       const segments = dir.split("/");
       segments.pop();
@@ -102,13 +98,9 @@ export function FilePreview({
       return true;
     });
     expanded.sort();
-    // Capture the open file before `resetPaths` wipes selection.
     const previousSelection = model.getSelectedPaths()[0];
     model.resetPaths(filePaths, { initialExpandedPaths: expanded });
-    // `resetPaths` clears selection; without a selected row the tree gives no
-    // indication of which file the preview pane is showing. Re-seed it: keep
-    // the open file if it survived the path change, else fall back to the
-    // default (root package.json / first file) the preview defaults to.
+    // Keep the open file if it survived, else fall back to the default.
     const next =
       previousSelection != null && filePaths.includes(previousSelection)
         ? previousSelection
@@ -117,25 +109,16 @@ export function FilePreview({
     prevPathsRef.current = filePaths;
   }, [model, filePaths]);
 
-  // The model owns selection internally; `useFileTreeSelection` exposes the
-  // currently-selected paths as a stable readonly array we subscribe to.
   const selectedPaths = useFileTreeSelection(model);
   const activePath = selectedPaths[0] ?? defaultPathFor(filePaths);
   const preview = activePath ? previews[activePath] : undefined;
 
-  // Drive the tree's shadow-root palette from the app theme — otherwise it
-  // auto-detects via `prefers-color-scheme` and mismatches when the user picks
-  // a theme different from their OS setting.
+  // Drive the tree's palette from the app theme; otherwise it auto-detects via
+  // `prefers-color-scheme` and mismatches when the user overrides the OS theme.
   const { resolvedTheme } = useTheme();
   const treeStyle = useMemo(() => themeToTreeStyles({ type: resolvedTheme }), [resolvedTheme]);
 
-  // The route loader reruns its server fn on every selection change; surface
-  // that as a subtle overlay so the preview reads as "refreshing" rather than
-  // flashing stale content.
-  const isLoading = useRouterState({ select: (s) => s.isLoading });
-
-  // `sm` breakpoint (640px): below it the panes stack and resize vertically.
-  // Default `true` (desktop-first) so SSR/first paint match the common case.
+  // Desktop-first default so SSR/first paint match the common case.
   const isWide = useMediaQuery("(min-width: 640px)", true);
 
   return (
@@ -163,10 +146,9 @@ export function FilePreview({
             </ResizablePanelGroup>
           </div>
         )}
-        {/* Hosted outside the empty/non-empty branch so it also covers the very
-            first selection (empty → content), where `filePaths` is still the
-            stale empty array while the loader runs. */}
-        {isLoading ? (
+        {/* Outside the empty/non-empty branch so it also covers the first
+            selection (empty → content), where `filePaths` is still empty. */}
+        {isReloading ? (
           <div
             role="status"
             aria-live="polite"

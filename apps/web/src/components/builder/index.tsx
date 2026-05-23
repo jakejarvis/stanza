@@ -1,6 +1,6 @@
 import type { CategoryId } from "@stanza/registry";
 import { isMulti } from "@stanza/registry";
-import { useNavigate } from "@tanstack/react-router";
+import { useMatch, useNavigate } from "@tanstack/react-router";
 import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
@@ -22,37 +22,32 @@ import type { BuilderState } from "@/server/builder-state.functions";
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });
   const capture = useAnalytics();
+  // Scoped to *this* match so navigating away doesn't flash the overlay
+  // before the page unmounts.
+  const isReloading = useMatch({
+    from: "/",
+    select: (m) => m.isFetching !== false || m.status === "pending",
+  });
   const parsed = useMemo(() => parseSelections(search), [search]);
   const { name, pm } = parsed;
-  // Sanitize at the URL boundary: a shared link with an orphaned dependent
-  // (e.g. `?orm=drizzle` with no `db`) must not render a stuck selected card or
-  // leak an invalid flag into the command. The server loader already resolves
-  // before building the preview, so this only realigns the cards + command.
+  // Drop orphaned dependents from a shared link (e.g. `?orm=drizzle` with no
+  // `db`) so cards + command don't render an unresolvable selection.
   const selections = useMemo(
     () => pruneUnresolved(state.modules, parsed.selections),
     [state.modules, parsed.selections],
   );
 
-  // Card selection is optimistic: a toggle flips the border/check immediately
-  // instead of waiting for the loader-backed navigation to commit. The async
-  // transition holds the optimistic value until `navigate` resolves, at which
-  // point the URL-derived base matches and reconciles seamlessly. The preview
-  // pane deliberately stays on committed loader data (it needs server-rendered
-  // Shiki HTML) and surfaces its own spinner while that round-trip runs.
   const [optimistic, setOptimistic] = useOptimistic(selections, (_prev, next: Selections) => next);
 
-  // Latest-value snapshot so setName/setPm/toggle keep stable identities — they
-  // read off `latest.current` instead of closing over state. Stable callbacks
-  // let downstream memoization (`ModuleCard(s)`) actually pay off instead of
-  // invalidating on every optimistic flip.
+  // Latest-value snapshot so setName/setPm/toggle keep stable identities and
+  // downstream memoization (`ModuleCard(s)`) actually pays off.
   const latest = useRef({ name, pm, optimistic, modules: state.modules });
   latest.current = { name, pm, optimistic, modules: state.modules };
 
   const setName = useCallback(
     (next: string) => {
       // Build off the optimistic snapshot, not the committed URL — otherwise a
-      // debounced name push landing mid-flight would navigate with stale
-      // selections and drop a toggle that hasn't committed yet.
+      // debounced name push mid-flight drops an uncommitted toggle.
       void navigate({
         search: toSearchParams({
           name: next,
@@ -88,22 +83,20 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
       const current = snapshot.optimistic[category] ?? [];
       const draft: Selections = { ...snapshot.optimistic };
       if (isMulti(category)) {
-        // Multi-choice: toggle membership in the array.
         const enabled = !current.includes(id);
         const nextIds = enabled ? [...current, id] : current.filter((x) => x !== id);
         if (nextIds.length > 0) draft[category] = nextIds;
         else delete draft[category];
         capture("builder_addon_toggled", { category, addon: id, enabled });
       } else if (current[0] === id) {
-        // Single-choice: clicking the selected module clears it.
+        // Clicking the selected single-choice module clears it.
         delete draft[category];
         capture("builder_module_deselected", { category });
       } else {
         draft[category] = [id];
         capture("builder_module_selected", { category, module: id });
       }
-      // Removing or changing a peer can orphan dependents (e.g. dropping `db`
-      // strands `orm`); prune them so cards + command never go inconsistent.
+      // Dropping a peer can strand its dependents (e.g. `db` → `orm`); prune.
       const next = pruneUnresolved(snapshot.modules, draft);
       startTransition(async () => {
         setOptimistic(next);
@@ -121,9 +114,8 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
 
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      {/* Mobile: the command (the thing to copy) sits above the slot cards so a
-          phone user isn't forced to scroll past all five slots to reach it. On
-          lg the right column owns it instead. */}
+      {/* Mobile: command sits above the slot cards (no scrolling past all of
+          them to reach it). On lg the right column owns it instead. */}
       <div className="min-w-0 lg:hidden">{commandBar}</div>
       <section className="min-w-0 space-y-8">
         <ModuleCards
@@ -138,6 +130,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         <FilePreview
           filePaths={state.filePaths}
           previews={state.previews}
+          isReloading={isReloading}
           header={<CommandPreview name={name} selections={selections} pm={pm} onPmChange={setPm} />}
         />
       </section>

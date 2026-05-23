@@ -17,12 +17,10 @@ export function ProjectSetup({
   defaultName: string;
   onNameChange: (name: string) => void;
 }) {
-  // Debounce the upward push (`onNameChange` navigates → reruns the loader →
-  // rebuilds the file tree) while keeping the field locally responsive.
-  // External `name` changes (history nav, reset) flow back into the draft, but
-  // gated by `lastSyncedRef`: we must ignore the echo of our own pushes, since
-  // between firing the debounce and the new `name` prop arriving the user can
-  // type more characters, and naive `setDraft(name)` would clobber them.
+  // Debounce the upward push (navigates → reruns the loader) while keeping the
+  // field responsive. `lastSyncedRef` ignores the echo of our own pushes —
+  // otherwise `setDraft(name)` would clobber characters the user typed between
+  // the debounce firing and the new `name` prop arriving.
   const [draft, setDraft] = useState(name);
   const lastSyncedRef = useRef(name);
 
@@ -36,13 +34,12 @@ export function ProjectSetup({
   }, [name]);
 
   const validation = useMemo(() => validateProjectName(draft), [draft]);
-  // Suppress the "required" error when the field is empty: the placeholder
-  // already telegraphs the fallback to `defaultName`, and the gated debounce
-  // below keeps the URL on the last valid name.
+  // The placeholder telegraphs the `defaultName` fallback, so an empty field
+  // shouldn't render a "required" error.
   const showError = !validation.ok && draft.trim().length > 0;
 
-  // `useEffectEvent` reads the latest `onNameChange` without making the
-  // debounce effect re-run when the parent rebuilds the callback.
+  // Read the latest `onNameChange` without making the debounce effect re-run
+  // every time the parent rebuilds the callback.
   const commit = useEffectEvent((next: string) => {
     lastSyncedRef.current = next;
     onNameChange(next);

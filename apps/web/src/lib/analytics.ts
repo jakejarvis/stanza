@@ -13,7 +13,6 @@ export function useAnalytics(): (event: string, properties?: Record<string, unkn
   const posthog = usePostHog();
   return useCallback(
     (event, properties) => {
-      // oxlint-disable-next-line no-underscore-dangle
       if (!posthog.__loaded) return;
       posthog.capture(event, properties);
     },

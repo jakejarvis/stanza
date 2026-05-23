@@ -1,63 +1,63 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { createServerFn, Hydrate } from "@tanstack/react-start";
-import { load } from "@tanstack/react-start/hydration";
-import browserCollections from "collections/browser";
-import { useFumadocsLoader } from "fumadocs-core/source/client";
+import { createServerFn } from "@tanstack/react-start";
+import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { DocsBody } from "fumadocs-ui/layouts/docs/page";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
 
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { DocsToc } from "@/components/docs/docs-toc";
-import { useMDXComponents } from "@/components/mdx";
+import { getMDXComponents } from "@/components/mdx";
 import { buildHead, getTechArticleJsonLd } from "@/lib/seo";
 import { source } from "@/lib/source";
+import { getDocMeta } from "@/server/docs-meta.functions";
 
-const serverLoader = createServerFn({ method: "GET" })
+// Render the docs layout (sidebar + article + TOC) as one RSC fragment.
+// Fumadocs' `pageTree.name` and `TOCItemType.title` are typed as `ReactNode`,
+// so they can't ride along in JSON loader data — but inside an RSC fragment
+// they flow through React Flight natively. Client components in the tree ship
+// as `'use client'` references and hydrate normally.
+const getDocLayout = createServerFn({ method: "GET" })
   .inputValidator((slugs: string[]) => slugs)
   .handler(async ({ data: slugs }) => {
     const page = source.getPage(slugs);
     if (!page) throw notFound();
-
-    return {
-      path: page.path,
-      url: page.url,
-      title: page.data.title,
-      description: page.data.description,
-      pageTree: await source.serializePageTree(source.getPageTree()),
-    };
-  });
-
-const clientLoader = browserCollections.docs.createClientLoader({
-  id: "docs",
-  component({ toc, frontmatter, default: MDX }) {
-    return (
-      <div className="xl:flex xl:gap-8">
-        <article className="min-w-0 flex-1 pt-2 pb-8 md:pt-8">
-          <h1 className="text-3xl font-semibold tracking-tight">{frontmatter.title}</h1>
-          {frontmatter.description && (
-            <p className="mt-2 text-base leading-normal text-muted-foreground">
-              {frontmatter.description}
-            </p>
-          )}
-          <DocsBody className="mt-8">
-            <MDX components={useMDXComponents()} />
-          </DocsBody>
-        </article>
-        <DocsToc toc={toc} />
-      </div>
+    const MDX = page.data.body;
+    return await renderServerComponent(
+      <RootProvider theme={{ enabled: false }} search={{ enabled: false }}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="md:flex md:gap-8">
+            <DocsSidebar tree={source.getPageTree()} />
+            <div className="min-w-0 flex-1">
+              <div className="xl:flex xl:gap-8">
+                <article className="min-w-0 flex-1 pt-2 pb-8 md:pt-8">
+                  <h1 className="text-3xl font-semibold tracking-tight">{page.data.title}</h1>
+                  {page.data.description && (
+                    <p className="mt-2 text-base leading-normal text-muted-foreground">
+                      {page.data.description}
+                    </p>
+                  )}
+                  <DocsBody className="mt-8">
+                    <MDX components={getMDXComponents()} />
+                  </DocsBody>
+                </article>
+                <DocsToc toc={page.data.toc} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </RootProvider>,
     );
-  },
-});
+  });
 
 export const Route = createFileRoute("/docs/$")({
   component: Page,
   loader: async ({ params }) => {
-    // `_splat` is TanStack Router's catch-all param; bracket access dodges the
-    // no-underscore-dangle lint rule on a name we don't control.
     const slugs = params["_splat"]?.split("/").filter(Boolean) ?? [];
-    const data = await serverLoader({ data: slugs });
-    await clientLoader.preload(data.path);
-    return data;
+    const [meta, Content] = await Promise.all([
+      getDocMeta({ data: slugs }),
+      getDocLayout({ data: slugs }),
+    ]);
+    return { ...meta, Content };
   },
   head: ({ loaderData }) => {
     const path = loaderData?.url ?? "/docs";
@@ -78,18 +78,6 @@ export const Route = createFileRoute("/docs/$")({
 });
 
 function Page() {
-  const data = useFumadocsLoader(Route.useLoaderData());
-
-  return (
-    <RootProvider theme={{ enabled: false }} search={{ enabled: false }}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="md:flex md:gap-8">
-          <DocsSidebar tree={data.pageTree} />
-          <div className="min-w-0 flex-1">
-            <Hydrate when={load()}>{clientLoader.useContent(data.path)}</Hydrate>
-          </div>
-        </div>
-      </div>
-    </RootProvider>
-  );
+  const { Content } = Route.useLoaderData();
+  return <>{Content}</>;
 }

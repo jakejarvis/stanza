@@ -17,6 +17,7 @@ export function Footer() {
           .
         </p>
         <nav className="flex items-center gap-4">
+          <span className="text-xs text-muted-foreground">v{__APP_VERSION__ ?? "0.0.0"}</span>
           <Link to="/docs/$" params={{ _splat: "" }}>
             Docs
           </Link>

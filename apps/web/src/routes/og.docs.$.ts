@@ -13,8 +13,6 @@ export const Route = createFileRoute("/og/docs/$")({
   server: {
     handlers: {
       GET: ({ params }) => {
-        // `_splat` is TanStack Router's catch-all param; bracket access dodges
-        // the no-underscore-dangle lint rule on a name we don't control.
         const slugs = params["_splat"]?.split("/").filter(Boolean) ?? [];
         const page = source.getPage(slugs);
         if (!page) {
