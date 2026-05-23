@@ -1,4 +1,5 @@
 import { validateProjectName } from "@stanza/registry";
+import { IconAlertCircle } from "@tabler/icons-react";
 import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
@@ -15,11 +16,14 @@ export function ProjectSetup({
   defaultName: string;
   onNameChange: (name: string) => void;
 }) {
-  // Keep the field responsive locally and debounce the upward push: each
-  // `onNameChange` navigates, reruns the loader, and rebuilds the file tree, so
-  // firing it per keystroke is wasteful. External `name` changes (history nav,
-  // reset) flow back into the draft.
+  // Debounce the upward push (`onNameChange` navigates → reruns the loader →
+  // rebuilds the file tree) while keeping the field locally responsive.
+  // External `name` changes (history nav, reset) flow back into the draft, but
+  // gated by `lastSyncedRef`: we must ignore the echo of our own pushes, since
+  // between firing the debounce and the new `name` prop arriving the user can
+  // type more characters, and naive `setDraft(name)` would clobber them.
   const [draft, setDraft] = useState(name);
+  const lastSyncedRef = useRef(name);
   const onNameChangeRef = useRef(onNameChange);
   onNameChangeRef.current = onNameChange;
 
@@ -27,6 +31,8 @@ export function ProjectSetup({
   const errorId = `${inputId}-error`;
 
   useEffect(() => {
+    if (name === lastSyncedRef.current) return;
+    lastSyncedRef.current = name;
     setDraft(name);
   }, [name]);
 
@@ -37,11 +43,14 @@ export function ProjectSetup({
   const showError = !validation.ok && draft.trim().length > 0;
 
   useEffect(() => {
-    if (draft === name) return undefined;
+    if (draft === lastSyncedRef.current) return undefined;
     if (!validation.ok) return undefined;
-    const timer = setTimeout(() => onNameChangeRef.current(draft), 300);
+    const timer = setTimeout(() => {
+      lastSyncedRef.current = draft;
+      onNameChangeRef.current(draft);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [draft, name, validation.ok]);
+  }, [draft, validation.ok]);
 
   const onDraftChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value),
@@ -68,8 +77,15 @@ export function ProjectSetup({
             aria-describedby={showError ? errorId : undefined}
             className="text-[13px]!"
           />
-          <FieldError id={errorId} className="capitalize">
-            {showError ? validation.message : null}
+          <FieldError id={errorId}>
+            {showError ? (
+              <>
+                <IconAlertCircle className="size-3" aria-hidden="true" />
+                <span>
+                  {`${validation.message.charAt(0).toUpperCase()}${validation.message.slice(1)}`}
+                </span>
+              </>
+            ) : null}
           </FieldError>
         </Field>
       </FieldSet>
