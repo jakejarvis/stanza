@@ -4,8 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
+import { ModuleCards } from "@/components/builder/module-cards";
 import { ProjectSetup } from "@/components/builder/project-setup";
-import { SlotCards } from "@/components/builder/slot-cards";
 import { CommandPreview } from "@/components/command-preview";
 import { useAnalytics } from "@/lib/analytics";
 import type { PackageManager } from "@/lib/package-manager";
@@ -43,8 +43,8 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
 
   // Latest-value snapshot so setName/setPm/toggle keep stable identities — they
   // read off `latest.current` instead of closing over state. Stable callbacks
-  // let downstream memoization (`SlotCards`, `ModuleCard`) actually pay off
-  // instead of invalidating on every optimistic flip.
+  // let downstream memoization (`ModuleCard(s)`) actually pay off instead of
+  // invalidating on every optimistic flip.
   const latest = useRef({ name, pm, optimistic, modules: state.modules });
   latest.current = { name, pm, optimistic, modules: state.modules };
 
@@ -126,7 +126,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           lg the right column owns it instead. */}
       <div className="min-w-0 lg:hidden">{commandBar}</div>
       <section className="min-w-0 space-y-8">
-        <SlotCards
+        <ModuleCards
           modules={state.modules}
           summaries={state.index.modules}
           selections={optimistic}

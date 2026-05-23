@@ -13,8 +13,11 @@ export type JsonLdObject = {
 export type HeadInput = {
   /** Page-specific title. Concatenated to the site name: `${title} · stanza`. */
   title?: string;
+  /** Full title that bypasses the ` · stanza` suffix. Use for the homepage. */
+  titleOverride?: string;
+  /** Page-specific description. */
   description?: string;
-  /** Path-only URL (e.g. `/m/auth/better-auth`). Used to build `og:url` + canonical. */
+  /** Path-only URL (e.g. `/registry/auth/better-auth`). Used to build `og:url` + canonical. */
   path: string;
   /** OG image URL. Path-only ok — gets resolved against the site origin. */
   ogImage?: string;
@@ -33,7 +36,8 @@ export type HeadOutput = {
 };
 
 export function buildHead(input: HeadInput): HeadOutput {
-  const title = input.title ? `${input.title} · ${DEFAULT_TITLE}` : DEFAULT_TITLE;
+  const title =
+    input.titleOverride ?? (input.title ? `${input.title} · ${DEFAULT_TITLE}` : DEFAULT_TITLE);
   const description = input.description ?? DEFAULT_DESCRIPTION;
   const url = abs(input.path);
   const ogImage = abs(input.ogImage ?? "/og");

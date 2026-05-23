@@ -134,7 +134,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
 
       <div style={FOOTER}>
         <span>
-          stanza.tools/m/{summary.category}/{summary.id}
+          stanza.tools/registry/{summary.category}/{summary.id}
         </span>
       </div>
     </div>

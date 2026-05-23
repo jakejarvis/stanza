@@ -6,17 +6,17 @@ import { OgCard } from "@/server/og-card.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 /**
- * `/og/m/$slot/$id` — per-module OG card (e.g. `/og/m/auth/clerk`), mirroring
- * the public `/m/$slot/$id` URL. Dynamically rendered at request time via
+ * `/og/registry/$category/$id` — per-module OG card (e.g. `/og/registry/auth/clerk`), mirroring
+ * the public `/registry/$category/$id` URL. Dynamically rendered at request time via
  * Takumi. Bails 404 when the module is unknown.
  */
-export const Route = createFileRoute("/og/m/$slot/$id")({
+export const Route = createFileRoute("/og/registry/$category/$id")({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const slot = params.slot;
+        const category = params.category;
         const id = params.id;
-        if (!slot || !id) {
+        if (!category || !id) {
           return new Response("Not found", { status: 404 });
         }
 
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/og/m/$slot/$id")({
           return new Response("Registry unavailable", { status: 502 });
         }
 
-        const summary = index.modules.find((m) => m.category === slot && m.id === id);
+        const summary = index.modules.find((m) => m.category === category && m.id === id);
         if (!summary) {
           return new Response("Not found", { status: 404 });
         }

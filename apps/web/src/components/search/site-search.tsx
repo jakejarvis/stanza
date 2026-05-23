@@ -33,8 +33,8 @@ function matches(m: ModuleSummary, query: string): boolean {
 /**
  * Global module search. Triggered by a search-input-looking button in the
  * header and by `⌘K` / `Ctrl-K` (resolved per-platform by `@tanstack/react-hotkeys`).
- * Filters the registry index client-side, groups by slot, and navigates to
- * `/m/$slot/$id` on selection. Arrow keys move the highlight; Enter selects.
+ * Filters the registry index client-side, groups by category, and navigates to
+ * `/registry/$category/$id` on selection. Arrow keys move the highlight; Enter selects.
  */
 export function SiteSearch({ index }: { index: RegistryIndex }) {
   const [open, setOpen] = useState(false);
@@ -64,7 +64,10 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
   const selectModule = useCallback(
     (summary: ModuleSummary) => {
       setOpen(false);
-      void navigate({ to: "/m/$slot/$id", params: { slot: summary.category, id: summary.id } });
+      void navigate({
+        to: "/registry/$category/$id",
+        params: { category: summary.category, id: summary.id },
+      });
     },
     [navigate],
   );

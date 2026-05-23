@@ -27,26 +27,26 @@ function validateSearch(input: Record<string, unknown>): DetailSearch {
   return out;
 }
 
-export const Route = createFileRoute("/m/$slot/$id")({
+export const Route = createFileRoute("/registry/$category/$id")({
   validateSearch,
   loaderDeps: ({ search }) => search,
   loader: async ({ params, deps }) => {
-    if (!isGroup(params.slot)) throw notFound();
+    if (!isGroup(params.category)) throw notFound();
     const detail = await getModuleDetail({
-      data: { category: params.slot, id: params.id, peers: deps },
+      data: { category: params.category, id: params.id, peers: deps },
     });
     if (!detail) throw notFound();
     return detail;
   },
   head: ({ loaderData, params }) => {
-    const path = `/m/${params.slot}/${params.id}`;
+    const path = `/registry/${params.category}/${params.id}`;
     if (!loaderData) return buildHead({ title: "Not found", path });
     const { module } = loaderData;
     return buildHead({
       title: module.label,
       description: module.description,
       path,
-      ogImage: `/og/m/${params.slot}/${params.id}`,
+      ogImage: `/og/registry/${params.category}/${params.id}`,
       type: "article",
       jsonLd: [
         getSoftwareSourceCodeJsonLd({

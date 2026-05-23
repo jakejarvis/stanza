@@ -1,7 +1,5 @@
 import { KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Hydrate } from "@tanstack/react-start";
-import { load } from "@tanstack/react-start/hydration";
 
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
@@ -28,7 +26,7 @@ export const Route = createFileRoute("/")({
   loader: ({ deps }) => getBuilderState({ data: deps }),
   head: () =>
     buildHead({
-      title: "Build your stack",
+      titleOverride: "stanza — Modular TypeScript Monorepo Builder",
       description:
         "Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code that’s yours the moment it lands.",
       path: "/",
@@ -48,7 +46,9 @@ function Page() {
         </h1>
         <p className="mt-2 text-pretty text-muted-foreground">
           Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code
-          that’s yours the moment it lands. Add more modules or swap them out at any time.{" "}
+          that’s yours the moment it lands. Add more modules or swap them out at any time.
+        </p>
+        <p className="mt-1">
           <Link
             to="/docs/$"
             params={{ _splat: "" }}
@@ -58,9 +58,7 @@ function Page() {
           </Link>
         </p>
       </header>
-      <Hydrate when={load()}>
-        <Builder state={state} search={search} />
-      </Hydrate>
+      <Builder state={state} search={search} />
     </div>
   );
 }

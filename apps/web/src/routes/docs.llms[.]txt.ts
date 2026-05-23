@@ -14,7 +14,6 @@ export const Route = createFileRoute("/docs/llms.txt")({
         new Response(llms(source).index(), {
           headers: {
             "content-type": "text/plain; charset=utf-8",
-            "cache-control": "public, max-age=3600, s-maxage=86400",
           },
         }),
     },

@@ -6,16 +6,22 @@ import mdx from "fumadocs-mdx/vite";
 import { nitro } from "nitro/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
+import { listPrerenderPages } from "./src/lib/prerender.ts";
+
 export default defineConfig({
   plugins: lazyPlugins(async () => [
     mdx(await import("./source.config.ts")),
     devtools(),
     tailwindcss(),
     tanstackStart({
+      pages: listPrerenderPages(),
       prerender: {
         enabled: true,
-        crawlLinks: true,
-        filter: ({ path }) => !path.includes("#"),
+        crawlLinks: false,
+      },
+      sitemap: {
+        enabled: true,
+        host: "https://stanza.tools",
       },
     }),
     react(),

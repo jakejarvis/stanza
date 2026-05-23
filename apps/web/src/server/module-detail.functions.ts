@@ -47,7 +47,7 @@ export type ModuleDetail = {
    * UI reflects what's being shown even when the URL is empty.
    */
   resolvedPeers: Partial<Record<CategoryId, string>>;
-  /** For each peer slot, the set of valid module ids the switcher can offer. */
+  /** For each peer category, the set of valid module ids the switcher can offer. */
   peerOptions: Partial<Record<CategoryId, string[]>>;
   /** Module-level + adapter-level fields merged with adapter-wins semantics. */
   effective: EffectiveInstallFields;
@@ -92,7 +92,7 @@ export const getModuleDetail = createServerFn({ method: "GET" })
   });
 
 /**
- * For each peer slot referenced by the module (via `peers` or any adapter's
+ * For each peer category referenced by the module (via `peers` or any adapter's
  * `match`), list the allowed module ids. Falls back to the registry index
  * when the module only declares `"any"`.
  */
@@ -103,42 +103,42 @@ function computePeerOptions(
   const out: Partial<Record<CategoryId, string[]>> = {};
   const declared = module.peers ?? ({} as PeerRequirement);
   const referenced = new Set<CategoryId>();
-  for (const slot of categoryKeys(declared)) referenced.add(slot);
+  for (const category of categoryKeys(declared)) referenced.add(category);
   for (const adapter of module.adapters) {
-    for (const slot of categoryKeys(adapter.match)) referenced.add(slot);
+    for (const category of categoryKeys(adapter.match)) referenced.add(category);
   }
 
-  for (const slot of referenced) {
-    const constraint = declared[slot];
+  for (const category of referenced) {
+    const constraint = declared[category];
     if (Array.isArray(constraint)) {
-      out[slot] = constraint;
+      out[category] = constraint;
     } else {
-      // "any" or undefined — list every module that lives in this slot.
-      out[slot] = index.modules.filter((m) => m.category === slot).map((m) => m.id);
+      // "any" or undefined — list every module that lives in this category.
+      out[category] = index.modules.filter((m) => m.category === category).map((m) => m.id);
     }
     // De-dup and keep declaration order. Also union in any ids referenced by
     // adapters that weren't in the declared list — defensive against authors
     // adding adapter `match` entries without updating `peers`.
     const fromAdapters = new Set<string>();
     for (const adapter of module.adapters) {
-      const v = adapter.match[slot];
+      const v = adapter.match[category];
       if (v) fromAdapters.add(v);
     }
     const merged: string[] = [];
     const seen = new Set<string>();
-    for (const id of [...(out[slot] ?? []), ...fromAdapters]) {
+    for (const id of [...(out[category] ?? []), ...fromAdapters]) {
       if (!seen.has(id)) {
         seen.add(id);
         merged.push(id);
       }
     }
-    out[slot] = merged;
+    out[category] = merged;
   }
   return out;
 }
 
 /**
- * Fills in any unset peer slot with the first option from `peerOptions`. The
+ * Fills in any unset peer category with the first option from `peerOptions`. The
  * detail page is usable from a bare URL (no search params) — the first
  * allowed value is a reasonable starting point and the user can switch via
  * the chip-row UI.
@@ -149,12 +149,12 @@ function applyAutoDefaults(
   peerOptions: Partial<Record<CategoryId, string[]>>,
 ): Partial<Record<CategoryId, string>> {
   const out: Partial<Record<CategoryId, string>> = { ...peers };
-  for (const slot of categoryKeys(peerOptions)) {
-    if (out[slot]) continue;
-    const opts = peerOptions[slot];
-    if (opts && opts.length > 0) out[slot] = opts[0];
+  for (const category of categoryKeys(peerOptions)) {
+    if (out[category]) continue;
+    const opts = peerOptions[category];
+    if (opts && opts.length > 0) out[category] = opts[0];
   }
-  // Honor module.peers for any slot that's declared but not on a list (e.g.
+  // Honor module.peers for any category that's declared but not on a list (e.g.
   // "any" constraint without an adapter match). Above already covers it via
   // the index lookup.
   void module; // keep param for future use; signature kept stable
@@ -170,14 +170,14 @@ function applyAutoDefaults(
  */
 function pickAdapter(module: Module, peers: Partial<Record<CategoryId, string>>): ModuleAdapter {
   const pending: Partial<Record<CategoryId, Module>> = {};
-  for (const slot of PEER_CATEGORIES) {
-    const id = peers[slot];
+  for (const category of PEER_CATEGORIES) {
+    const id = peers[category];
     if (!id) continue;
-    // Build a minimal placeholder module — only `id`, `slot`, `adapters` are
+    // Build a minimal placeholder module — only `id`, `category`, `adapters` are
     // read by the resolver path we hit.
-    pending[slot] = {
+    pending[category] = {
       id,
-      category: slot,
+      category,
       label: id,
       description: "",
       version: "0.0.0",

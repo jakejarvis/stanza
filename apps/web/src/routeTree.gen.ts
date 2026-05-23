@@ -9,20 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as DocsDotmdRouteImport } from './routes/docs[.]md'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OgIndexRouteImport } from './routes/og.index'
+import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs.{$}[.]md'
 import { Route as DocsLlmsDottxtRouteImport } from './routes/docs.llms[.]txt'
 import { Route as DocsLlmsFullDottxtRouteImport } from './routes/docs.llms-full[.]txt'
 import { Route as DocsSplatRouteImport } from './routes/docs.$'
 import { Route as ApiEventsRouteImport } from './routes/api.events'
+import { Route as RegistryCategoryIdRouteImport } from './routes/registry.$category.$id'
 import { Route as OgDocsSplatRouteImport } from './routes/og.docs.$'
-import { Route as MSlotIdRouteImport } from './routes/m.$slot.$id'
-import { Route as OgMSlotIdRouteImport } from './routes/og.m.$slot.$id'
+import { Route as OgRegistryCategoryIdRouteImport } from './routes/og.registry.$category.$id'
 
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+const DocsDotmdRoute = DocsDotmdRouteImport.update({
+  id: '/docs.md',
+  path: '/docs.md',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const OgIndexRoute = OgIndexRouteImport.update({
   id: '/og/',
   path: '/og/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsChar123Char125DotmdRoute = DocsChar123Char125DotmdRouteImport.update({
+  id: '/docs/{$}.md',
+  path: '/docs/{$}.md',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsLlmsDottxtRoute = DocsLlmsDottxtRouteImport.update({
@@ -55,118 +61,125 @@ const ApiEventsRoute = ApiEventsRouteImport.update({
   path: '/api/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegistryCategoryIdRoute = RegistryCategoryIdRouteImport.update({
+  id: '/registry/$category/$id',
+  path: '/registry/$category/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OgDocsSplatRoute = OgDocsSplatRouteImport.update({
   id: '/og/docs/$',
   path: '/og/docs/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MSlotIdRoute = MSlotIdRouteImport.update({
-  id: '/m/$slot/$id',
-  path: '/m/$slot/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OgMSlotIdRoute = OgMSlotIdRouteImport.update({
-  id: '/og/m/$slot/$id',
-  path: '/og/m/$slot/$id',
+const OgRegistryCategoryIdRoute = OgRegistryCategoryIdRouteImport.update({
+  id: '/og/registry/$category/$id',
+  path: '/og/registry/$category/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/docs.md': typeof DocsDotmdRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
+  '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/og/': typeof OgIndexRoute
-  '/m/$slot/$id': typeof MSlotIdRoute
   '/og/docs/$': typeof OgDocsSplatRoute
-  '/og/m/$slot/$id': typeof OgMSlotIdRoute
+  '/registry/$category/$id': typeof RegistryCategoryIdRoute
+  '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/docs.md': typeof DocsDotmdRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
+  '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/og': typeof OgIndexRoute
-  '/m/$slot/$id': typeof MSlotIdRoute
   '/og/docs/$': typeof OgDocsSplatRoute
-  '/og/m/$slot/$id': typeof OgMSlotIdRoute
+  '/registry/$category/$id': typeof RegistryCategoryIdRoute
+  '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/docs.md': typeof DocsDotmdRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
+  '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/og/': typeof OgIndexRoute
-  '/m/$slot/$id': typeof MSlotIdRoute
   '/og/docs/$': typeof OgDocsSplatRoute
-  '/og/m/$slot/$id': typeof OgMSlotIdRoute
+  '/registry/$category/$id': typeof RegistryCategoryIdRoute
+  '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/sitemap.xml'
+    | '/docs.md'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
     | '/docs/llms.txt'
+    | '/docs/{$}.md'
     | '/og/'
-    | '/m/$slot/$id'
     | '/og/docs/$'
-    | '/og/m/$slot/$id'
+    | '/registry/$category/$id'
+    | '/og/registry/$category/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/sitemap.xml'
+    | '/docs.md'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
     | '/docs/llms.txt'
+    | '/docs/{$}.md'
     | '/og'
-    | '/m/$slot/$id'
     | '/og/docs/$'
-    | '/og/m/$slot/$id'
+    | '/registry/$category/$id'
+    | '/og/registry/$category/$id'
   id:
     | '__root__'
     | '/'
-    | '/sitemap.xml'
+    | '/docs.md'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
     | '/docs/llms.txt'
+    | '/docs/{$}.md'
     | '/og/'
-    | '/m/$slot/$id'
     | '/og/docs/$'
-    | '/og/m/$slot/$id'
+    | '/registry/$category/$id'
+    | '/og/registry/$category/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  DocsDotmdRoute: typeof DocsDotmdRoute
   ApiEventsRoute: typeof ApiEventsRoute
   DocsSplatRoute: typeof DocsSplatRoute
   DocsLlmsFullDottxtRoute: typeof DocsLlmsFullDottxtRoute
   DocsLlmsDottxtRoute: typeof DocsLlmsDottxtRoute
+  DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
   OgIndexRoute: typeof OgIndexRoute
-  MSlotIdRoute: typeof MSlotIdRoute
   OgDocsSplatRoute: typeof OgDocsSplatRoute
-  OgMSlotIdRoute: typeof OgMSlotIdRoute
+  RegistryCategoryIdRoute: typeof RegistryCategoryIdRoute
+  OgRegistryCategoryIdRoute: typeof OgRegistryCategoryIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
+    '/docs.md': {
+      id: '/docs.md'
+      path: '/docs.md'
+      fullPath: '/docs.md'
+      preLoaderRoute: typeof DocsDotmdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -181,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/og'
       fullPath: '/og/'
       preLoaderRoute: typeof OgIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/{$}.md': {
+      id: '/docs/{$}.md'
+      path: '/docs/{$}.md'
+      fullPath: '/docs/{$}.md'
+      preLoaderRoute: typeof DocsChar123Char125DotmdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs/llms.txt': {
@@ -211,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/registry/$category/$id': {
+      id: '/registry/$category/$id'
+      path: '/registry/$category/$id'
+      fullPath: '/registry/$category/$id'
+      preLoaderRoute: typeof RegistryCategoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/og/docs/$': {
       id: '/og/docs/$'
       path: '/og/docs/$'
@@ -218,18 +245,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OgDocsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/m/$slot/$id': {
-      id: '/m/$slot/$id'
-      path: '/m/$slot/$id'
-      fullPath: '/m/$slot/$id'
-      preLoaderRoute: typeof MSlotIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/og/m/$slot/$id': {
-      id: '/og/m/$slot/$id'
-      path: '/og/m/$slot/$id'
-      fullPath: '/og/m/$slot/$id'
-      preLoaderRoute: typeof OgMSlotIdRouteImport
+    '/og/registry/$category/$id': {
+      id: '/og/registry/$category/$id'
+      path: '/og/registry/$category/$id'
+      fullPath: '/og/registry/$category/$id'
+      preLoaderRoute: typeof OgRegistryCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -237,15 +257,16 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  DocsDotmdRoute: DocsDotmdRoute,
   ApiEventsRoute: ApiEventsRoute,
   DocsSplatRoute: DocsSplatRoute,
   DocsLlmsFullDottxtRoute: DocsLlmsFullDottxtRoute,
   DocsLlmsDottxtRoute: DocsLlmsDottxtRoute,
+  DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,
   OgIndexRoute: OgIndexRoute,
-  MSlotIdRoute: MSlotIdRoute,
   OgDocsSplatRoute: OgDocsSplatRoute,
-  OgMSlotIdRoute: OgMSlotIdRoute,
+  RegistryCategoryIdRoute: RegistryCategoryIdRoute,
+  OgRegistryCategoryIdRoute: OgRegistryCategoryIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

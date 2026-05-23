@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 // irrelevant here. Hoist so each card resolution stops allocating a new one.
 const RESOLVER_MANIFEST = emptyManifest({ name: "t" });
 
-export function SlotCards({
+export function ModuleCards({
   modules,
   summaries,
   selections,
