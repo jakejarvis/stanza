@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, Hydrate } from "@tanstack/react-start";
+import { load } from "@tanstack/react-start/hydration";
 import browserCollections from "collections/browser";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { DocsBody } from "fumadocs-ui/layouts/docs/page";
@@ -35,7 +36,7 @@ const clientLoader = browserCollections.docs.createClientLoader({
         <article className="min-w-0 flex-1 pt-2 pb-8 md:pt-8">
           <h1 className="text-3xl font-semibold tracking-tight">{frontmatter.title}</h1>
           {frontmatter.description && (
-            <p className="mt-2 text-[15px] leading-normal text-muted-foreground">
+            <p className="mt-2 text-base leading-normal text-muted-foreground">
               {frontmatter.description}
             </p>
           )}
@@ -76,7 +77,9 @@ function Page() {
         <div className="md:flex md:gap-8">
           <DocsSidebar tree={data.pageTree} />
           <div className="min-w-0 flex-1">
-            <Suspense>{clientLoader.useContent(data.path)}</Suspense>
+            <Hydrate when={load()}>
+              <Suspense>{clientLoader.useContent(data.path)}</Suspense>
+            </Hydrate>
           </div>
         </div>
       </div>
