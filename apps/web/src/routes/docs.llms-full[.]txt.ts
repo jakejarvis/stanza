@@ -6,7 +6,7 @@ import { getLLMText, source } from "@/lib/source";
  * `/llms-full.txt` — the full processed Markdown of every docs page,
  * concatenated, for LLMs that ingest the entire corpus in one request.
  */
-export const Route = createFileRoute("/llms-full.txt")({
+export const Route = createFileRoute("/docs/llms-full.txt")({
   server: {
     handlers: {
       GET: async () => {

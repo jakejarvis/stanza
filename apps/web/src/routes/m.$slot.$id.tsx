@@ -81,13 +81,15 @@ function ModuleDetailPage() {
   // Build the "Try it" selection: the current module + its resolved peers, as
   // arrays (the unified selection shape). CommandPreview turns this into the
   // package-manager-specific command string (`--framework=next --testing=vitest`).
-  const selections: Selections = {};
-  for (const category of KNOWN_CATEGORIES) {
-    const id = resolvedPeers[category];
-    if (id !== undefined) selections[category] = [id];
-  }
-  selections[module.category] = [module.id];
-  const tryItParts = { selections };
+  const selections = useMemo<Selections>(() => {
+    const out: Selections = {};
+    for (const category of KNOWN_CATEGORIES) {
+      const id = resolvedPeers[category];
+      if (id !== undefined) out[category] = [id];
+    }
+    out[module.category] = [module.id];
+    return out;
+  }, [resolvedPeers, module.category, module.id]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -144,7 +146,7 @@ function ModuleDetailPage() {
         <EnvTable env={effective.env} />
         <DepsTable title="Scripts" entries={effective.scripts} />
         <TemplatesList templates={templates} previews={previews} />
-        <TryIt name="my-app" {...tryItParts} />
+        <TryIt name="my-app" selections={selections} />
       </div>
     </div>
   );

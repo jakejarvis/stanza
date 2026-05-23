@@ -1,7 +1,12 @@
 import type { CategoryId, ModuleSummary, RegistryIndex } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
+import { useMemo } from "react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+function summaryKey(slot: CategoryId, id: string): string {
+  return `${slot}:${id}`;
+}
 
 /**
  * Chip-row picker for each peer slot the detail page can switch on. Hides any
@@ -19,10 +24,23 @@ export function AdapterSwitcher({
   resolvedPeers: Partial<Record<CategoryId, string>>;
   onChange: (category: CategoryId, id: string) => void;
 }) {
-  const switchable = KNOWN_CATEGORIES.flatMap((category): [CategoryId, string[]][] => {
-    const opts = peerOptions[category];
-    return opts && opts.length > 1 ? [[category, opts]] : [];
-  });
+  const switchable = useMemo(
+    () =>
+      KNOWN_CATEGORIES.flatMap((category): [CategoryId, string[]][] => {
+        const opts = peerOptions[category];
+        return opts && opts.length > 1 ? [[category, opts]] : [];
+      }),
+    [peerOptions],
+  );
+
+  // Pre-index summaries so the option-label lookup is O(1) instead of scanning
+  // `index.modules` per option per slot per render.
+  const summaryIndex = useMemo(() => {
+    const map = new Map<string, ModuleSummary>();
+    for (const m of index.modules) map.set(summaryKey(m.category, m.id), m);
+    return map;
+  }, [index.modules]);
+
   if (switchable.length === 0) return null;
 
   return (
@@ -45,8 +63,7 @@ export function AdapterSwitcher({
               }}
             >
               {options.map((id) => {
-                const summary = index.modules.find((m) => m.category === slot && m.id === id);
-                const label = summary?.label ?? id;
+                const label = summaryIndex.get(summaryKey(slot, id))?.label ?? id;
                 return (
                   <ToggleGroupItem
                     key={id}

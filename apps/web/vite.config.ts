@@ -19,7 +19,23 @@ export default defineConfig({
       },
     }),
     react(),
-    nitro({ serverAssets: [{ baseName: "registry", dir: "public/registry" }] }),
+    nitro({
+      serverAssets: [
+        {
+          baseName: "registry",
+          dir: "public/registry",
+        },
+      ],
+      vercel: {
+        config: {
+          version: 3,
+          routes: [
+            { src: "/llms.txt", dest: "/docs/llms.txt" },
+            { src: "/llms-full.txt", dest: "/docs/llms-full.txt" },
+          ],
+        },
+      },
+    }),
   ]),
   resolve: {
     tsconfigPaths: true,

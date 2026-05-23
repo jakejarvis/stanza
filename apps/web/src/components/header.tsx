@@ -2,8 +2,8 @@ import { IconBrandGithub } from "@tabler/icons-react";
 import { Link, useLoaderData } from "@tanstack/react-router";
 
 import { Logo } from "@/components/logo";
-import { ModeToggle } from "@/components/mode-toggle";
 import { SiteSearch } from "@/components/search/site-search";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
@@ -49,7 +49,7 @@ export function Header() {
             <IconBrandGithub className="text-muted-foreground" aria-hidden />
             <span className="sr-only">GitHub</span>
           </Button>
-          <ModeToggle />
+          <ThemeToggle />
         </div>
       </div>
     </header>

@@ -5,7 +5,6 @@ import browserCollections from "collections/browser";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { DocsBody } from "fumadocs-ui/layouts/docs/page";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
-import { Suspense } from "react";
 
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { DocsToc } from "@/components/docs/docs-toc";
@@ -77,9 +76,7 @@ function Page() {
         <div className="md:flex md:gap-8">
           <DocsSidebar tree={data.pageTree} />
           <div className="min-w-0 flex-1">
-            <Hydrate when={load()}>
-              <Suspense>{clientLoader.useContent(data.path)}</Suspense>
-            </Hydrate>
+            <Hydrate when={load()}>{clientLoader.useContent(data.path)}</Hydrate>
           </div>
         </div>
       </div>

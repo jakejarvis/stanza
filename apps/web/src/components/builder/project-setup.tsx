@@ -1,7 +1,7 @@
 import { validateProjectName } from "@stanza/registry";
 import { IconAlertCircle } from "@tabler/icons-react";
 import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Field, FieldError } from "@/components/ui/field";
@@ -25,8 +25,6 @@ export function ProjectSetup({
   // type more characters, and naive `setDraft(name)` would clobber them.
   const [draft, setDraft] = useState(name);
   const lastSyncedRef = useRef(name);
-  const onNameChangeRef = useRef(onNameChange);
-  onNameChangeRef.current = onNameChange;
 
   const inputId = useId();
   const errorId = `${inputId}-error`;
@@ -43,13 +41,17 @@ export function ProjectSetup({
   // below keeps the URL on the last valid name.
   const showError = !validation.ok && draft.trim().length > 0;
 
+  // `useEffectEvent` reads the latest `onNameChange` without making the
+  // debounce effect re-run when the parent rebuilds the callback.
+  const commit = useEffectEvent((next: string) => {
+    lastSyncedRef.current = next;
+    onNameChange(next);
+  });
+
   useEffect(() => {
     if (draft === lastSyncedRef.current) return undefined;
     if (!validation.ok) return undefined;
-    const timer = setTimeout(() => {
-      lastSyncedRef.current = draft;
-      onNameChangeRef.current(draft);
-    }, 300);
+    const timer = setTimeout(() => commit(draft), 300);
     return () => clearTimeout(timer);
   }, [draft, validation.ok]);
 

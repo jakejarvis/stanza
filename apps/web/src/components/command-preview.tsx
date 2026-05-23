@@ -1,5 +1,3 @@
-import { useCallback } from "react";
-
 import { PackageManagerSelect } from "@/components/package-manager-select";
 import { CopyableField } from "@/components/ui/copyable-field";
 import { selectionProperties, useAnalytics } from "@/lib/analytics";
@@ -26,7 +24,7 @@ export function CommandPreview({
   const command = buildCommand({ name, selections, pm });
   const capture = useAnalytics();
 
-  const onCopy = useCallback(() => {
+  const onCopy = () => {
     capture("builder_command_copied", {
       package_manager: pm,
       command,
@@ -34,7 +32,7 @@ export function CommandPreview({
       module_count: Object.values(selections).reduce((n, ids) => n + (ids?.length ?? 0), 0),
       ...selectionProperties(selections),
     });
-  }, [capture, pm, command, name, selections]);
+  };
 
   return (
     <div className="flex items-center gap-1.5">

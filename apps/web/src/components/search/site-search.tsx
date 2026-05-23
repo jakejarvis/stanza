@@ -51,12 +51,13 @@ export function SiteSearch({ index }: { index: RegistryIndex }) {
   const [hotkeyLabel, setHotkeyLabel] = useState<string | null>(null);
   useEffect(() => setHotkeyLabel(formatForDisplay(HOTKEY)), []);
 
-  const filtered = useMemo(
-    () => index.modules.filter((m) => matches(m, query)),
-    [index.modules, query],
-  );
-  const groups = useMemo(() => groupByCategory(filtered), [filtered]);
-  const flat = useMemo(() => groups.flatMap((g) => g.modules), [groups]);
+  // One pass: filter → group → flatten. `flat` is derived from the same `groups`
+  // so there's no benefit to splitting them into separate memos.
+  const { groups, flat } = useMemo(() => {
+    const filtered = index.modules.filter((m) => matches(m, query));
+    const grouped = groupByCategory(filtered);
+    return { groups: grouped, flat: grouped.flatMap((g) => g.modules) };
+  }, [index.modules, query]);
 
   useEffect(() => setActiveIndex(0), [query]);
 

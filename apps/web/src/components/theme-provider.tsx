@@ -1,5 +1,9 @@
 import { ScriptOnce } from "@tanstack/react-router";
-import { createContext, use, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, use, useCallback, useEffect, useLayoutEffect, useState } from "react";
+
+// `useLayoutEffect` warns on the server; the surrounding effect is a no-op
+// pre-mount anyway, so swap to a plain effect during SSR.
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 type Theme = "dark" | "light" | "system";
 
@@ -63,7 +67,9 @@ export function ThemeProvider({
     setMounted(true);
   }, [defaultTheme, storageKey]);
 
-  useEffect(() => {
+  // Layout effect so the new class lands before paint — a plain effect lets a
+  // frame of the old palette flash on toggle.
+  useIsomorphicLayoutEffect(() => {
     if (!mounted) return;
     setResolvedTheme(applyTheme(theme));
   }, [theme, mounted]);
@@ -84,10 +90,7 @@ export function ThemeProvider({
     [storageKey],
   );
 
-  const value = useMemo(
-    () => ({ theme, resolvedTheme, setTheme }),
-    [theme, resolvedTheme, setTheme],
-  );
+  const value = { theme, resolvedTheme, setTheme };
 
   return (
     <ThemeProviderContext value={value}>

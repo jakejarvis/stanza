@@ -1,7 +1,7 @@
 import type { CategoryId } from "@stanza/registry";
 import { isMulti } from "@stanza/registry";
 import { useNavigate } from "@tanstack/react-router";
-import { startTransition, useCallback, useOptimistic } from "react";
+import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
 import { ProjectSetup } from "@/components/builder/project-setup";
@@ -22,13 +22,16 @@ import type { BuilderState } from "@/server/builder-state.functions";
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });
   const capture = useAnalytics();
-  const parsed = parseSelections(search);
+  const parsed = useMemo(() => parseSelections(search), [search]);
   const { name, pm } = parsed;
   // Sanitize at the URL boundary: a shared link with an orphaned dependent
   // (e.g. `?orm=drizzle` with no `db`) must not render a stuck selected card or
   // leak an invalid flag into the command. The server loader already resolves
   // before building the preview, so this only realigns the cards + command.
-  const selections = pruneUnresolved(state.modules, parsed.selections);
+  const selections = useMemo(
+    () => pruneUnresolved(state.modules, parsed.selections),
+    [state.modules, parsed.selections],
+  );
 
   // Card selection is optimistic: a toggle flips the border/check immediately
   // instead of waiting for the loader-backed navigation to commit. The async
@@ -38,36 +41,52 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   // Shiki HTML) and surfaces its own spinner while that round-trip runs.
   const [optimistic, setOptimistic] = useOptimistic(selections, (_prev, next: Selections) => next);
 
+  // Latest-value snapshot so setName/setPm/toggle keep stable identities — they
+  // read off `latest.current` instead of closing over state. Stable callbacks
+  // let downstream memoization (`SlotCards`, `ModuleCard`) actually pay off
+  // instead of invalidating on every optimistic flip.
+  const latest = useRef({ name, pm, optimistic, modules: state.modules });
+  latest.current = { name, pm, optimistic, modules: state.modules };
+
   const setName = useCallback(
     (next: string) => {
       // Build off the optimistic snapshot, not the committed URL — otherwise a
       // debounced name push landing mid-flight would navigate with stale
       // selections and drop a toggle that hasn't committed yet.
       void navigate({
-        search: toSearchParams({ name: next, pm, selections: optimistic }),
+        search: toSearchParams({
+          name: next,
+          pm: latest.current.pm,
+          selections: latest.current.optimistic,
+        }),
         replace: true,
         resetScroll: false,
       });
     },
-    [navigate, pm, optimistic],
+    [navigate],
   );
 
   const setPm = useCallback(
     (next: PackageManager) => {
       void navigate({
-        search: toSearchParams({ name, pm: next, selections: optimistic }),
+        search: toSearchParams({
+          name: latest.current.name,
+          pm: next,
+          selections: latest.current.optimistic,
+        }),
         replace: true,
         resetScroll: false,
       });
     },
-    [navigate, name, optimistic],
+    [navigate],
   );
 
   const toggle = useCallback(
     (category: CategoryId, id: string) => {
+      const snapshot = latest.current;
       // Build off the optimistic snapshot so rapid clicks accumulate.
-      const current = optimistic[category] ?? [];
-      const draft: Selections = { ...optimistic };
+      const current = snapshot.optimistic[category] ?? [];
+      const draft: Selections = { ...snapshot.optimistic };
       if (isMulti(category)) {
         // Multi-choice: toggle membership in the array.
         const enabled = !current.includes(id);
@@ -85,17 +104,17 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
       }
       // Removing or changing a peer can orphan dependents (e.g. dropping `db`
       // strands `orm`); prune them so cards + command never go inconsistent.
-      const next = pruneUnresolved(state.modules, draft);
+      const next = pruneUnresolved(snapshot.modules, draft);
       startTransition(async () => {
         setOptimistic(next);
         await navigate({
-          search: toSearchParams({ name, pm, selections: next }),
+          search: toSearchParams({ name: snapshot.name, pm: snapshot.pm, selections: next }),
           replace: true,
           resetScroll: false,
         });
       });
     },
-    [capture, navigate, name, pm, optimistic, setOptimistic, state.modules],
+    [capture, navigate, setOptimistic],
   );
 
   const commandBar = <ProjectSetup name={name} defaultName={DEFAULT_NAME} onNameChange={setName} />;

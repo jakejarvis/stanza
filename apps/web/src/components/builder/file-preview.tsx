@@ -34,6 +34,12 @@ const TRUNCATE_FIX_CSS = `
   display: none !important;
 }`;
 
+// Default file to display: the synthesized root `package.json` (the most
+// useful at-a-glance summary of the stack) when it exists, else the first file.
+function defaultPathFor(filePaths: string[]): string | undefined {
+  return filePaths.includes("package.json") ? "package.json" : filePaths[0];
+}
+
 // Every ancestor directory of each file path, e.g. "a/b/c.ts" → ["a", "a/b"].
 function directoryPaths(paths: readonly string[]): string[] {
   const dirs = new Set<string>();
@@ -103,11 +109,10 @@ export function FilePreview({
     // indication of which file the preview pane is showing. Re-seed it: keep
     // the open file if it survived the path change, else fall back to the
     // default (root package.json / first file) the preview defaults to.
-    const fallback = filePaths.includes("package.json") ? "package.json" : filePaths[0];
     const next =
       previousSelection != null && filePaths.includes(previousSelection)
         ? previousSelection
-        : fallback;
+        : defaultPathFor(filePaths);
     if (next) model.getItem(next)?.select();
     prevPathsRef.current = filePaths;
   }, [model, filePaths]);
@@ -115,11 +120,7 @@ export function FilePreview({
   // The model owns selection internally; `useFileTreeSelection` exposes the
   // currently-selected paths as a stable readonly array we subscribe to.
   const selectedPaths = useFileTreeSelection(model);
-  // Until the user picks a file, default to the synthesized root package.json
-  // (the most useful at-a-glance summary of the stack) when it exists, else the
-  // first file in the tree.
-  const defaultPath = filePaths.includes("package.json") ? "package.json" : filePaths[0];
-  const activePath = selectedPaths[0] ?? defaultPath;
+  const activePath = selectedPaths[0] ?? defaultPathFor(filePaths);
   const preview = activePath ? previews[activePath] : undefined;
 
   // Drive the tree's shadow-root palette from the app theme — otherwise it

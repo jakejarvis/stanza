@@ -2,7 +2,6 @@ import { KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Hydrate } from "@tanstack/react-start";
 import { load } from "@tanstack/react-start/hydration";
-import { Suspense } from "react";
 
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
@@ -59,9 +58,7 @@ function Page() {
         </p>
       </header>
       <Hydrate when={load()}>
-        <Suspense>
-          <Builder state={state} search={search} />
-        </Suspense>
+        <Builder state={state} search={search} />
       </Hydrate>
     </div>
   );

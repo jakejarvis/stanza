@@ -8,12 +8,16 @@ import {
   resolveAdapter,
 } from "@stanza/registry";
 import { IconCheck } from "@tabler/icons-react";
-import { useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Selections } from "@/lib/selection";
 import { cn } from "@/lib/utils";
+
+// `resolveAdapter` only inspects `manifest` for shape — the project name is
+// irrelevant here. Hoist so each card resolution stops allocating a new one.
+const RESOLVER_MANIFEST = emptyManifest({ name: "t" });
 
 export function SlotCards({
   modules,
@@ -28,14 +32,28 @@ export function SlotCards({
 }) {
   // Shared peer context: the chosen one-cardinality modules. Every card resolves
   // compatibility against this.
-  const pending: Partial<Record<CategoryId, Module>> = {};
-  for (const c of PEER_CATEGORIES) {
-    const id = selections[c]?.[0];
-    if (id && modules[`${c}:${id}`]) pending[c] = modules[`${c}:${id}`];
-  }
+  const pending = useMemo<Partial<Record<CategoryId, Module>>>(() => {
+    const out: Partial<Record<CategoryId, Module>> = {};
+    for (const c of PEER_CATEGORIES) {
+      const id = selections[c]?.[0];
+      if (id && modules[`${c}:${id}`]) out[c] = modules[`${c}:${id}`];
+    }
+    return out;
+  }, [modules, selections]);
+
+  // Bucket summaries by category once instead of filtering per-section.
+  const byCategory = useMemo(() => {
+    const map = new Map<CategoryId, ModuleSummary[]>();
+    for (const m of summaries) {
+      const list = map.get(m.category);
+      if (list) list.push(m);
+      else map.set(m.category, [m]);
+    }
+    return map;
+  }, [summaries]);
 
   // Only render categories that actually have modules in the registry.
-  const categories = KNOWN_CATEGORIES.filter((c) => summaries.some((m) => m.category === c));
+  const categories = useMemo(() => KNOWN_CATEGORIES.filter((c) => byCategory.has(c)), [byCategory]);
 
   return (
     <div className="space-y-8">
@@ -43,13 +61,13 @@ export function SlotCards({
         <ModuleSection
           key={category}
           group={category}
-          summaries={summaries}
+          summaries={byCategory.get(category) ?? []}
           modulesById={modules}
           pending={pending}
+          selections={selections}
           index={index + 1}
           multi={isMulti(category)}
-          isSelected={(m) => Boolean(selections[category]?.includes(m.id))}
-          onActivate={(m) => onToggle(category, m.id)}
+          onToggle={onToggle}
         />
       ))}
     </div>
@@ -61,24 +79,23 @@ function ModuleSection({
   summaries,
   modulesById,
   pending,
+  selections,
   index,
   multi: _multi, // TODO: add back in via a info tooltip
-  isSelected,
-  onActivate,
+  onToggle,
 }: {
   group: CategoryId;
   summaries: ModuleSummary[];
   modulesById: Record<string, Module>;
   pending: Partial<Record<CategoryId, Module>>;
+  selections: Selections;
   index: number;
   multi: boolean;
-  isSelected: (m: ModuleSummary) => boolean;
-  onActivate: (m: ModuleSummary, selected: boolean) => void;
+  onToggle: (category: CategoryId, id: string) => void;
 }) {
-  const modules = summaries.filter((m) => m.category === group);
-  if (modules.length === 0) return null;
+  if (summaries.length === 0) return null;
 
-  const manifest = emptyManifest({ name: "t" });
+  const selectedIds = selections[group];
   return (
     <div>
       <div className="mb-3 flex items-baseline gap-3">
@@ -88,20 +105,23 @@ function ModuleSection({
         <h2 className="text-lg font-semibold tracking-tight">{categoryLabel(group)}</h2>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {modules.map((m) => {
+        {summaries.map((m) => {
           const full = modulesById[`${m.category}:${m.id}`];
-          const result = full ? resolveAdapter(full, { manifest, pending }) : undefined;
+          const result = full
+            ? resolveAdapter(full, { manifest: RESOLVER_MANIFEST, pending })
+            : undefined;
           const disabled = !result?.ok;
-          const selected = isSelected(m);
+          const selected = Boolean(selectedIds?.includes(m.id));
           const reason = result && !result.ok ? describeError(result.error) : undefined;
           return (
             <ModuleCard
               key={m.id}
               module={m}
+              category={group}
               selected={selected}
               disabled={disabled}
               reason={reason}
-              onActivate={() => onActivate(m, selected)}
+              onToggle={onToggle}
             />
           );
         })}
@@ -110,23 +130,25 @@ function ModuleSection({
   );
 }
 
-function ModuleCard({
+const ModuleCard = memo(function ModuleCard({
   module: m,
+  category,
   selected,
   disabled,
   reason,
-  onActivate,
+  onToggle,
 }: {
   module: ModuleSummary;
+  category: CategoryId;
   selected: boolean;
   disabled: boolean;
   reason?: string;
-  onActivate: () => void;
+  onToggle: (category: CategoryId, id: string) => void;
 }) {
   const onClick = useCallback(() => {
     if (disabled) return;
-    onActivate();
-  }, [disabled, onActivate]);
+    onToggle(category, m.id);
+  }, [disabled, onToggle, category, m.id]);
 
   const card = (
     <button
@@ -168,7 +190,7 @@ function ModuleCard({
       <TooltipContent sideOffset={8}>{reason}</TooltipContent>
     </Tooltip>
   );
-}
+});
 
 function describeError(error: ResolveError): string {
   switch (error.kind) {
