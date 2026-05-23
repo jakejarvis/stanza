@@ -6,6 +6,7 @@
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -202,6 +203,17 @@
   code,
   .font-mono {
     font-variant-ligatures: none !important;
+  }
+}
+
+@layer utilities {
+  /* Fumadocs overrides */
+  div[class*="prose"] {
+    @apply prose prose-sm max-w-none prose-neutral dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-primary prose-p:text-foreground/90 prose-a:font-medium prose-a:text-primary prose-a:underline prose-a:underline-offset-1 prose-headings:prose-a:no-underline prose-headings:prose-a:hover:underline prose-blockquote:*:before:content-none prose-blockquote:*:after:content-none prose-blockquote:prose-p:text-foreground/75 prose-strong:text-primary prose-code:rounded-none prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-[0.9em] prose-code:text-foreground prose-code:before:content-none prose-code:after:content-none prose-li:text-foreground/80 prose-table:border-border prose-th:border-border prose-th:px-2.5 prose-th:text-[0.825rem] prose-td:border-border prose-td:px-2.5 prose-td:text-[0.825rem] prose-hr:border-foreground/20;
+  }
+
+  button[aria-label="Copy Anchor Link"] {
+    @apply hover:bg-transparent;
   }
 }
 

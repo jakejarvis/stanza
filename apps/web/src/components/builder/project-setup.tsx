@@ -4,8 +4,9 @@ import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Card } from "@/components/ui/card";
-import { Field, FieldError, FieldLegend, FieldSet } from "@/components/ui/field";
+import { Field, FieldError } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export function ProjectSetup({
   name,
@@ -58,37 +59,33 @@ export function ProjectSetup({
   );
 
   return (
-    <Card className="px-3 py-3.5">
-      <FieldSet>
-        <FieldLegend variant="label" className="mb-1.5 text-[13px]! text-muted-foreground">
-          Project name
-        </FieldLegend>
-        <Field data-invalid={showError || undefined}>
-          <Input
-            id={inputId}
-            name="project-name"
-            value={draft}
-            placeholder={defaultName}
-            onChange={onDraftChange}
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={214}
-            aria-invalid={showError || undefined}
-            aria-describedby={showError ? errorId : undefined}
-            className="text-[13px]!"
-          />
-          <FieldError id={errorId}>
-            {showError ? (
-              <>
-                <IconAlertCircle className="size-3" aria-hidden="true" />
-                <span>
-                  {`${validation.message.charAt(0).toUpperCase()}${validation.message.slice(1)}`}
-                </span>
-              </>
-            ) : null}
+    <Card className="gap-0 px-3 py-3.5">
+      <Label htmlFor={inputId} className="mb-1.5 text-[13px] font-medium text-muted-foreground">
+        Project name
+      </Label>
+      <Field data-invalid={showError || undefined}>
+        <Input
+          id={inputId}
+          name="project-name"
+          value={draft}
+          placeholder={defaultName}
+          onChange={onDraftChange}
+          autoComplete="off"
+          spellCheck={false}
+          maxLength={214}
+          aria-invalid={showError || undefined}
+          aria-describedby={showError ? errorId : undefined}
+          className="text-[13px]!"
+        />
+        {showError && (
+          <FieldError id={errorId} className="flex items-center gap-1">
+            <IconAlertCircle className="size-3" aria-hidden="true" />
+            <span>
+              {`${validation.message.charAt(0).toUpperCase()}${validation.message.slice(1)}`}
+            </span>
           </FieldError>
-        </Field>
-      </FieldSet>
+        )}
+      </Field>
     </Card>
   );
 }

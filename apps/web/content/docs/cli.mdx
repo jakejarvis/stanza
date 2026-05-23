@@ -7,7 +7,7 @@ stanza ships five verbs against the category taxonomy. Run any verb with
 `--help` for its full flag list:
 
 ```sh
-stanza add --help
+npx stanza-cli add --help
 ```
 
 ## `init`
@@ -16,7 +16,7 @@ Scaffold a new monorepo. Without flags it launches an interactive wizard;
 with `--yes` it takes every pick from flags.
 
 ```sh
-stanza init [name] --yes --framework=next --orm=drizzle --db=postgres --pm=pnpm
+npx stanza-cli init [name] --yes --framework=next --orm=drizzle --db=postgres --pm=pnpm
 ```
 
 - `name` — project directory name (positional; prompted if omitted).
@@ -33,7 +33,7 @@ stanza init [name] --yes --framework=next --orm=drizzle --db=postgres --pm=pnpm
 Add one module to an existing project.
 
 ```sh
-stanza add <category> <module>
+npx stanza-cli add <category> <module>
 ```
 
 Resolves peers, selects the matching adapter, and writes the module's templates,
@@ -45,7 +45,7 @@ category that's already filled fails until you remove the existing one.
 Remove a module and sweep the files (regions) it owns.
 
 ```sh
-stanza remove <category> [id]
+npx stanza-cli remove <category> [id]
 ```
 
 For single-choice categories the `id` is optional; for multi-choice categories
@@ -56,7 +56,7 @@ For single-choice categories the `id` is optional; for multi-choice categories
 Print installed modules, grouped by category, from the nearest `stanza.json`.
 
 ```sh
-stanza list
+npx stanza-cli list
 ```
 
 ## `search`
@@ -64,7 +64,7 @@ stanza list
 List registry modules and their `category/id` pairs. Pass a query to filter.
 
 ```sh
-stanza search [query]
+npx stanza-cli search [query]
 ```
 
 Use the printed **id** (not the display label) when passing a module to `add`.

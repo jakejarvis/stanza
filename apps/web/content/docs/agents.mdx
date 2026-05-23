@@ -1,0 +1,90 @@
+---
+title: Agents
+description: Drive stanza from Claude Code, Codex, Cursor, or any other coding agent.
+---
+
+stanza is built to be agent-friendly: every verb has a non-interactive form, the
+manifest is declarative state, and `--dry-run` previews any mutation before it
+runs. An agent that follows a handful of rules can scaffold and modify a stanza
+project as reliably as a human at a prompt.
+
+## SKILL.md
+
+For Claude Code, Codex, and other agent runtimes that load skills, stanza ships
+a self-contained skill bundle. Install it with the
+[Skills CLI](https://skills.sh):
+
+```sh
+npx skills add https://github.com/jakejarvis/stanza --skill stanza-cli
+```
+
+That drops the skill into your agent's skill directory; the agent picks it up
+on the next prompt that matches its triggers (running `stanza-cli`, creating a
+project, adding modules, etc.). The skill is designed to work without access to
+this source repo — it encodes the published CLI contract alone.
+
+The source lives at
+[`skills/stanza-cli/`](https://github.com/jakejarvis/stanza/tree/main/skills/stanza-cli)
+if you'd rather vendor it directly.
+
+## Agent guidance
+
+A few rules on top of the [CLI surface](/docs/cli) keep agent runs predictable:
+
+- **Discover before assuming.** The registry evolves — confirm any module id
+  with [`npx -y stanza-cli@latest search`](/docs/cli#search) before passing it
+  to `add`. Use the printed `category/id` value, not the display label.
+- **Prefer `npx` for automation.** `npx -y stanza-cli@latest <verb>` avoids the
+  package-manager argument-forwarding ambiguity that `pnpm create` / `npm
+create` / `bun create` introduce.
+- **Preview with [`--dry-run`](/docs/cli#global-flags)** before mutating
+  commands when you want to show the user what's about to happen.
+- **Respect the [dirty-worktree refusal](/docs/cli#global-flags).** Commit or
+  stash first. Only reach for `--dangerously-allow-dirty` with the user's
+  explicit approval.
+- **`stanza.json` is generated state.** Don't hand-edit it; use the verbs that
+  maintain it (`add`, `remove`).
+- **Generated files are user-owned source.** Once stanza writes a template,
+  edit it like any other file in the repo.
+
+## Common errors
+
+| Error                                | What it means and what to do                                                                                         |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `Module not found`                   | The id doesn't exist in the registry. Run `stanza search` and use the printed id.                                    |
+| `missing-peer` / `incompatible-peer` | The selected module needs a peer category filled first (e.g. Better Auth needs an `orm`). Add the peer, then re-run. |
+| `no-adapter`                         | None of the module's adapters match the current stack. Try a different module in the same category.                  |
+| `No stanza.json found`               | You're not in a stanza project. Run from the project root or a child directory containing a parent `stanza.json`.    |
+| Dirty worktree refusal               | Commit or stash, or ask the user before using `--dangerously-allow-dirty`.                                           |
+
+## Putting it together
+
+A minimal agent script that scaffolds a project, adds auth, and verifies
+nothing else changed:
+
+```sh
+# 1. Confirm the modules exist.
+npx -y stanza-cli@latest search
+
+# 2. Scaffold.
+npx -y stanza-cli@latest init my-app --yes \
+  --framework=tanstack-start \
+  --styling=tailwind \
+  --db=postgres \
+  --orm=drizzle \
+  --pm=pnpm
+
+cd my-app
+pnpm install
+
+# 3. Preview, then add auth.
+npx -y stanza-cli@latest add auth better-auth --dry-run
+npx -y stanza-cli@latest add auth better-auth
+pnpm install
+
+# 4. Inspect.
+npx -y stanza-cli@latest list
+```
+
+When reporting results back to the user, include the exact command run, whether
+it wrote files, and any follow-up install needed.

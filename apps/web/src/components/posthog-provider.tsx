@@ -18,10 +18,13 @@ if (typeof window !== "undefined" && key && !posthog.__loaded) {
   posthog.init(key, {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
     defaults: "2026-01-30",
-    autocapture: false,
+    capture_exceptions: true,
     capture_pageview: "history_change",
-    capture_pageleave: true,
+    autocapture: false,
     disable_session_recording: true,
+    disable_surveys: true,
+    disable_external_dependency_loading: true,
+    person_profiles: "never",
   });
 }
 

@@ -191,6 +191,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@tailwindcss/typography':
+        specifier: ^0.5.19
+        version: 0.5.19(tailwindcss@4.3.0)
       '@tanstack/devtools-vite':
         specifier: ^0.7.0
         version: 0.7.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))
@@ -226,10 +229,10 @@ importers:
         version: '@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3)'
       vite-plus:
         specifier: 'catalog:'
-        version: 0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)
+        version: 0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3))
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@^0.1.22
-        version: '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3))'
       web-vitals:
         specifier: ^5.2.0
         version: 5.2.0
@@ -2018,6 +2021,11 @@ packages:
   '@tailwindcss/oxide@4.3.0':
     resolution: {integrity: sha512-F7HZGBeN9I0/AuuJS5PwcD8xayx5ri5GhjYUDBEVYUkexyA/giwbDNjRVrxSezE3T250OU2K/wp/ltWx3UOefg==}
     engines: {node: '>= 20'}
+
+  '@tailwindcss/typography@0.5.19':
+    resolution: {integrity: sha512-w31dd8HOx3k9vPtcQh5QHP9GwKcgbMp87j58qi6xgiBnFFtKEAgCWnDw4qUT8aHwkCp8bKvb/KGKWWHedP0AAg==}
+    peerDependencies:
+      tailwindcss: '>=3.0.0 || insiders || >=4.0.0-alpha.20 || >=4.0.0-beta.1'
 
   '@tailwindcss/vite@4.3.0':
     resolution: {integrity: sha512-t6J3OrB5Fc0ExuhohouH0fWUGMYL6PTLhW+E7zIk/pdbnJARZDCwjBznFnkh5ynRnIRSI4YjtTH0t6USjJISrw==}
@@ -4431,6 +4439,10 @@ packages:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
     engines: {node: '>=14.19.0'}
 
+  postcss-selector-parser@6.0.10:
+    resolution: {integrity: sha512-IQ7TZdoaqbT+LCpShg46jnZVlhWD2w6iQYAcYXfHARZ7X1t/UGhhceQDs5X0cGqKvYlHNOuv7Oa1xmb0oQuA3w==}
+    engines: {node: '>=4'}
+
   postcss-selector-parser@7.1.1:
     resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
     engines: {node: '>=4'}
@@ -6792,6 +6804,11 @@ snapshots:
       '@tailwindcss/oxide-win32-arm64-msvc': 4.3.0
       '@tailwindcss/oxide-win32-x64-msvc': 4.3.0
 
+  '@tailwindcss/typography@0.5.19(tailwindcss@4.3.0)':
+    dependencies:
+      postcss-selector-parser: 6.0.10
+      tailwindcss: 4.3.0
+
   '@tailwindcss/vite@4.3.0(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))':
     dependencies:
       '@tailwindcss/node': 4.3.0
@@ -7284,48 +7301,6 @@ snapshots:
 
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.22':
     optional: true
-
-  '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3)
-      es-module-lexer: 1.7.0
-      obug: 2.1.1
-      pixelmatch: 7.2.0
-      pngjs: 7.0.0
-      sirv: 3.0.2
-      std-env: 4.1.0
-      tinybench: 2.9.0
-      tinyexec: 1.1.2
-      tinyglobby: 0.2.16
-      vite: '@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3)'
-      ws: 8.21.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.1
-      '@types/node': 25.9.1
-      jsdom: 29.1.1(@noble/hashes@1.8.0)
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@vitejs/devtools'
-      - bufferutil
-      - esbuild
-      - jiti
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - yaml
 
   '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3))':
     dependencies:
@@ -9499,6 +9474,11 @@ snapshots:
 
   pngjs@7.0.0: {}
 
+  postcss-selector-parser@6.0.10:
+    dependencies:
+      cssesc: 3.0.0
+      util-deprecate: 1.0.2
+
   postcss-selector-parser@7.1.1:
     dependencies:
       cssesc: 3.0.0
@@ -10328,55 +10308,6 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
-
-  vite-plus@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3):
-    dependencies:
-      '@oxc-project/types': 0.129.0
-      '@oxlint/plugins': 1.61.0
-      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3)
-      '@voidzero-dev/vite-plus-test': 0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)(typescript@6.0.3))(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)
-      oxfmt: 0.48.0
-      oxlint: 1.63.0(oxlint-tsgolint@0.22.1)
-      oxlint-tsgolint: 0.22.1
-    optionalDependencies:
-      '@voidzero-dev/vite-plus-darwin-arm64': 0.1.22
-      '@voidzero-dev/vite-plus-darwin-x64': 0.1.22
-      '@voidzero-dev/vite-plus-linux-arm64-gnu': 0.1.22
-      '@voidzero-dev/vite-plus-linux-arm64-musl': 0.1.22
-      '@voidzero-dev/vite-plus-linux-x64-gnu': 0.1.22
-      '@voidzero-dev/vite-plus-linux-x64-musl': 0.1.22
-      '@voidzero-dev/vite-plus-win32-arm64-msvc': 0.1.22
-      '@voidzero-dev/vite-plus-win32-x64-msvc': 0.1.22
-    transitivePeerDependencies:
-      - '@arethetypeswrong/core'
-      - '@edge-runtime/vm'
-      - '@opentelemetry/api'
-      - '@tsdown/css'
-      - '@tsdown/exe'
-      - '@types/node'
-      - '@vitejs/devtools'
-      - '@vitest/coverage-istanbul'
-      - '@vitest/coverage-v8'
-      - '@vitest/ui'
-      - bufferutil
-      - esbuild
-      - happy-dom
-      - jiti
-      - jsdom
-      - less
-      - publint
-      - sass
-      - sass-embedded
-      - stylus
-      - sugarss
-      - terser
-      - tsx
-      - typescript
-      - unplugin-unused
-      - unrun
-      - utf-8-validate
-      - vite
-      - yaml
 
   vite-plus@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.22.3)(typescript@6.0.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.3)):
     dependencies:

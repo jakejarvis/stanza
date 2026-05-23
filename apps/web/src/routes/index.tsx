@@ -1,5 +1,8 @@
 import { KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Hydrate } from "@tanstack/react-start";
+import { load } from "@tanstack/react-start/hydration";
+import { Suspense } from "react";
 
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
@@ -38,7 +41,7 @@ function Page() {
   const state = Route.useLoaderData();
   const search = Route.useSearch();
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <header className="mb-10 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight">
           Build your stack, minus the pressure.
@@ -55,7 +58,11 @@ function Page() {
           </Link>
         </p>
       </header>
-      <Builder state={state} search={search} />
+      <Hydrate when={load()}>
+        <Suspense>
+          <Builder state={state} search={search} />
+        </Suspense>
+      </Hydrate>
     </div>
   );
 }

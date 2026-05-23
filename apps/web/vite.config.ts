@@ -11,7 +11,13 @@ export default defineConfig({
     mdx(await import("./source.config.ts")),
     devtools(),
     tailwindcss(),
-    tanstackStart(),
+    tanstackStart({
+      prerender: {
+        enabled: true,
+        crawlLinks: true,
+        filter: ({ path }) => !path.includes("#"),
+      },
+    }),
     react(),
     nitro({ serverAssets: [{ baseName: "registry", dir: "public/registry" }] }),
   ]),

@@ -139,7 +139,7 @@ function ModuleCard({
         "outline-none focus-visible:ring-2 focus-visible:ring-ring",
         !disabled && "cursor-pointer hover:bg-accent/40",
         selected && "border-foreground ring-1 ring-foreground",
-        disabled && "cursor-not-allowed opacity-60",
+        disabled && "pointer-events-none opacity-60",
       )}
     >
       <div className="flex items-start gap-3">
@@ -159,10 +159,13 @@ function ModuleCard({
 
   return (
     <Tooltip>
-      <TooltipTrigger nativeButton={false} render={<span className="block h-full" />}>
+      <TooltipTrigger
+        nativeButton={false}
+        render={<span className="block h-full cursor-not-allowed" />}
+      >
         {card}
       </TooltipTrigger>
-      <TooltipContent>{reason}</TooltipContent>
+      <TooltipContent sideOffset={8}>{reason}</TooltipContent>
     </Tooltip>
   );
 }

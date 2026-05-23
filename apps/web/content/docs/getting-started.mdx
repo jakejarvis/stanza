@@ -52,7 +52,7 @@ Every category — `framework`, `styling`, `db`, `orm`, `auth`, `tooling`,
 `testing` — is one command away:
 
 ```sh
-stanza add auth better-auth
+npx stanza-cli add auth better-auth
 ```
 
 stanza resolves peer constraints, picks the adapter that matches your stack, and
@@ -69,9 +69,9 @@ pnpm install
 ## Inspect and remove
 
 ```sh
-stanza list                  # show installed modules, grouped by category
-stanza search drizzle        # find modules in the registry by query
-stanza remove auth           # remove a module and sweep the files it owns
+npx stanza-cli list                  # show installed modules, grouped by category
+npx stanza-cli search drizzle        # find modules in the registry by query
+npx stanza-cli remove auth           # remove a module and sweep the files it owns
 ```
 
 `stanza search` prints each module's `category/id` pair — use the **id**, not the

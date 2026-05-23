@@ -21,145 +21,146 @@ A category has two independent properties: its **cardinality** — `one`
 | `api`       | one         | package | Typed RPC layer between framework and services |
 | `ai`        | one         | package | AI SDK + provider wiring                       |
 | `auth`      | one         | package | Authentication (Better Auth, Clerk, …)         |
-| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)         |
 | `db`        | one         | package | Database driver (Postgres, SQLite)             |
+| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)         |
 | `styling`   | one         | app     | CSS toolchain (Tailwind, shadcn, …)            |
 | `payments`  | one         | package | Checkout + webhooks (Stripe, Polar, …)         |
-| `tooling`   | one         | repo    | Lint/format toolchain                          |
 | `email`     | one         | package | Transactional email (Resend)                   |
+| `tooling`   | one         | repo    | Lint/format toolchain                          |
 | `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                |
 | `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)         |
 | `monorepo`  | many        | repo    | Monorepo task runner (Turborepo)               |
 
-## framework
+## Framework
 
 Single-choice. Provides the app shell, router, and React (or future) runtime.
 
-| Module           | Status    | Notes                                                                                    |
-| ---------------- | --------- | ---------------------------------------------------------------------------------------- |
-| `tanstack-start` | Available | TanStack Start on Vite (no Vinxi). Provides `web`, `react`, `ssr`, `node`.               |
-| `next`           | Available | Next.js 16 (App Router). Provides `web`, `react`, `ssr`, `rsc`, `node`, `edge`.          |
-| `nuxt`           | Planned   | Vue. Requires relaxing the React-implicit assumption in peer modules (capability `vue`). |
-| `svelte`         | Planned   | SvelteKit (capability `svelte`).                                                         |
-| `solid`          | Planned   | SolidStart (capability `solid`).                                                         |
+| Module           | Status            | Notes                                                                                    |
+| ---------------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| `tanstack-start` | 🟢&nbsp;Available | TanStack Start on Vite (no Vinxi). Provides `web`, `react`, `ssr`, `node`.               |
+| `next`           | 🟢&nbsp;Available | Next.js 16 (App Router). Provides `web`, `react`, `ssr`, `rsc`, `node`, `edge`.          |
+| `nuxt`           | 🟨&nbsp;Planned   | Vue. Requires relaxing the React-implicit assumption in peer modules (capability `vue`). |
+| `svelte`         | 🟨&nbsp;Planned   | SvelteKit (capability `svelte`).                                                         |
+| `solid`          | 🟨&nbsp;Planned   | SolidStart (capability `solid`).                                                         |
 
-## api
+## API
 
 Single-choice, constraint-bearing. An optional layer between the framework and
 the database or services, installed as its own workspace package.
 
-| Module | Status  | Notes                                                                  |
-| ------ | ------- | ---------------------------------------------------------------------- |
-| `trpc` | Planned | tRPC v11; per-framework adapters (next, tanstack-start, nuxt, svelte). |
-| `orpc` | Planned | oRPC.                                                                  |
+| Module | Status          | Notes                             |
+| ------ | --------------- | --------------------------------- |
+| `trpc` | 🟨&nbsp;Planned | tRPC v11; per-framework adapters. |
+| `orpc` | 🟨&nbsp;Planned | oRPC.                             |
 
-## ai
+## AI
 
-Single-choice, constraint-bearing. Installs into its own workspace package.
+Single-choice, constraint-bearing, installs into `packages/ai/`.
 
-| Module          | Status  | Notes                                |
-| --------------- | ------- | ------------------------------------ |
-| `vercel-ai-sdk` | Planned | `ai` package + provider sub-recipes. |
-| `tanstack-ai`   | Planned | TanStack AI.                         |
+| Module          | Status          | Notes                                |
+| --------------- | --------------- | ------------------------------------ |
+| `vercel-ai-sdk` | 🟨&nbsp;Planned | `ai` package + provider sub-recipes. |
+| `tanstack-ai`   | 🟨&nbsp;Planned | TanStack AI.                         |
 
-## auth
+## Authentication
 
 Single-choice, installs into `packages/auth/`.
 
-| Module        | Status    | Notes                                                                              |
-| ------------- | --------- | ---------------------------------------------------------------------------------- |
-| `better-auth` | Available | Headless. Peers on `orm` (drizzle, prisma) and `framework` (next, tanstack-start). |
-| `clerk`       | Available | Hosted UI. Peers on `framework` (next, tanstack-start).                            |
-| `workos`      | Planned   | WorkOS AuthKit.                                                                    |
+| Module        | Status            | Notes                                       |
+| ------------- | ----------------- | ------------------------------------------- |
+| `better-auth` | 🟢&nbsp;Available | Local data. Peers on `orm` and `framework`. |
+| `clerk`       | 🟢&nbsp;Available | Hosted database & UI. Peers on `framework`. |
+| `workos`      | 🟨&nbsp;Planned   | WorkOS AuthKit.                             |
 
-## orm
-
-Single-choice, shares `packages/db/` with the database driver.
-
-| Module    | Status    | Notes                                               |
-| --------- | --------- | --------------------------------------------------- |
-| `drizzle` | Available | Drizzle ORM 0.45. Peers on `db` (postgres, sqlite). |
-| `prisma`  | Available | Prisma 7. Peers on `db` (postgres, sqlite).         |
-
-## db
+## Database
 
 Single-choice, installs into `packages/db/`.
 
-| Module     | Status    | Notes                    |
-| ---------- | --------- | ------------------------ |
-| `postgres` | Available | `postgres` driver 3.4.x. |
-| `sqlite`   | Available | `better-sqlite3` 12.x.   |
+| Module     | Status            | Notes                    |
+| ---------- | ----------------- | ------------------------ |
+| `postgres` | 🟢&nbsp;Available | `postgres` driver.       |
+| `sqlite`   | 🟢&nbsp;Available | `better-sqlite3` driver. |
 
-## styling
+## ORM
+
+Single-choice, shares `packages/db/` with the database driver.
+
+| Module    | Status            | Notes                                               |
+| --------- | ----------------- | --------------------------------------------------- |
+| `drizzle` | 🟢&nbsp;Available | Drizzle ORM 0.45. Peers on `db` (postgres, sqlite). |
+| `prisma`  | 🟢&nbsp;Available | Prisma 7. Peers on `db` (postgres, sqlite).         |
+
+## Styling
 
 Single-choice.
 
-| Module         | Status    | Notes                                        |
-| -------------- | --------- | -------------------------------------------- |
-| `tailwind`     | Available | Vanilla Tailwind v4, adapters per framework. |
-| `shadcn-radix` | Planned   | Classic shadcn/ui (Radix primitives).        |
-| `shadcn-base`  | Planned   | shadcn on react-base-ui.                     |
+| Module         | Status            | Notes                                        |
+| -------------- | ----------------- | -------------------------------------------- |
+| `tailwind`     | 🟢&nbsp;Available | Vanilla Tailwind v4, adapters per framework. |
+| `shadcn-radix` | 🟨&nbsp;Planned   | Classic shadcn/ui (Radix primitives).        |
+| `shadcn-base`  | 🟨&nbsp;Planned   | shadcn on Base UI.                           |
 
-## payments
+## Payments
 
-Single-choice, constraint-bearing. Installs into its own workspace package, plus
+Single-choice, constraint-bearing. Installs into `packages/payments/`, plus
 a Better Auth plugin when auth is selected.
 
-| Module   | Status  | Notes                         |
-| -------- | ------- | ----------------------------- |
-| `stripe` | Planned | Checkout Sessions + webhooks. |
-| `polar`  | Planned | Polar SDK.                    |
-| `autumn` | Planned | Autumn.                       |
-| `dodo`   | Planned | Dodo Payments.                |
+| Module   | Status          | Notes                         |
+| -------- | --------------- | ----------------------------- |
+| `stripe` | 🟨&nbsp;Planned | Checkout Sessions + webhooks. |
+| `polar`  | 🟨&nbsp;Planned | Polar SDK.                    |
+| `autumn` | 🟨&nbsp;Planned | Autumn.                       |
+| `dodo`   | 🟨&nbsp;Planned | Dodo Payments.                |
 
-## email
+## Email
 
-Single-choice, installs into its own workspace package.
+Single-choice, installs into `packages/email/`.
 
-| Module   | Status  | Notes                               |
-| -------- | ------- | ----------------------------------- |
-| `resend` | Planned | Resend SDK + React Email templates. |
+| Module   | Status          | Notes                               |
+| -------- | --------------- | ----------------------------------- |
+| `resend` | 🟨&nbsp;Planned | Resend SDK + React Email templates. |
 
-## tooling
+## Tooling
 
 Single-choice, repo-scoped. The three toolchains are mutually exclusive
 substitutes.
 
-| Module            | Status    | Notes                                                  |
-| ----------------- | --------- | ------------------------------------------------------ |
-| `eslint-prettier` | Available | ESLint flat config + Prettier; per-framework adapters. |
-| `biome`           | Available | Biome (lint + format), framework-agnostic.             |
-| `oxlint-oxfmt`    | Available | Oxlint + oxfmt, framework-agnostic.                    |
+| Module            | Status            | Notes                                                  |
+| ----------------- | ----------------- | ------------------------------------------------------ |
+| `eslint-prettier` | 🟢&nbsp;Available | ESLint flat config + Prettier; per-framework adapters. |
+| `biome`           | 🟢&nbsp;Available | Biome (lint + format), framework-agnostic.             |
+| `oxlint-oxfmt`    | 🟢&nbsp;Available | Oxlint + oxfmt, framework-agnostic.                    |
 
-## testing
+## Testing
 
 Coexisting, app-scoped. Vitest and Playwright are independent and routinely run
 side by side.
 
-| Module       | Status    | Notes                                                             |
-| ------------ | --------- | ----------------------------------------------------------------- |
-| `vitest`     | Available | Unit + integration; `jsdom` + RTL; `test`/`test:watch` scripts.   |
-| `playwright` | Available | e2e; per-framework `webServer`; `test:e2e`/`test:e2e:ui` scripts. |
+| Module       | Status            | Notes                                                             |
+| ------------ | ----------------- | ----------------------------------------------------------------- |
+| `vitest`     | 🟢&nbsp;Available | Unit + integration; `jsdom` + RTL; `test`/`test:watch` scripts.   |
+| `playwright` | 🟢&nbsp;Available | e2e; per-framework `webServer`; `test:e2e`/`test:e2e:ui` scripts. |
 
-## deploy
+## Deploy
 
 Coexisting, repo-scoped.
 
-| Module       | Status  | Notes                                         |
-| ------------ | ------- | --------------------------------------------- |
-| `vercel`     | Planned | `vercel.json` + framework-specific output.    |
-| `cloudflare` | Planned | Workers / Pages adapter per framework.        |
-| `railway`    | Planned | `railway.toml` + Dockerfile.                  |
-| `docker`     | Planned | Generic `Dockerfile` + compose for self-host. |
+| Module       | Status          | Notes                                                                          |
+| ------------ | --------------- | ------------------------------------------------------------------------------ |
+| `vercel`     | 🟨&nbsp;Planned | `vercel.json` + framework-specific output.                                     |
+| `cloudflare` | 🟨&nbsp;Planned | Workers / Pages adapter per framework (e.g. Vite plugins, `wrangler.json`, …). |
+| `railway`    | 🟨&nbsp;Planned | `railway.toml` + Dockerfile.                                                   |
+| `docker`     | 🟨&nbsp;Planned | Generic `Dockerfile` + compose for self-host.                                  |
 
-## monorepo
+## Monorepo
 
 Coexisting, repo-scoped. Currently hardcoded as Turborepo; becomes a real
-configurable category when a second option (Nx, Moonrepo) lands.
+configurable category when a second option lands.
 
-| Module      | Status    | Notes                                          |
-| ----------- | --------- | ---------------------------------------------- |
-| `turborepo` | Available | Turbo 2.x (current default; not yet a choice). |
+| Module      | Status            | Notes                                                              |
+| ----------- | ----------------- | ------------------------------------------------------------------ |
+| `turborepo` | 🟢&nbsp;Available | Turbo 2.x (current default; not yet exposed as configurable).      |
+| `vite-plus` | 🟨&nbsp;Planned   | Locked to Vite-compatible frameworks (TanStack, etc.) and modules. |
 
 ## Package manager
 
@@ -167,9 +168,9 @@ Not a category — a top-level field in `stanza.json`
 (`packageManager: "pnpm" | "bun" | "npm"`). The wizard prompts for it; codemods
 only ever touch `package.json`, never lockfiles.
 
-| Manager | Status                                               |
-| ------- | ---------------------------------------------------- |
-| pnpm    | Available (default)                                  |
-| bun     | Available                                            |
-| npm     | Available                                            |
-| yarn    | Planned (needs distinct lockfile/workspace handling) |
+| Manager | Status                      |
+| ------- | --------------------------- |
+| pnpm    | 🟢&nbsp;Available (default) |
+| bun     | 🟢&nbsp;Available           |
+| npm     | 🟢&nbsp;Available           |
+| yarn    | 🛑&nbsp;Not Planned         |

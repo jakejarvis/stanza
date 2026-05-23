@@ -73,7 +73,7 @@ function Page() {
 
   return (
     <RootProvider theme={{ enabled: false }} search={{ enabled: false }}>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="md:flex md:gap-8">
           <DocsSidebar tree={data.pageTree} />
           <div className="min-w-0 flex-1">

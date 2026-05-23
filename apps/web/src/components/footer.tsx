@@ -1,9 +1,11 @@
+import { Link } from "@tanstack/react-router";
+
 export function Footer() {
   return (
     <footer className="border-t border-border bg-background">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:px-6">
         <p>
-          by{" "}
+          Made with 🥡 by{" "}
           <a
             href="https://github.com/jakejarvis"
             target="_blank"
@@ -12,8 +14,12 @@ export function Footer() {
           >
             @jakejarvis
           </a>
+          .
         </p>
         <nav className="flex items-center gap-4">
+          <Link to="/docs/$" params={{ _splat: "" }}>
+            Docs
+          </Link>
           <a
             href="https://github.com/jakejarvis/stanza"
             className="hover:text-foreground"
