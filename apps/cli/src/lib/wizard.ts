@@ -7,6 +7,7 @@ import {
   isMulti,
   KNOWN_CATEGORIES,
   resolveAdapter,
+  validateProjectName,
 } from "@stanza/registry";
 import pc from "picocolors";
 
@@ -55,8 +56,10 @@ export async function runInitWizard(args: {
   const name = await p.text({
     message: "Project name",
     initialValue: defaultName,
-    validate: (v) =>
-      v && /^[a-z0-9][a-z0-9-]*$/i.test(v) ? undefined : "Use letters, digits, dashes.",
+    validate: (v) => {
+      const result = validateProjectName(v ?? "");
+      return result.ok ? undefined : result.message;
+    },
   });
   if (p.isCancel(name)) {
     p.cancel("Cancelled.");
@@ -177,8 +180,9 @@ async function runNonInteractive(args: {
 }): Promise<WizardResult | null> {
   const { registry, defaultName, overrides } = args;
   const name = overrides.name ?? defaultName;
-  if (!/^[a-z0-9][a-z0-9-]*$/i.test(name)) {
-    p.log.error(`Invalid project name: "${name}". Use letters, digits, dashes.`);
+  const validation = validateProjectName(name);
+  if (!validation.ok) {
+    p.log.error(`Invalid project name: "${name}". ${validation.message}`);
     return null;
   }
 

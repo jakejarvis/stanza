@@ -71,3 +71,6 @@ export {
 
 export type { TemplateContext } from "./template";
 export { renderTemplate, buildRenderContext } from "./template";
+
+export type { ProjectNameValidation } from "./project-name";
+export { validateProjectName } from "./project-name";

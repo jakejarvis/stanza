@@ -13,9 +13,11 @@
     "./resolver": "./src/resolver.ts"
   },
   "dependencies": {
+    "validate-npm-package-name": "^8.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/validate-npm-package-name": "^4.0.2",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
