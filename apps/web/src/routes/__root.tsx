@@ -22,7 +22,10 @@ export const Route = createRootRoute({
       { name: "theme-color", content: "#ffffff", media: "(prefers-color-scheme: light)" },
       { name: "theme-color", content: "#0a0a0a", media: "(prefers-color-scheme: dark)" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml" },
+    ],
   }),
   component: RootComponent,
   notFoundComponent: NotFound,

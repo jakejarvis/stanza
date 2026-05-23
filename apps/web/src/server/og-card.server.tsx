@@ -25,9 +25,13 @@ const PAGE: CSSProperties = {
 };
 
 const HEADER_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: "12px" };
-const WORDMARK: CSSProperties = { fontSize: "28px", fontWeight: 600, letterSpacing: "-0.02em" };
 const DOT: CSSProperties = { color: "#52525b", fontSize: "20px" };
 const SLOT: CSSProperties = { color: "#a1a1aa", fontSize: "20px" };
+
+// Brand mark sized and colored for the always-dark OG background. The viewer
+// `<img>` sets the rendered dimensions; the explicit fill keeps it visible
+// without relying on currentColor (which Satori doesn't propagate to images).
+const BRAND_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#fafafa"><path d="M10.975 3.002a1 1 0 0 1-.754 1.196a8 8 0 1 0 8.446 3.379a1 1 0 1 1 1.666-1.107A9.96 9.96 0 0 1 22 12c0 5.523-4.477 10-10 10S2 17.523 2 12c0-4.76 3.325-8.742 7.779-9.752a1 1 0 0 1 1.196.754M13 3.014a1.01 1.01 0 0 1 1.214-.99l.115.031l2.987.996a1 1 0 0 1-.52 1.928l-.112-.03L15 4.387V12a3 3 0 1 1-2.19-2.89l.19.06V3.015Z"/></svg>`;
 
 const BODY: CSSProperties = {
   flex: 1,
@@ -89,12 +93,6 @@ const DEFAULT_BODY: CSSProperties = {
   justifyContent: "center",
   gap: "24px",
 };
-const BIG_WORDMARK: CSSProperties = {
-  fontSize: "120px",
-  fontWeight: 700,
-  letterSpacing: "-0.04em",
-  lineHeight: 1,
-};
 const TAGLINE: CSSProperties = {
   fontSize: "36px",
   color: "#a1a1aa",
@@ -113,7 +111,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
   return (
     <div style={PAGE}>
       <div style={HEADER_ROW}>
-        <span style={WORDMARK}>stanza</span>
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="stanza" />
         <span style={DOT}>·</span>
         <span style={SLOT}>{categoryLabel(summary.category)}</span>
       </div>
@@ -150,7 +148,7 @@ export function OgDefault(): ReactElement {
   return (
     <div style={PAGE}>
       <div style={DEFAULT_BODY}>
-        <div style={BIG_WORDMARK}>stanza</div>
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={160} height={160} alt="stanza" />
         <div style={TAGLINE}>Modular monorepo template builder.</div>
       </div>
       <div style={DEFAULT_FOOTER}>pnpm create stanza my-app</div>

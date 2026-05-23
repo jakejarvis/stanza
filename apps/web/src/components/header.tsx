@@ -1,6 +1,7 @@
 import { IconBrandGithub } from "@tabler/icons-react";
 import { Link, useLoaderData } from "@tanstack/react-router";
 
+import { Logo } from "@/components/logo";
 import { ModeToggle } from "@/components/mode-toggle";
 import { SiteSearch } from "@/components/search/site-search";
 import { Button } from "@/components/ui/button";
@@ -13,9 +14,14 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="font-semibold tracking-tight">
-            stanza
+        <div className="flex items-center gap-5">
+          <Link
+            to="/"
+            aria-label="stanza"
+            className="flex items-center font-semibold tracking-tight"
+          >
+            <Logo className="size-6" />
+            <span className="sr-only">stanza</span>
           </Link>
           <Link
             to="/docs/$"

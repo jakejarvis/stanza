@@ -51,7 +51,7 @@ export function ProjectSetup({
   return (
     <Card className="px-3 py-3.5">
       <FieldSet>
-        <FieldLegend variant="label" className="mb-1.5 text-[13px] text-muted-foreground">
+        <FieldLegend variant="label" className="mb-1.5 text-[13px]! text-muted-foreground">
           Project name
         </FieldLegend>
         <Field data-invalid={showError || undefined}>
@@ -66,7 +66,7 @@ export function ProjectSetup({
             maxLength={214}
             aria-invalid={showError || undefined}
             aria-describedby={showError ? errorId : undefined}
-            className="text-[13px]"
+            className="text-[13px]!"
           />
           <FieldError id={errorId} className="capitalize">
             {showError ? validation.message : null}
