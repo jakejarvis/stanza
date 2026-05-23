@@ -9,7 +9,7 @@ import { RootProvider } from "fumadocs-ui/provider/tanstack";
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { DocsToc } from "@/components/docs/docs-toc";
 import { useMDXComponents } from "@/components/mdx";
-import { buildHead } from "@/lib/seo";
+import { buildHead, getTechArticleJsonLd } from "@/lib/seo";
 import { source } from "@/lib/source";
 
 const serverLoader = createServerFn({ method: "GET" })
@@ -59,12 +59,22 @@ export const Route = createFileRoute("/docs/$")({
     await clientLoader.preload(data.path);
     return data;
   },
-  head: ({ loaderData }) =>
-    buildHead({
-      title: loaderData?.title,
-      description: loaderData?.description,
-      path: loaderData?.url ?? "/docs",
-    }),
+  head: ({ loaderData }) => {
+    const path = loaderData?.url ?? "/docs";
+    const title = loaderData?.title;
+    const description = loaderData?.description;
+    return buildHead({
+      title,
+      description,
+      path,
+      ogImage: loaderData ? `/og${loaderData.url}` : undefined,
+      markdownPath: loaderData ? `${path}.md` : undefined,
+      jsonLd:
+        loaderData && title
+          ? [getTechArticleJsonLd({ title, description: description ?? "", path })]
+          : undefined,
+    });
+  },
 });
 
 function Page() {

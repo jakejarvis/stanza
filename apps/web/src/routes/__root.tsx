@@ -1,7 +1,6 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { HeadContent, Link, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import { Analytics } from "@vercel/analytics/react";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
@@ -105,7 +104,6 @@ function RootComponent() {
           config={{ position: "bottom-right" }}
           plugins={[{ name: "TanStack Router", render: <TanStackRouterDevtoolsPanel /> }]}
         />
-        <Analytics />
         <Scripts />
       </body>
     </html>

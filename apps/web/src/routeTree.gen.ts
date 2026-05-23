@@ -16,8 +16,9 @@ import { Route as DocsLlmsDottxtRouteImport } from './routes/docs.llms[.]txt'
 import { Route as DocsLlmsFullDottxtRouteImport } from './routes/docs.llms-full[.]txt'
 import { Route as DocsSplatRouteImport } from './routes/docs.$'
 import { Route as ApiEventsRouteImport } from './routes/api.events'
-import { Route as OgSlotIdRouteImport } from './routes/og.$slot.$id'
+import { Route as OgDocsSplatRouteImport } from './routes/og.docs.$'
 import { Route as MSlotIdRouteImport } from './routes/m.$slot.$id'
+import { Route as OgMSlotIdRouteImport } from './routes/og.m.$slot.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -54,14 +55,19 @@ const ApiEventsRoute = ApiEventsRouteImport.update({
   path: '/api/events',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OgSlotIdRoute = OgSlotIdRouteImport.update({
-  id: '/og/$slot/$id',
-  path: '/og/$slot/$id',
+const OgDocsSplatRoute = OgDocsSplatRouteImport.update({
+  id: '/og/docs/$',
+  path: '/og/docs/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MSlotIdRoute = MSlotIdRouteImport.update({
   id: '/m/$slot/$id',
   path: '/m/$slot/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgMSlotIdRoute = OgMSlotIdRouteImport.update({
+  id: '/og/m/$slot/$id',
+  path: '/og/m/$slot/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -74,7 +80,8 @@ export interface FileRoutesByFullPath {
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/og/': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
-  '/og/$slot/$id': typeof OgSlotIdRoute
+  '/og/docs/$': typeof OgDocsSplatRoute
+  '/og/m/$slot/$id': typeof OgMSlotIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -85,7 +92,8 @@ export interface FileRoutesByTo {
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/og': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
-  '/og/$slot/$id': typeof OgSlotIdRoute
+  '/og/docs/$': typeof OgDocsSplatRoute
+  '/og/m/$slot/$id': typeof OgMSlotIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -97,7 +105,8 @@ export interface FileRoutesById {
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/og/': typeof OgIndexRoute
   '/m/$slot/$id': typeof MSlotIdRoute
-  '/og/$slot/$id': typeof OgSlotIdRoute
+  '/og/docs/$': typeof OgDocsSplatRoute
+  '/og/m/$slot/$id': typeof OgMSlotIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -110,7 +119,8 @@ export interface FileRouteTypes {
     | '/docs/llms.txt'
     | '/og/'
     | '/m/$slot/$id'
-    | '/og/$slot/$id'
+    | '/og/docs/$'
+    | '/og/m/$slot/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -121,7 +131,8 @@ export interface FileRouteTypes {
     | '/docs/llms.txt'
     | '/og'
     | '/m/$slot/$id'
-    | '/og/$slot/$id'
+    | '/og/docs/$'
+    | '/og/m/$slot/$id'
   id:
     | '__root__'
     | '/'
@@ -132,7 +143,8 @@ export interface FileRouteTypes {
     | '/docs/llms.txt'
     | '/og/'
     | '/m/$slot/$id'
-    | '/og/$slot/$id'
+    | '/og/docs/$'
+    | '/og/m/$slot/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -144,7 +156,8 @@ export interface RootRouteChildren {
   DocsLlmsDottxtRoute: typeof DocsLlmsDottxtRoute
   OgIndexRoute: typeof OgIndexRoute
   MSlotIdRoute: typeof MSlotIdRoute
-  OgSlotIdRoute: typeof OgSlotIdRoute
+  OgDocsSplatRoute: typeof OgDocsSplatRoute
+  OgMSlotIdRoute: typeof OgMSlotIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -198,11 +211,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/og/$slot/$id': {
-      id: '/og/$slot/$id'
-      path: '/og/$slot/$id'
-      fullPath: '/og/$slot/$id'
-      preLoaderRoute: typeof OgSlotIdRouteImport
+    '/og/docs/$': {
+      id: '/og/docs/$'
+      path: '/og/docs/$'
+      fullPath: '/og/docs/$'
+      preLoaderRoute: typeof OgDocsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/m/$slot/$id': {
@@ -210,6 +223,13 @@ declare module '@tanstack/react-router' {
       path: '/m/$slot/$id'
       fullPath: '/m/$slot/$id'
       preLoaderRoute: typeof MSlotIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og/m/$slot/$id': {
+      id: '/og/m/$slot/$id'
+      path: '/og/m/$slot/$id'
+      fullPath: '/og/m/$slot/$id'
+      preLoaderRoute: typeof OgMSlotIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -224,7 +244,8 @@ const rootRouteChildren: RootRouteChildren = {
   DocsLlmsDottxtRoute: DocsLlmsDottxtRoute,
   OgIndexRoute: OgIndexRoute,
   MSlotIdRoute: MSlotIdRoute,
-  OgSlotIdRoute: OgSlotIdRoute,
+  OgDocsSplatRoute: OgDocsSplatRoute,
+  OgMSlotIdRoute: OgMSlotIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,18 +1,16 @@
 import type { RegistryIndex } from "@stanza/registry";
+import { ImageResponse } from "@takumi-rs/image-response";
 import { createFileRoute } from "@tanstack/react-router";
-import { ImageResponse } from "@vercel/og";
 
 import { OgCard } from "@/server/og-card.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 /**
- * `/og/$slot/$id` — per-module OG card (e.g. `/og/auth/clerk`). Dynamically
- * rendered at request time via Satori (bundled inside `@vercel/og`). The URL is
- * extensionless on purpose: a `.png` segment is swallowed by Vite/Nitro static
- * asset handling before routing — crawlers read the `image/png` content-type
- * instead. Bails 404 when the module is unknown.
+ * `/og/m/$slot/$id` — per-module OG card (e.g. `/og/m/auth/clerk`), mirroring
+ * the public `/m/$slot/$id` URL. Dynamically rendered at request time via
+ * Takumi. Bails 404 when the module is unknown.
  */
-export const Route = createFileRoute("/og/$slot/$id")({
+export const Route = createFileRoute("/og/m/$slot/$id")({
   server: {
     handlers: {
       GET: async ({ params }) => {
@@ -37,6 +35,7 @@ export const Route = createFileRoute("/og/$slot/$id")({
         return new ImageResponse(OgCard({ summary }), {
           width: 1200,
           height: 630,
+          format: "webp",
           headers: {
             "cache-control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
           },

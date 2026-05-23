@@ -5,7 +5,7 @@ import { load } from "@tanstack/react-start/hydration";
 
 import { Builder } from "@/components/builder";
 import type { BuilderSearch } from "@/lib/selection";
-import { buildHead } from "@/lib/seo";
+import { buildHead, getWebSiteJsonLd } from "@/lib/seo";
 import { getBuilderState } from "@/server/builder-state.functions";
 
 // Keys are derived from the canonical slot + add-on tuples so this never
@@ -32,6 +32,7 @@ export const Route = createFileRoute("/")({
       description:
         "Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code that’s yours the moment it lands.",
       path: "/",
+      jsonLd: [getWebSiteJsonLd()],
     }),
   component: Page,
 });

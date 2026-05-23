@@ -2,6 +2,13 @@ const SITE_URL = process.env.SITE_URL ?? "https://stanza.tools";
 
 const DEFAULT_TITLE = "stanza";
 const DEFAULT_DESCRIPTION = "Modular monorepo template builder.";
+const REPO_URL = "https://github.com/jakejarvis/stanza";
+
+type JsonLdValue = string | number | boolean | null | JsonLdObject | readonly JsonLdValue[];
+
+export type JsonLdObject = {
+  [key: string]: JsonLdValue | undefined;
+};
 
 export type HeadInput = {
   /** Page-specific title. Concatenated to the site name: `${title} · stanza`. */
@@ -13,11 +20,16 @@ export type HeadInput = {
   ogImage?: string;
   /** Defaults to `"website"`; module detail pages use `"article"`. */
   type?: "website" | "article";
+  /** Path to a Markdown alternate of this page (e.g. `/docs/registry.md`). */
+  markdownPath?: string;
+  /** schema.org JSON-LD objects to emit as inline `<script type="application/ld+json">`. */
+  jsonLd?: readonly JsonLdObject[];
 };
 
 export type HeadOutput = {
   meta: Array<Record<string, string>>;
   links: Array<Record<string, string>>;
+  scripts: Array<{ type: "application/ld+json"; children: string }>;
 };
 
 export function buildHead(input: HeadInput): HeadOutput {
@@ -26,6 +38,17 @@ export function buildHead(input: HeadInput): HeadOutput {
   const url = abs(input.path);
   const ogImage = abs(input.ogImage ?? "/og");
   const type = input.type ?? "website";
+
+  const links: Array<Record<string, string>> = [{ rel: "canonical", href: url }];
+
+  if (input.markdownPath) {
+    links.push({
+      rel: "alternate",
+      type: "text/markdown",
+      href: abs(input.markdownPath),
+      title: `${title} as Markdown`,
+    });
+  }
 
   return {
     meta: [
@@ -44,8 +67,95 @@ export function buildHead(input: HeadInput): HeadOutput {
       { name: "twitter:description", content: description },
       { name: "twitter:image", content: ogImage },
     ],
-    links: [{ rel: "canonical", href: url }],
+    links,
+    scripts: (input.jsonLd ?? []).map((entry) => ({
+      type: "application/ld+json",
+      children: serializeJsonLd(entry),
+    })),
   };
+}
+
+export function getWebSiteJsonLd(): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: DEFAULT_TITLE,
+    url: abs("/"),
+    description: DEFAULT_DESCRIPTION,
+    publisher: {
+      "@type": "Organization",
+      name: DEFAULT_TITLE,
+      url: abs("/"),
+      sameAs: [REPO_URL],
+    },
+  };
+}
+
+export function getTechArticleJsonLd({
+  title,
+  description,
+  path,
+  section,
+}: {
+  title: string;
+  description: string;
+  path: string;
+  section?: string;
+}): JsonLdObject {
+  const url = abs(path);
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: title,
+    name: title,
+    description: description.trim() || DEFAULT_DESCRIPTION,
+    url,
+    mainEntityOfPage: url,
+    ...(section ? { articleSection: section } : {}),
+    isPartOf: {
+      "@type": "WebSite",
+      name: DEFAULT_TITLE,
+      url: abs("/"),
+    },
+  };
+}
+
+export function getSoftwareSourceCodeJsonLd({
+  name,
+  description,
+  path,
+  version,
+  author,
+  homepage,
+}: {
+  name: string;
+  description: string;
+  path: string;
+  version?: string;
+  author?: string;
+  homepage?: string;
+}): JsonLdObject {
+  const url = abs(path);
+  return {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    name,
+    description: description.trim() || DEFAULT_DESCRIPTION,
+    url,
+    programmingLanguage: "TypeScript",
+    ...(version ? { softwareVersion: version } : {}),
+    ...(author ? { author: { "@type": "Person", name: author } } : {}),
+    ...(homepage ? { sameAs: [homepage] } : {}),
+    isPartOf: {
+      "@type": "WebSite",
+      name: DEFAULT_TITLE,
+      url: abs("/"),
+    },
+  };
+}
+
+function serializeJsonLd(jsonLd: JsonLdObject): string {
+  return JSON.stringify(jsonLd).replace(/</gu, "\\u003c");
 }
 
 function abs(pathOrUrl: string): string {

@@ -6,8 +6,9 @@ import type { CSSProperties, ReactElement } from "react";
  * The visual layout shared by all OG images. Lives in `src/server/` so the
  * tsx/JSX parsing applies — Nitro server routes are plain .ts files.
  *
- * Satori (used inside @vercel/og) supports a subset of CSS — flex layout,
- * absolute positioning, basic typography. No grid, no shadows on text, etc.
+ * Rendered by Takumi (@takumi-rs/image-response). Geist + Geist Mono are
+ * pre-bundled by the renderer, so naming `Geist` here resolves to the same
+ * typeface the live site loads via `@fontsource-variable/geist`.
  *
  * Styles are hoisted to module constants: these functions render once per
  * image (not React components that re-render), and static style objects must
@@ -21,7 +22,7 @@ const PAGE: CSSProperties = {
   background: "#0a0a0a",
   color: "#fafafa",
   padding: "80px",
-  fontFamily: "Inter, system-ui",
+  fontFamily: "Geist, sans-serif",
 };
 
 const HEADER_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: "12px" };
@@ -82,7 +83,7 @@ const DESCRIPTION: CSSProperties = {
 const FOOTER: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
-  color: "#52525b",
+  color: "#6c6c6c",
   fontSize: "20px",
 };
 
@@ -133,9 +134,42 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
 
       <div style={FOOTER}>
         <span>
-          {summary.category}/{summary.id}
+          stanza.tools/m/{summary.category}/{summary.id}
         </span>
-        <span>v{summary.version}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Per-docs-page OG. Mirrors `OgCard`'s chrome (brand + section label header,
+ * footer slug) but swaps the body for a plain title + description block —
+ * docs pages don't have a logo or version to display.
+ */
+export function OgDocs({
+  title,
+  description,
+  slug,
+}: {
+  title: string;
+  description: string;
+  slug: string;
+}): ReactElement {
+  return (
+    <div style={PAGE}>
+      <div style={HEADER_ROW}>
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="stanza" />
+        <span style={DOT}>·</span>
+        <span style={SLOT}>Docs</span>
+      </div>
+
+      <div style={BODY}>
+        <div style={TITLE}>{title}</div>
+        {description ? <div style={DESCRIPTION}>{description}</div> : null}
+      </div>
+
+      <div style={FOOTER}>
+        <span>stanza.tools/docs/{slug}</span>
       </div>
     </div>
   );
@@ -151,7 +185,7 @@ export function OgDefault(): ReactElement {
         <img src={svgToDataUri(BRAND_LOGO_SVG)} width={160} height={160} alt="stanza" />
         <div style={TAGLINE}>Modular monorepo template builder.</div>
       </div>
-      <div style={DEFAULT_FOOTER}>pnpm create stanza my-app</div>
+      <div style={DEFAULT_FOOTER}>npm init stanza my-app</div>
     </div>
   );
 }

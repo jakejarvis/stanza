@@ -46,4 +46,7 @@ export default defineConfig({
       tslib: "tslib/tslib.es6.mjs",
     },
   },
+  ssr: {
+    external: ["@takumi-rs/image-response"],
+  },
 });

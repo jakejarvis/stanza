@@ -13,7 +13,7 @@ import { ModuleLogo } from "@/components/module-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import type { Selections } from "@/lib/selection";
-import { buildHead } from "@/lib/seo";
+import { buildHead, getSoftwareSourceCodeJsonLd } from "@/lib/seo";
 import { getModuleDetail } from "@/server/module-detail.functions";
 
 type DetailSearch = Partial<Record<CategoryId, string>>;
@@ -38,19 +38,28 @@ export const Route = createFileRoute("/m/$slot/$id")({
     if (!detail) throw notFound();
     return detail;
   },
-  head: ({ loaderData, params }) =>
-    loaderData
-      ? buildHead({
-          title: loaderData.module.label,
-          description: loaderData.module.description,
-          path: `/m/${params.slot}/${params.id}`,
-          ogImage: `/og/${params.slot}/${params.id}`,
-          type: "article",
-        })
-      : buildHead({
-          title: "Not found",
-          path: `/m/${params.slot}/${params.id}`,
+  head: ({ loaderData, params }) => {
+    const path = `/m/${params.slot}/${params.id}`;
+    if (!loaderData) return buildHead({ title: "Not found", path });
+    const { module } = loaderData;
+    return buildHead({
+      title: module.label,
+      description: module.description,
+      path,
+      ogImage: `/og/m/${params.slot}/${params.id}`,
+      type: "article",
+      jsonLd: [
+        getSoftwareSourceCodeJsonLd({
+          name: module.label,
+          description: module.description,
+          path,
+          version: module.version,
+          author: module.author,
+          homepage: module.homepage,
         }),
+      ],
+    });
+  },
   component: ModuleDetailPage,
 });
 
