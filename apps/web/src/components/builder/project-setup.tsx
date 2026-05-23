@@ -38,7 +38,7 @@ export function ProjectSetup({
   );
 
   return (
-    <Card className="p-3">
+    <Card className="px-3 py-4">
       <div className="space-y-1.5">
         <Label htmlFor="stanza-project-name" className="font-medium text-muted-foreground">
           Project name
