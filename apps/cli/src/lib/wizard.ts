@@ -51,7 +51,7 @@ export async function runInitWizard(args: {
 
   if (overrides) return runNonInteractive({ registry, defaultName, overrides });
 
-  p.intro(pc.bold(pc.cyan("stanza")));
+  p.intro(pc.bold(pc.cyan("Stanza")));
 
   const name = await p.text({
     message: "Project name",

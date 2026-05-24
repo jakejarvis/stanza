@@ -1,9 +1,9 @@
 ---
 title: Concepts
-description: The mental model behind stanza — categories, vendoring, peers, and the manifest.
+description: The mental model behind Stanza — categories, vendoring, peers, and the manifest.
 ---
 
-A handful of ideas explain how stanza decides what to write and where. Once they
+A handful of ideas explain how Stanza decides what to write and where. Once they
 click, the CLI's behavior is predictable.
 
 ## Categories
@@ -44,19 +44,19 @@ queries.
 
 ## Vendoring
 
-stanza copies a module's code into your repo verbatim. There's no shared runtime
+Stanza copies a module's code into your repo verbatim. There's no shared runtime
 package — the generated files are ordinary source you can read, edit, and commit.
 That means upgrades never silently change your app's behavior, and you're never
-locked into stanza's abstractions.
+locked into Stanza's abstractions.
 
 ## Peers and adapters
 
 Modules declare **peers** — the other categories they care about. When you `add`
-a module, stanza reads your current selections and picks the **adapter** that
+a module, Stanza reads your current selections and picks the **adapter** that
 matches. Better Auth, for instance, peers on both `framework` and `orm`, so
 adding it to a Next + Drizzle app produces different wiring than a TanStack Start
 
-- Prisma app. You pick the module; stanza picks the right variant.
+- Prisma app. You pick the module; Stanza picks the right variant.
 
 ## The manifest (`stanza.json`)
 

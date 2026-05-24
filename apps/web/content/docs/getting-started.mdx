@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Create your first stanza project and add modules.
+description: Create your first Stanza project and add modules.
 ---
 
 Scaffold a new monorepo, then layer in modules as you go.
@@ -8,7 +8,7 @@ Scaffold a new monorepo, then layer in modules as you go.
 ## Prerequisites
 
 - **Node.js** 20 or newer.
-- A package manager — **pnpm** (recommended), **npm**, or **bun**. stanza writes
+- A package manager — **pnpm** (recommended), **npm**, or **bun**. Stanza writes
   a workspace-based monorepo, so a workspace-aware package manager is required.
 
 ## Create a project
@@ -32,7 +32,7 @@ To run it without the wizard — in CI, for example — see
 
 ## What you get
 
-stanza generates a clean monorepo: your app under `apps/`, internal packages
+Stanza generates a clean monorepo: your app under `apps/`, internal packages
 under `packages/`, and a `stanza.json` manifest at the root. The manifest records
 which modules you selected and which files each one owns — it's how `add` and
 `remove` know what's installed and what to clean up. You generally don't edit it
@@ -55,7 +55,7 @@ Every category — `framework`, `styling`, `db`, `orm`, `auth`, `tooling`,
 npx stanza-cli add auth better-auth
 ```
 
-stanza resolves peer constraints, picks the adapter that matches your stack, and
+Stanza resolves peer constraints, picks the adapter that matches your stack, and
 writes the module's templates, dependencies, and environment variables into the
 appropriate place. For `auth`, `db`, and `orm` that's an internal workspace
 package (e.g. `packages/auth/`, named `@my-app/auth`) that your app consumes via

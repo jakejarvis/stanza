@@ -1,16 +1,16 @@
 ---
 title: Agents
-description: Drive stanza from Claude Code, Codex, Cursor, or any other coding agent.
+description: Drive Stanza from Claude Code, Codex, Cursor, or any other coding agent.
 ---
 
-stanza is built to be agent-friendly: every verb has a non-interactive form, the
+Stanza is built to be agent-friendly: every verb has a non-interactive form, the
 manifest is declarative state, and `--dry-run` previews any mutation before it
-runs. An agent that follows a handful of rules can scaffold and modify a stanza
+runs. An agent that follows a handful of rules can scaffold and modify a Stanza
 project as reliably as a human at a prompt.
 
 ## SKILL.md
 
-For Claude Code, Codex, and other agent runtimes that load skills, stanza ships
+For Claude Code, Codex, and other agent runtimes that load skills, Stanza ships
 a self-contained skill bundle. Install it with the
 [Skills CLI](https://skills.sh):
 
@@ -44,7 +44,7 @@ create` / `bun create` introduce.
   explicit approval.
 - **`stanza.json` is generated state.** Don't hand-edit it; use the verbs that
   maintain it (`add`, `remove`).
-- **Generated files are user-owned source.** Once stanza writes a template,
+- **Generated files are user-owned source.** Once Stanza writes a template,
   edit it like any other file in the repo.
 
 ## Common errors
@@ -54,7 +54,7 @@ create` / `bun create` introduce.
 | `Module not found`                   | The id doesn't exist in the registry. Run `stanza search` and use the printed id.                                    |
 | `missing-peer` / `incompatible-peer` | The selected module needs a peer category filled first (e.g. Better Auth needs an `orm`). Add the peer, then re-run. |
 | `no-adapter`                         | None of the module's adapters match the current stack. Try a different module in the same category.                  |
-| `No stanza.json found`               | You're not in a stanza project. Run from the project root or a child directory containing a parent `stanza.json`.    |
+| `No stanza.json found`               | You're not in a Stanza project. Run from the project root or a child directory containing a parent `stanza.json`.    |
 | Dirty worktree refusal               | Commit or stash, or ask the user before using `--dangerously-allow-dirty`.                                           |
 
 ## Putting it together

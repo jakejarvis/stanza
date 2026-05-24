@@ -112,7 +112,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
   return (
     <div style={PAGE}>
       <div style={HEADER_ROW}>
-        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="stanza" />
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="Stanza" />
         <span style={DOT}>·</span>
         <span style={SLOT}>{categoryLabel(summary.category)}</span>
       </div>
@@ -158,7 +158,7 @@ export function OgDocs({
   return (
     <div style={PAGE}>
       <div style={HEADER_ROW}>
-        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="stanza" />
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="Stanza" />
         <span style={DOT}>·</span>
         <span style={SLOT}>Docs</span>
       </div>
@@ -182,7 +182,7 @@ export function OgDefault(): ReactElement {
   return (
     <div style={PAGE}>
       <div style={DEFAULT_BODY}>
-        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={160} height={160} alt="stanza" />
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={160} height={160} alt="Stanza" />
         <div style={TAGLINE}>Modular monorepo template builder.</div>
       </div>
       <div style={DEFAULT_FOOTER}>npm init stanza my-app</div>

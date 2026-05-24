@@ -65,7 +65,7 @@ export function pickRegistryRoot(): string {
   if (override && !override.startsWith("http")) return override;
   const local = resolveLocalRegistry();
   if (local) return local;
-  throw new Error("Could not locate stanza registry root.");
+  throw new Error("Could not locate Stanza registry root.");
 }
 
 async function loadFsRegistry(rootDir: string): Promise<Registry> {
@@ -109,7 +109,7 @@ async function loadFsRegistry(rootDir: string): Promise<Registry> {
 async function loadHttpRegistry(baseUrl: string): Promise<Registry> {
   const indexRes = await fetch(`${baseUrl}/index.json`);
   if (!indexRes.ok) {
-    throw new Error(`Failed to load stanza registry from ${baseUrl}: ${indexRes.status}`);
+    throw new Error(`Failed to load Stanza registry from ${baseUrl}: ${indexRes.status}`);
   }
   const index = RegistryIndexSchema.parse(await indexRes.json());
 

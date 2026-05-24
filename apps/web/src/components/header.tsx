@@ -14,9 +14,9 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex items-center gap-5">
-          <Link to="/" aria-label="stanza">
+          <Link to="/" aria-label="Stanza">
             <Logo className="size-6" />
-            <span className="sr-only">stanza</span>
+            <span className="sr-only">Stanza</span>
           </Link>
           <Link
             to="/docs/$"

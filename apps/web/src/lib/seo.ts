@@ -1,6 +1,6 @@
 const SITE_URL = process.env.SITE_URL ?? "https://stanza.tools";
 
-const DEFAULT_TITLE = "stanza";
+const DEFAULT_TITLE = "Stanza";
 const DEFAULT_DESCRIPTION = "Modular monorepo template builder.";
 const REPO_URL = "https://github.com/jakejarvis/stanza";
 

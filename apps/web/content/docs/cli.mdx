@@ -1,9 +1,9 @@
 ---
 title: CLI
-description: The stanza command-line verbs, flags, and environment variables.
+description: The Stanza command-line verbs, flags, and environment variables.
 ---
 
-stanza ships five verbs against the category taxonomy. Run any verb with
+Stanza ships five verbs against the category taxonomy. Run any verb with
 `--help` for its full flag list:
 
 ```sh
@@ -81,7 +81,7 @@ These apply to the mutating verbs (`init`, `add`, `remove`):
 
 - `--dry-run` — print the actions that would be taken and write nothing.
 - `--dangerously-allow-dirty` — allow a mutating command to run with a dirty git
-  working tree. By default stanza refuses, so its edits never mix with
+  working tree. By default Stanza refuses, so its edits never mix with
   uncommitted changes. Commit or stash first when you can.
 - `--no-telemetry` — disable anonymous usage events for this invocation.
 
@@ -97,7 +97,7 @@ These apply to the mutating verbs (`init`, `add`, `remove`):
 
 ## Dependency versioning
 
-On `init` and `add`, stanza bumps each `^`/`~` dependency range to the latest npm
+On `init` and `add`, Stanza bumps each `^`/`~` dependency range to the latest npm
 version that satisfies it, keeping the modifier. Other ranges and `workspace:*`
 specifiers are written as-is. When offline, it falls back to the range declared
 in the module.
