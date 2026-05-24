@@ -1,3 +1,4 @@
+import { LRUCache } from "lru-cache";
 import {
   createHighlighter,
   type Highlighter,
@@ -79,11 +80,24 @@ export function langForPath(path: string): BundledLanguage | undefined {
  * blocks. The client renders one via dangerouslySetInnerHTML based on the
  * active theme.
  */
-export async function renderPreview(source: string, filePath: string): Promise<Preview> {
+async function renderPreviewImpl(source: string, filePath: string): Promise<Preview> {
   const highlighter = await getHighlighter();
   const lang = langForPath(filePath) ?? "plaintext";
   return {
     light: highlighter.codeToHtml(source, { lang, theme: "github-light" }),
     dark: highlighter.codeToHtml(source, { lang, theme: "github-dark" }),
   };
+}
+
+// Memoize by (path, source). Path drives grammar selection via `langForPath`;
+// source + grammar + the singleton theme set fully determine the HTML output.
+const previewCache = new LRUCache<string, Preview>({ max: 500 });
+
+export async function renderPreview(source: string, filePath: string): Promise<Preview> {
+  const key = `${filePath}::${source}`;
+  const hit = previewCache.get(key);
+  if (hit) return hit;
+  const fresh = await renderPreviewImpl(source, filePath);
+  previewCache.set(key, fresh);
+  return fresh;
 }

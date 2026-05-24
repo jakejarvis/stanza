@@ -11,8 +11,8 @@ import { DEFAULT_BUILDER_APPS, parseSelections, resolveSelected } from "@/lib/se
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
-import { reportServerError } from "@/server/posthog.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
+import { getAllModules } from "@/server/registry-modules.server";
 
 export type BuilderState = {
   index: RegistryIndex;
@@ -41,34 +41,9 @@ export const getBuilderState = createServerFn({ method: "GET" })
 
     const index = await loadRegistryFile<RegistryIndex>("index.json");
 
-    // Load every module in parallel. The dataset is small (10s of KB at most)
-    // and having everything client-side lets the user toggle slots without
-    // extra roundtrips. The Shiki preview map is the only piece that changes
-    // per-selection — recomputed each loader run.
-    //
-    // Use `allSettled` so a single missing/malformed module file doesn't
-    // collapse the entire builder. The failing module gets dropped from the
-    // map; UI surfaces it as "unknown" via the index summary if referenced.
-    const settled = await Promise.all(
-      index.modules.map(async (summary): Promise<readonly [string, Module] | null> => {
-        try {
-          const mod = await loadRegistryFile<Module>(
-            `modules/${summary.category}-${summary.id}.json`,
-          );
-          return [`${mod.category}:${mod.id}`, mod] as const;
-        } catch (cause) {
-          reportServerError(cause, {
-            source: "getBuilderState/loadModule",
-            category: summary.category,
-            moduleId: summary.id,
-          });
-          return null;
-        }
-      }),
-    );
-    const modules: Record<string, Module> = Object.fromEntries(
-      settled.filter((entry): entry is readonly [string, Module] => entry !== null),
-    );
+    // Module catalog is cached per-process — registry data is immutable per
+    // deployment, so toggles pay this cost exactly once per server instance.
+    const modules = await getAllModules(index);
 
     const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);
