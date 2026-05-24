@@ -19,6 +19,8 @@ import { Route as DocsSplatRouteImport } from './routes/docs.$'
 import { Route as ApiEventsRouteImport } from './routes/api.events'
 import { Route as RegistryCategoryIdRouteImport } from './routes/registry.$category.$id'
 import { Route as OgDocsSplatRouteImport } from './routes/og.docs.$'
+import { Route as ApiSearchModulesRouteImport } from './routes/api.search.modules'
+import { Route as ApiSearchDocsRouteImport } from './routes/api.search.docs'
 import { Route as OgRegistryCategoryIdRouteImport } from './routes/og.registry.$category.$id'
 
 const DocsDotmdRoute = DocsDotmdRouteImport.update({
@@ -71,6 +73,16 @@ const OgDocsSplatRoute = OgDocsSplatRouteImport.update({
   path: '/og/docs/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSearchModulesRoute = ApiSearchModulesRouteImport.update({
+  id: '/api/search/modules',
+  path: '/api/search/modules',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSearchDocsRoute = ApiSearchDocsRouteImport.update({
+  id: '/api/search/docs',
+  path: '/api/search/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OgRegistryCategoryIdRoute = OgRegistryCategoryIdRouteImport.update({
   id: '/og/registry/$category/$id',
   path: '/og/registry/$category/$id',
@@ -86,6 +98,8 @@ export interface FileRoutesByFullPath {
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/og/': typeof OgIndexRoute
+  '/api/search/docs': typeof ApiSearchDocsRoute
+  '/api/search/modules': typeof ApiSearchModulesRoute
   '/og/docs/$': typeof OgDocsSplatRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
   '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
@@ -99,6 +113,8 @@ export interface FileRoutesByTo {
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/og': typeof OgIndexRoute
+  '/api/search/docs': typeof ApiSearchDocsRoute
+  '/api/search/modules': typeof ApiSearchModulesRoute
   '/og/docs/$': typeof OgDocsSplatRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
   '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
@@ -113,6 +129,8 @@ export interface FileRoutesById {
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
   '/og/': typeof OgIndexRoute
+  '/api/search/docs': typeof ApiSearchDocsRoute
+  '/api/search/modules': typeof ApiSearchModulesRoute
   '/og/docs/$': typeof OgDocsSplatRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
   '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
@@ -128,6 +146,8 @@ export interface FileRouteTypes {
     | '/docs/llms.txt'
     | '/docs/{$}.md'
     | '/og/'
+    | '/api/search/docs'
+    | '/api/search/modules'
     | '/og/docs/$'
     | '/registry/$category/$id'
     | '/og/registry/$category/$id'
@@ -141,6 +161,8 @@ export interface FileRouteTypes {
     | '/docs/llms.txt'
     | '/docs/{$}.md'
     | '/og'
+    | '/api/search/docs'
+    | '/api/search/modules'
     | '/og/docs/$'
     | '/registry/$category/$id'
     | '/og/registry/$category/$id'
@@ -154,6 +176,8 @@ export interface FileRouteTypes {
     | '/docs/llms.txt'
     | '/docs/{$}.md'
     | '/og/'
+    | '/api/search/docs'
+    | '/api/search/modules'
     | '/og/docs/$'
     | '/registry/$category/$id'
     | '/og/registry/$category/$id'
@@ -168,6 +192,8 @@ export interface RootRouteChildren {
   DocsLlmsDottxtRoute: typeof DocsLlmsDottxtRoute
   DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
   OgIndexRoute: typeof OgIndexRoute
+  ApiSearchDocsRoute: typeof ApiSearchDocsRoute
+  ApiSearchModulesRoute: typeof ApiSearchModulesRoute
   OgDocsSplatRoute: typeof OgDocsSplatRoute
   RegistryCategoryIdRoute: typeof RegistryCategoryIdRoute
   OgRegistryCategoryIdRoute: typeof OgRegistryCategoryIdRoute
@@ -245,6 +271,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OgDocsSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/search/modules': {
+      id: '/api/search/modules'
+      path: '/api/search/modules'
+      fullPath: '/api/search/modules'
+      preLoaderRoute: typeof ApiSearchModulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/search/docs': {
+      id: '/api/search/docs'
+      path: '/api/search/docs'
+      fullPath: '/api/search/docs'
+      preLoaderRoute: typeof ApiSearchDocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/og/registry/$category/$id': {
       id: '/og/registry/$category/$id'
       path: '/og/registry/$category/$id'
@@ -264,6 +304,8 @@ const rootRouteChildren: RootRouteChildren = {
   DocsLlmsDottxtRoute: DocsLlmsDottxtRoute,
   DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,
   OgIndexRoute: OgIndexRoute,
+  ApiSearchDocsRoute: ApiSearchDocsRoute,
+  ApiSearchModulesRoute: ApiSearchModulesRoute,
   OgDocsSplatRoute: OgDocsSplatRoute,
   RegistryCategoryIdRoute: RegistryCategoryIdRoute,
   OgRegistryCategoryIdRoute: OgRegistryCategoryIdRoute,

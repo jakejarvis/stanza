@@ -7,9 +7,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 
 export function Header() {
-  // Root loader stocks the registry index. `useLoaderData` reads it via the
-  // typed root-match path so the search popover has data without re-fetching.
-  const index = useLoaderData({ from: "__root__" });
+  // Root loader stocks the registry index + a lightweight docs page list.
+  const { registry, docs } = useLoaderData({ from: "__root__" });
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
@@ -32,7 +31,7 @@ export function Header() {
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <SiteSearch index={index} />
+          <SiteSearch registry={registry} docs={docs} />
           <Button
             nativeButton={false}
             render={

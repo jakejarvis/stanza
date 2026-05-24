@@ -8,12 +8,16 @@ import { PostHogProvider } from "@/components/posthog-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
+import { getDocsIndex } from "@/server/docs-index.functions";
 import { getRegistryIndex } from "@/server/registry-index.functions";
 
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
-  loader: () => getRegistryIndex(),
+  loader: async () => {
+    const [registry, docs] = await Promise.all([getRegistryIndex(), getDocsIndex()]);
+    return { registry, docs };
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
