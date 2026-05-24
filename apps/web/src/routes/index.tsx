@@ -24,6 +24,7 @@ export const Route = createFileRoute("/")({
   validateSearch,
   loaderDeps: ({ search }) => search,
   loader: ({ deps }) => getBuilderState({ data: deps }),
+  staleTime: Infinity,
   head: () =>
     buildHead({
       titleOverride: "Stanza — Modular TypeScript Monorepo Builder",
