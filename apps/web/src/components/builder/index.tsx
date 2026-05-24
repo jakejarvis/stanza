@@ -1,6 +1,6 @@
 import type { CategoryId } from "@stanza/registry";
 import { isMulti } from "@stanza/registry";
-import { useMatch, useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
@@ -22,11 +22,12 @@ import type { BuilderState } from "@/server/builder-state.functions";
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });
   const capture = useAnalytics();
-  // Scoped to *this* match so navigating away doesn't flash the overlay
-  // before the page unmounts.
-  const isReloading = useMatch({
-    from: "/",
-    select: (m) => m.isFetching !== false || m.status === "pending",
+  // Same-pathname gate so navigations *away* from this route don't flash the
+  // overlay before the page unmounts. `useRouterState` is the documented
+  // primitive for router-wide pending state; FilePreview applies its own
+  // pendingMs-style grace period before actually showing the overlay.
+  const isReloading = useRouterState({
+    select: (s) => s.isLoading && s.location.pathname === s.resolvedLocation?.pathname,
   });
   const parsed = useMemo(() => parseSelections(search), [search]);
   const { name, pm } = parsed;

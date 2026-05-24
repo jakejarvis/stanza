@@ -2,7 +2,7 @@ import { themeToTreeStyles } from "@pierre/trees";
 import { FileTree, useFileTree, useFileTreeSelection } from "@pierre/trees/react";
 import { IconLoader2 } from "@tabler/icons-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
@@ -37,6 +37,12 @@ function defaultPathFor(filePaths: string[]): string | undefined {
   return filePaths.includes("package.json") ? "package.json" : filePaths[0];
 }
 
+// Mirror TanStack Router's `defaultPendingMs` / `defaultPendingMinMs`: wait
+// before showing a pending indicator (skip the flash for fast loads), and once
+// shown, keep it visible at least this long (avoid flicker on near-misses).
+const OVERLAY_PENDING_MS = 300;
+const OVERLAY_MIN_MS = 250;
+
 // "a/b/c.ts" → ["a", "a/b"].
 function directoryPaths(paths: readonly string[]): string[] {
   const dirs = new Set<string>();
@@ -50,6 +56,30 @@ function directoryPaths(paths: readonly string[]): string[] {
     }
   }
   return [...dirs];
+}
+
+// Defer the truthy edge by `delayMs`, then hold true for at least `minMs`.
+function useGracePeriod(active: boolean, delayMs: number, minMs: number): boolean {
+  const [visible, setVisible] = useState(false);
+  const shownAtRef = useRef(0);
+
+  useEffect(() => {
+    if (active && !visible) {
+      const t = setTimeout(() => {
+        shownAtRef.current = performance.now();
+        setVisible(true);
+      }, delayMs);
+      return () => clearTimeout(t);
+    }
+    if (!active && visible) {
+      const remaining = Math.max(0, minMs - (performance.now() - shownAtRef.current));
+      const t = setTimeout(() => setVisible(false), remaining);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [active, visible, delayMs, minMs]);
+
+  return visible;
 }
 
 export function FilePreview({
@@ -121,6 +151,8 @@ export function FilePreview({
   // Desktop-first default so SSR/first paint match the common case.
   const isWide = useMediaQuery("(min-width: 640px)", true);
 
+  const showOverlay = useGracePeriod(isReloading, OVERLAY_PENDING_MS, OVERLAY_MIN_MS);
+
   return (
     <Card className="gap-0 overflow-hidden p-0 lg:min-h-0 lg:flex-1">
       <div className="border-b border-border bg-muted/30 px-3 py-2">{header}</div>
@@ -148,7 +180,7 @@ export function FilePreview({
         )}
         {/* Outside the empty/non-empty branch so it also covers the first
             selection (empty → content), where `filePaths` is still empty. */}
-        {isReloading ? (
+        {showOverlay ? (
           <div
             role="status"
             aria-live="polite"
