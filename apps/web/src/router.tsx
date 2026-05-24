@@ -1,10 +1,6 @@
 import { createRouter } from "@tanstack/react-router";
 
-import {
-  RouteErrorBoundary,
-  RouteNotFoundBoundary,
-  RoutePendingBoundary,
-} from "@/components/route-boundaries";
+import { RouteErrorBoundary, RouteNotFoundBoundary } from "@/components/route-boundaries";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -15,11 +11,6 @@ export function getRouter() {
     defaultPreload: "intent",
     defaultErrorComponent: RouteErrorBoundary,
     defaultNotFoundComponent: RouteNotFoundBoundary,
-    defaultPendingComponent: RoutePendingBoundary,
-    // Avoid spinner flash on fast loaders; if it does show, keep it visible
-    // long enough to feel like a deliberate state.
-    defaultPendingMs: 200,
-    defaultPendingMinMs: 300,
   });
 }
 

@@ -1,4 +1,4 @@
-import { IconHome, IconLoader2, IconRefresh } from "@tabler/icons-react";
+import { IconHome, IconRefresh } from "@tabler/icons-react";
 import {
   ErrorComponent,
   type ErrorComponentProps,
@@ -104,17 +104,5 @@ export function RouteNotFoundBoundary() {
         Return home
       </Button>
     </CenteredMessage>
-  );
-}
-
-export function RoutePendingBoundary() {
-  return (
-    <div
-      className="mx-auto flex items-center justify-center py-24 sm:py-32"
-      role="status"
-      aria-label="Loading"
-    >
-      <IconLoader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
-    </div>
   );
 }
