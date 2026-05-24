@@ -7,8 +7,8 @@ import { useCallback, useMemo } from "react";
 import { AdapterSwitcher } from "@/components/detail/adapter-switcher";
 import { DepsTable } from "@/components/detail/deps-table";
 import { EnvTable } from "@/components/detail/env-table";
+import { Install } from "@/components/detail/install";
 import { TemplatesList } from "@/components/detail/templates-list";
-import { TryIt } from "@/components/detail/try-it";
 import { ModuleLogo } from "@/components/module-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -87,7 +87,7 @@ function ModuleDetailPage() {
 
   const templates = useMemo(() => adapter.templates ?? [], [adapter.templates]);
 
-  // Build the "Try it" selection: the current module + its resolved peers, as
+  // Build the install selection: the current module + its resolved peers, as
   // arrays (the unified selection shape). CommandPreview turns this into the
   // package-manager-specific command string (`--framework=next --testing=vitest`).
   const selections = useMemo<Selections>(() => {
@@ -115,7 +115,7 @@ function ModuleDetailPage() {
         <ModuleLogo logo={module.logo} label={module.label} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">{module.label}</h1>
+            <h1 className="text-2xl font-medium tracking-tight">{module.label}</h1>
             <Badge variant="outline">{categoryLabel(module.category)}</Badge>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">{module.description}</p>
@@ -155,7 +155,7 @@ function ModuleDetailPage() {
         <EnvTable env={effective.env} />
         <DepsTable title="Scripts" entries={effective.scripts} />
         <TemplatesList templates={templates} previews={previews} />
-        <TryIt name="my-app" selections={selections} />
+        <Install name="my-app" selections={selections} />
       </div>
     </div>
   );

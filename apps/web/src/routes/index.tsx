@@ -26,7 +26,7 @@ export const Route = createFileRoute("/")({
   loader: ({ deps }) => getBuilderState({ data: deps }),
   head: () =>
     buildHead({
-      titleOverride: "stanza — Modular TypeScript Monorepo Builder",
+      titleOverride: "Stanza — Modular TypeScript Monorepo Builder",
       description:
         "Pick your modules and walk away with a clean TypeScript monorepo. Idiomatic, vendored code that’s yours the moment it lands.",
       path: "/",

@@ -11,6 +11,7 @@ import { parseSelections, resolveSelected } from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
+import { reportServerError } from "@/server/posthog.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 export type BuilderState = {
@@ -44,15 +45,30 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // and having everything client-side lets the user toggle slots without
     // extra roundtrips. The Shiki preview map is the only piece that changes
     // per-selection — recomputed each loader run.
-    const fullModules = await Promise.all(
-      index.modules.map(async (summary) => {
-        const mod = await loadRegistryFile<Module>(
-          `modules/${summary.category}-${summary.id}.json`,
-        );
-        return [`${mod.category}:${mod.id}`, mod] as const;
+    //
+    // Use `allSettled` so a single missing/malformed module file doesn't
+    // collapse the entire builder. The failing module gets dropped from the
+    // map; UI surfaces it as "unknown" via the index summary if referenced.
+    const settled = await Promise.all(
+      index.modules.map(async (summary): Promise<readonly [string, Module] | null> => {
+        try {
+          const mod = await loadRegistryFile<Module>(
+            `modules/${summary.category}-${summary.id}.json`,
+          );
+          return [`${mod.category}:${mod.id}`, mod] as const;
+        } catch (cause) {
+          reportServerError(cause, {
+            source: "getBuilderState/loadModule",
+            category: summary.category,
+            moduleId: summary.id,
+          });
+          return null;
+        }
       }),
     );
-    const modules: Record<string, Module> = Object.fromEntries(fullModules);
+    const modules: Record<string, Module> = Object.fromEntries(
+      settled.filter((entry): entry is readonly [string, Module] => entry !== null),
+    );
 
     const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);

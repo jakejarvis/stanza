@@ -189,7 +189,13 @@ function pickAdapter(module: Module, peers: Partial<Record<CategoryId, string>>)
   // Defensive: the auto-defaults should usually satisfy the constraints, but
   // if the module declares conflicting peer + adapter sets we still need to
   // render something. The first adapter is the closest analogue to a default.
-  return module.adapters[0]!;
+  const fallback = module.adapters[0];
+  if (!fallback) {
+    throw new Error(
+      `Module ${module.category}/${module.id} declares no adapters; cannot render detail page.`,
+    );
+  }
+  return fallback;
 }
 
 /**

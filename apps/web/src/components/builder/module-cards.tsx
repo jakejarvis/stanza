@@ -102,7 +102,7 @@ function ModuleSection({
         <span className="font-mono text-xs text-muted-foreground tabular-nums">
           {String(index).padStart(2, "0")}
         </span>
-        <h2 className="text-lg font-semibold tracking-tight">{categoryLabel(group)}</h2>
+        <h2 className="text-lg font-medium tracking-tight">{categoryLabel(group)}</h2>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {summaries.map((m) => {
@@ -168,7 +168,7 @@ const ModuleCard = memo(function ModuleCard({
         <ModuleLogo logo={m.logo} label={m.label} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm leading-tight font-semibold">{m.label}</h3>
+            <h3 className="text-sm leading-tight font-medium">{m.label}</h3>
             {selected && <IconCheck className="size-4 shrink-0 text-foreground" aria-hidden />}
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.description}</p>

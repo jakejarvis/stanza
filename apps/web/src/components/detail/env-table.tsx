@@ -1,15 +1,13 @@
 import type { EnvVar } from "@stanza/registry";
 
+import { Section, SectionList } from "@/components/detail/section";
 import { Badge } from "@/components/ui/badge";
 
 export function EnvTable({ env }: { env: EnvVar[] }) {
   if (env.length === 0) return null;
   return (
-    <section>
-      <h3 className="mb-2 text-xs font-semibold tracking-tight text-muted-foreground uppercase">
-        Environment variables
-      </h3>
-      <ul className="divide-y divide-border rounded-none border border-border">
+    <Section title="Environment variables">
+      <SectionList>
         {env.map((e) => (
           <li key={e.name} className="grid gap-1 px-3 py-2.5 text-xs">
             <div className="flex flex-wrap items-center gap-2">
@@ -22,7 +20,7 @@ export function EnvTable({ env }: { env: EnvVar[] }) {
             {e.description && <p className="text-muted-foreground/80">{e.description}</p>}
           </li>
         ))}
-      </ul>
-    </section>
+      </SectionList>
+    </Section>
   );
 }

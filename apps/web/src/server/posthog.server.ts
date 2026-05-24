@@ -26,3 +26,24 @@ export function getPostHogServerClient(): PostHog | null {
   }
   return client;
 }
+
+/**
+ * Log a server-side error to both the function console (always — Vercel
+ * captures it) and PostHog (when a project key is configured). Never throws —
+ * reporting failures must not cascade into the request itself.
+ */
+export function reportServerError(error: unknown, context?: Record<string, unknown>): void {
+  const err = error instanceof Error ? error : new Error(String(error));
+  console.error("[server-error]", err, context);
+
+  const posthog = getPostHogServerClient();
+  if (!posthog) return;
+  try {
+    posthog.captureException(err, "server", {
+      ...context,
+      $exception_source: "server",
+    });
+  } catch {
+    // Reporting is best-effort.
+  }
+}

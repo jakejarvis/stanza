@@ -1,0 +1,120 @@
+import { IconHome, IconLoader2, IconRefresh } from "@tabler/icons-react";
+import {
+  ErrorComponent,
+  type ErrorComponentProps,
+  Link,
+  useRouter,
+  isNotFound,
+  isRedirect,
+} from "@tanstack/react-router";
+import { useEffect } from "react";
+
+import { Button } from "@/components/ui/button";
+
+/**
+ * `throw notFound()` and `throw redirect()` flow through the same error path
+ * as real failures, but they're routing primitives — not bugs to report.
+ */
+function isRoutingError(error: unknown): boolean {
+  return isNotFound(error) || isRedirect(error);
+}
+
+/**
+ * Shared layout for every route-boundary state (error, not-found, pending).
+ * Mirrors the centered-message pattern that lived inline in `__root.tsx`.
+ */
+function CenteredMessage({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center sm:py-32">
+      <h1 className="text-2xl font-medium tracking-tight">{title}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <div className="mt-6 flex items-center gap-3">{children}</div>
+    </div>
+  );
+}
+
+const GENERIC_ERROR_MESSAGE =
+  "An unexpected error occurred while rendering this page. Try again, or head back to the builder.";
+
+/**
+ * Default error component for the router. Re-runs the loader on Try again via
+ * `router.invalidate()` (the TanStack-recommended retry path — `reset()` only
+ * clears UI without re-fetching). Reports client-side errors to PostHog when
+ * it's loaded.
+ */
+export function RouteErrorBoundary({ error }: ErrorComponentProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isRoutingError(error)) return;
+    // Dynamic import so SSR never pulls the browser bundle into the server.
+    void (async () => {
+      const { posthog } = await import("posthog-js");
+      if (posthog.__loaded) posthog.captureException(error);
+    })();
+  }, [error]);
+
+  const description = import.meta.env.DEV
+    ? (error.message ?? GENERIC_ERROR_MESSAGE)
+    : GENERIC_ERROR_MESSAGE;
+
+  return (
+    <>
+      <CenteredMessage title="Something went wrong" description={description}>
+        <Button
+          onClick={() => {
+            void router.invalidate();
+          }}
+          variant="default"
+          size="sm"
+        >
+          <IconRefresh data-icon="inline-start" />
+          Try again
+        </Button>
+        <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
+          <IconHome data-icon="inline-start" />
+          Return home
+        </Button>
+      </CenteredMessage>
+      {import.meta.env.DEV && (
+        <div className="mx-auto max-w-3xl px-4 pb-12 sm:px-6">
+          <ErrorComponent error={error} />
+        </div>
+      )}
+    </>
+  );
+}
+
+export function RouteNotFoundBoundary() {
+  return (
+    <CenteredMessage
+      title="Page not found"
+      description="That page doesn’t exist. It may have moved, or the URL might be wrong."
+    >
+      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
+        <IconHome data-icon="inline-start" />
+        Return home
+      </Button>
+    </CenteredMessage>
+  );
+}
+
+export function RoutePendingBoundary() {
+  return (
+    <div
+      className="mx-auto flex items-center justify-center py-24 sm:py-32"
+      role="status"
+      aria-label="Loading"
+    >
+      <IconLoader2 className="size-6 animate-spin text-muted-foreground" aria-hidden />
+    </div>
+  );
+}

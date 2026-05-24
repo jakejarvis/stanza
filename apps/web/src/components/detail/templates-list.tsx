@@ -1,6 +1,7 @@
 import type { TemplateRef } from "@stanza/registry";
 import { useMemo, useState } from "react";
 
+import { Section, SectionList } from "@/components/detail/section";
 import { useTheme } from "@/components/theme-provider";
 import type { Preview } from "@/server/highlighter";
 
@@ -17,16 +18,13 @@ export function TemplatesList({
 }) {
   if (templates.length === 0) return null;
   return (
-    <section>
-      <h3 className="mb-2 text-xs font-semibold tracking-tight text-muted-foreground uppercase">
-        Templates
-      </h3>
-      <ul className="divide-y divide-border rounded-none border border-border">
+    <Section title="Templates">
+      <SectionList>
         {templates.map((tpl) => (
           <TemplateRow key={tpl.dest} template={tpl} preview={previews[tpl.dest]} />
         ))}
-      </ul>
-    </section>
+      </SectionList>
+    </Section>
   );
 }
 

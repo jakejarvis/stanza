@@ -3,6 +3,7 @@ import type { Module, ModuleSummary, RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { cache } from "react";
 
+import { reportServerError } from "@/server/posthog.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 const moduleSchema = {
@@ -90,19 +91,27 @@ export const Route = createFileRoute("/api/search/modules")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const url = new URL(request.url);
-        const q = url.searchParams.get("q") ?? "";
-        if (!q) return Response.json({ results: [] });
+        try {
+          const url = new URL(request.url);
+          const q = url.searchParams.get("q") ?? "";
+          if (!q) return Response.json({ results: [] });
 
-        const { db, summaries } = await getModuleIndex();
-        const hits = await search(db, { term: q, limit: 50 });
+          const { db, summaries } = await getModuleIndex();
+          const hits = await search(db, { term: q, limit: 50 });
 
-        const results: ModuleSummary[] = [];
-        for (const hit of hits.hits) {
-          const summary = summaries.get(hit.id);
-          if (summary) results.push(summary);
+          const results: ModuleSummary[] = [];
+          for (const hit of hits.hits) {
+            const summary = summaries.get(hit.id);
+            if (summary) results.push(summary);
+          }
+          return Response.json({ results });
+        } catch (error) {
+          reportServerError(error, { source: "/api/search/modules" });
+          return Response.json(
+            { error: "Search failed", code: "MODULES_SEARCH_FAILED" },
+            { status: 500 },
+          );
         }
-        return Response.json({ results });
       },
     },
   },

@@ -34,12 +34,22 @@ export async function loadRegistryFile<T>(relativePath: string): Promise<T> {
     }
   }
 
-  const data = await useStorage("assets:registry").getItem(relativePath);
+  let data: unknown;
+  try {
+    data = await useStorage("assets:registry").getItem(relativePath);
+  } catch (cause) {
+    throw new Error(`Registry asset read failed: assets:registry:${relativePath}`, { cause });
+  }
   if (data == null) {
     throw new Error(`Registry asset not found: assets:registry:${relativePath}`);
   }
   // unstorage destr-parses JSON, but be explicit if a driver returns raw text.
-  const value: unknown = typeof data === "string" ? JSON.parse(data) : data;
+  let value: unknown;
+  try {
+    value = typeof data === "string" ? JSON.parse(data) : data;
+  } catch (cause) {
+    throw new Error(`Registry asset is not valid JSON: assets:registry:${relativePath}`, { cause });
+  }
   // Registry assets are first-party build output; the caller declares the shape.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   return value as T;

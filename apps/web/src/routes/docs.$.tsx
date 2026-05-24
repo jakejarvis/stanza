@@ -30,7 +30,7 @@ const getDocLayout = createServerFn({ method: "GET" })
             <div className="min-w-0 flex-1">
               <div className="xl:flex xl:gap-8">
                 <article className="min-w-0 flex-1 pt-2 pb-8 md:pt-8">
-                  <h1 className="text-3xl font-semibold tracking-tight">{page.data.title}</h1>
+                  <h1 className="text-3xl font-medium tracking-tight">{page.data.title}</h1>
                   {page.data.description && (
                     <p className="mt-2 text-base leading-normal text-muted-foreground">
                       {page.data.description}

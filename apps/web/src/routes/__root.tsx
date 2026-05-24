@@ -1,12 +1,13 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
-import { HeadContent, Link, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { PostHogProvider } from "@/components/posthog-provider";
+import { RouteErrorBoundary, RouteNotFoundBoundary } from "@/components/route-boundaries";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { getDocsIndex } from "@/server/docs-index.functions";
 import { getRegistryIndex } from "@/server/registry-index.functions";
@@ -31,53 +32,9 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootComponent,
-  notFoundComponent: NotFound,
-  errorComponent: ErrorState,
+  notFoundComponent: RouteNotFoundBoundary,
+  errorComponent: RouteErrorBoundary,
 });
-
-function CenteredMessage({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-4 py-24 text-center sm:py-32">
-      <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-      <div className="mt-6 flex items-center gap-3">{children}</div>
-    </div>
-  );
-}
-
-function NotFound() {
-  return (
-    <CenteredMessage
-      title="Page not found"
-      description="That page doesn’t exist. It may have moved, or the URL might be wrong."
-    >
-      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
-        ← Back to builder
-      </Button>
-    </CenteredMessage>
-  );
-}
-
-function ErrorState({ error }: { error: Error }) {
-  return (
-    <CenteredMessage
-      title="Something went wrong"
-      description={error?.message || "An unexpected error occurred while rendering this page."}
-    >
-      <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
-        ← Back to builder
-      </Button>
-    </CenteredMessage>
-  );
-}
 
 function RootComponent() {
   return (
@@ -94,6 +51,7 @@ function RootComponent() {
             >
               Skip to content
             </a>
+            <NavigationProgress />
             <div className="flex min-h-svh flex-col">
               <Header />
               <main id="main" className="flex-1">
