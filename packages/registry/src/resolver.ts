@@ -19,6 +19,14 @@ export type ResolveContext = {
   manifest: StanzaManifest;
   /** Modules the user has already chosen this run but not yet committed. */
   pending: Partial<Record<CategoryId, Module>>;
+  /**
+   * App being targeted by this resolution. When set, peer lookups for
+   * single-cardinality categories scope to records whose `apps` include this
+   * id (or are global — `apps` omitted). When unset, peer lookups read the
+   * global category state — fine for single-app projects and repo-home
+   * modules that don't care which app drove the resolution.
+   */
+  targetAppId?: string;
 };
 
 export type ResolveError =
@@ -80,13 +88,17 @@ export function isCompatible(module: Module, context: ResolveContext): boolean {
 
 /**
  * Active peer ids — only `cardinality: "one"` categories can be peers, so we
- * iterate `PEER_CATEGORIES` and read the single installed/pending pick.
+ * iterate `PEER_CATEGORIES` and read the single installed/pending pick. When
+ * `targetAppId` is set, the installed lookup is scoped to that app so e.g.
+ * web's styling adapter peer-matches against web's framework, not native's.
+ * Pending picks aren't yet app-scoped — they belong to the same in-flight
+ * resolution and only one app is being processed at a time.
  */
 function activePeerIds(context: ResolveContext): Partial<Record<CategoryId, string>> {
   const out: Partial<Record<CategoryId, string>> = {};
   for (const category of PEER_CATEGORIES) {
     const pending = context.pending[category]?.id;
-    const installed = selectedOne(context.manifest, category)?.id;
+    const installed = selectedOne(context.manifest, category, context.targetAppId)?.id;
     const chosen = pending ?? installed;
     if (chosen) out[category] = chosen;
   }

@@ -1,3 +1,4 @@
+import { type AppSpec, defaultWebApp } from "./manifest";
 import {
   categoryHome,
   type CategoryId,
@@ -53,12 +54,23 @@ export function mergeInstallFields(module: Module, adapter: ModuleAdapter): Merg
   };
 }
 
-/** Repo-relative `package.json` a module's deps/scripts merge into. */
-export function installPackageJson(module: Module, appDir: string): string {
+/**
+ * Repo-relative `package.json` paths a module's install fields route into.
+ * Length depends on the module's category `home`:
+ *
+ *  - `home: "package"` → one entry: `packages/<dir>/package.json` (apps ignored)
+ *  - `home: "repo"`    → one entry: `package.json` (apps ignored)
+ *  - `home: "app"`     → one entry per app in `apps`
+ *
+ * Single source of truth for both the CLI runner's apply path and the web
+ * builder's preview synthesis, so deps land in the same `package.json`(s) in
+ * both.
+ */
+export function installPackageJsonTargets(module: Module, apps: AppSpec[]): string[] {
   const home = categoryHome(module.category);
-  if (home.kind === "package") return `packages/${home.dir}/package.json`;
-  if (home.kind === "repo") return "package.json";
-  return `${appDir.replace(/\/+$/, "")}/package.json`;
+  if (home.kind === "package") return [`packages/${home.dir}/package.json`];
+  if (home.kind === "repo") return ["package.json"];
+  return apps.map((a) => `${a.dir.replace(/\/+$/, "")}/package.json`);
 }
 
 const PM_VERSION: Record<PackageManager, string> = {
@@ -66,12 +78,6 @@ const PM_VERSION: Record<PackageManager, string> = {
   bun: "bun@1.3.14",
   npm: "npm@10.9.0",
 };
-
-/** Last path segment of a repo-relative dir (no node:path dependency — runs in the browser too). */
-function baseName(dir: string): string {
-  const parts = dir.replace(/\/+$/, "").split("/");
-  return parts[parts.length - 1] ?? dir;
-}
 
 /**
  * Root `package.json`. pnpm reads its workspace globs from `pnpm-workspace.yaml`,
@@ -97,10 +103,14 @@ export function rootPackageJson(opts: {
   return pkg;
 }
 
-/** App-shell `package.json` — layout-correct but empty; modules merge deps/scripts in. */
-export function appPackageJsonBase(opts: { name: string; appDir: string }): PackageJson {
+/**
+ * App-shell `package.json` — layout-correct but empty; modules merge deps/scripts
+ * in. The package name is derived from `app.id` (so the workspace handle is
+ * stable even if you rename the app's directory).
+ */
+export function appPackageJsonBase(opts: { name: string; app: AppSpec }): PackageJson {
   return {
-    name: `@${opts.name}/${baseName(opts.appDir)}`,
+    name: `@${opts.name}/${opts.app.id}`,
     version: "0.0.0",
     private: true,
     type: "module",
@@ -142,28 +152,37 @@ function applyFields(pkg: PackageJson, fields: MergedInstallFields): void {
 
 /**
  * Compute the `package.json` files stanza would write for a resolved selection —
- * root, app, and one per extracted package (`packages/<dir>/`). Pure: takes the
- * resolved modules/adapters and emits `{ repoRelativePath -> PackageJson }`.
+ * root, one per app, and one per extracted package (`packages/<dir>/`). Pure:
+ * takes the resolved modules/adapters and emits `{ repoRelativePath -> PackageJson }`.
  *
- * Mirrors the CLI's apply path: install fields route via `categoryHome` (app,
- * repo root, or `packages/<dir>/`), each
- * extracted package wires a `workspace:*` dep into the app, and `consumesPackages`
- * wires cross-package `workspace:*` deps into the consuming package. `env` is
- * intentionally ignored here — it lands in `.env.example`, not a `package.json`.
+ * Mirrors the CLI's apply path: install fields route via `categoryHome` (apps,
+ * repo root, or `packages/<dir>/`); each extracted package wires a `workspace:*`
+ * dep into every consuming app, and `consumesPackages` wires cross-package
+ * `workspace:*` deps into the consuming package. `env` is intentionally ignored
+ * here — it lands in `.env.example`, not a `package.json`.
  *
- * Categories are processed in `categoryOrder`, so the emitted key order matches
+ * Entries are processed in `categoryOrder`, so the emitted key order matches
  * the order the CLI appends them on disk.
+ *
+ * For `home: app` entries the `targetApps` list is the entry's `apps` filter
+ * intersected with the project's apps; the synthesizer iterates that list to
+ * route deps/scripts into every targeted app's package.json. `home: package`
+ * entries write the package once and wire `workspace:*` into every consuming
+ * app (full app list when the entry omits `apps`, otherwise the listed apps).
  */
+export type SynthesizeEntry = ResolvedEntry & { apps?: string[] };
+
 export function synthesizePackageJsons(
-  resolved: Resolved,
-  opts: { name: string; appDir?: string; packageManager?: PackageManager },
+  resolved: Partial<Record<CategoryId, SynthesizeEntry[]>>,
+  opts: { name: string; apps?: AppSpec[]; packageManager?: PackageManager },
 ): Record<string, PackageJson> {
   const name = opts.name;
-  const appDir = (opts.appDir ?? "apps/web").replace(/\/+$/, "");
+  const apps = opts.apps && opts.apps.length > 0 ? opts.apps : [defaultWebApp()];
   const packageManager = opts.packageManager ?? "pnpm";
 
   const root = rootPackageJson({ name, packageManager });
-  const app = appPackageJsonBase({ name, appDir });
+  const appPkgs = new Map<string, PackageJson>();
+  for (const app of apps) appPkgs.set(app.id, appPackageJsonBase({ name, app }));
   const packages = new Map<string, PackageJson>();
 
   const ensurePkg = (dir: string): PackageJson => {
@@ -175,17 +194,25 @@ export function synthesizePackageJsons(
     return pkg;
   };
 
+  /** Resolve the apps this entry targets, defaulting to every project app. */
+  const targetsFor = (entry: SynthesizeEntry): AppSpec[] => {
+    if (!entry.apps?.length) return apps;
+    const allowed = new Set(entry.apps);
+    return apps.filter((a) => allowed.has(a.id));
+  };
+
   // Routing target comes from `categoryHome` — the same decision the CLI applies.
-  const route = (
-    home: InstallHome,
-    fields: MergedInstallFields,
-    consumesPackages: readonly string[],
-  ) => {
+  const route = (entry: SynthesizeEntry, home: InstallHome) => {
+    const fields = mergeInstallFields(entry.module, entry.adapter);
+    const consumesPackages = entry.module.consumesPackages ?? [];
     if (home.kind === "package") {
       const dir = home.dir;
       const pkg = ensurePkg(dir);
-      // The host app consumes the extracted package as a workspace dep.
-      addDep(app, `@${name}/${dir}`, "workspace:*");
+      // Every consuming app gets a workspace dep on the extracted package.
+      for (const app of targetsFor(entry)) {
+        const appPkg = appPkgs.get(app.id);
+        if (appPkg) addDep(appPkg, `@${name}/${dir}`, "workspace:*");
+      }
       // Cross-package imports (e.g. auth → db) wire a workspace dep into this
       // package. The CLI does this in `ensureSlotPackage` — i.e. before the
       // module's own install fields — so wire it first to match emit order.
@@ -195,25 +222,30 @@ export function synthesizePackageJsons(
         addDep(pkg, `@${name}/${peer}`, "workspace:*");
       }
       applyFields(pkg, fields);
-    } else {
-      applyFields(home.kind === "repo" ? root : app, fields);
+      return;
+    }
+    if (home.kind === "repo") {
+      applyFields(root, fields);
+      return;
+    }
+    // home.kind === "app" — route into each targeted app's package.json.
+    for (const app of targetsFor(entry)) {
+      const appPkg = appPkgs.get(app.id);
+      if (appPkg) applyFields(appPkg, fields);
     }
   };
 
   for (const category of categoryOrder) {
     for (const entry of resolved[category] ?? []) {
-      route(
-        categoryHome(entry.module.category),
-        mergeInstallFields(entry.module, entry.adapter),
-        entry.module.consumesPackages ?? [],
-      );
+      route(entry, categoryHome(entry.module.category));
     }
   }
 
-  const out: Record<string, PackageJson> = {
-    "package.json": root,
-    [`${appDir}/package.json`]: app,
-  };
+  const out: Record<string, PackageJson> = { "package.json": root };
+  for (const app of apps) {
+    const pkg = appPkgs.get(app.id);
+    if (pkg) out[`${app.dir.replace(/\/+$/, "")}/package.json`] = pkg;
+  }
   for (const [dir, pkg] of packages) out[`packages/${dir}/package.json`] = pkg;
   return out;
 }

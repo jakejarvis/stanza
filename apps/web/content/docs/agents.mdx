@@ -42,6 +42,10 @@ create` / `bun create` introduce.
 - **Respect the [dirty-worktree refusal](/docs/cli#global-flags).** Commit or
   stash first. Only reach for `--dangerously-allow-dirty` with the user's
   explicit approval.
+- **Pass [`--app=<id>`](/docs/cli#add)** to `add`/`remove` in multi-app
+  projects. Single-app projects auto-target, but if `stanza.json`'s `apps`
+  array has more than one entry, scripts should pass the flag explicitly
+  rather than relying on cwd inference.
 - **`stanza.json` is generated state.** Don't hand-edit it; use the verbs that
   maintain it (`add`, `remove`).
 - **Generated files are user-owned source.** Once Stanza writes a template,

@@ -1,4 +1,10 @@
-import { emptyManifest, type StanzaManifest } from "./manifest";
+import {
+  type AppSpec,
+  defaultWebApp,
+  emptyManifest,
+  type StanzaManifest,
+  type StanzaModuleRecord,
+} from "./manifest";
 import {
   categoryHome,
   type CategoryId,
@@ -11,6 +17,7 @@ import {
   type PackageManager,
   type Resolved,
   type ResolvedEntry,
+  type SynthesizeEntry,
 } from "./package-json";
 import { categoryOrder } from "./resolver";
 import { buildRenderContext, renderTemplate } from "./template";
@@ -73,7 +80,8 @@ export function synthesizeEnvExample(resolved: Resolved): string {
 /**
  * Compute the `stanza.json` manifest for a resolved selection — the same shape
  * the CLI pins at install time: header (version/projectShape/packageManager/
- * name/appDir) and per-category module records (arrays).
+ * name/apps) and per-category module records (arrays). App-home records carry
+ * `apps: [...]` so the resulting manifest validates against the schema.
  *
  * `regions` is intentionally left empty: it's internal per-file ownership
  * bookkeeping the CLI accretes as it claims templates, deps, env keys, and
@@ -83,11 +91,12 @@ export function synthesizeEnvExample(resolved: Resolved): string {
  */
 export function synthesizeManifest(
   resolved: Resolved,
-  opts: { name: string; appDir?: string; packageManager?: PackageManager },
+  opts: { name: string; apps?: AppSpec[]; packageManager?: PackageManager },
 ): StanzaManifest {
+  const apps = opts.apps && opts.apps.length > 0 ? opts.apps : [defaultWebApp()];
   const base = emptyManifest({
     name: opts.name,
-    appDir: opts.appDir,
+    apps,
     packageManager: opts.packageManager,
   });
 
@@ -95,11 +104,19 @@ export function synthesizeManifest(
   for (const category of categoryOrder) {
     const entries = resolved[category];
     if (!entries?.length) continue;
-    modules[category] = entries.map((entry) => ({
-      id: entry.module.id,
-      version: entry.module.version,
-      adapter: entry.adapter.key,
-    }));
+    const home = categoryHome(category);
+    modules[category] = entries.map((entry) => {
+      const record: StanzaModuleRecord = {
+        id: entry.module.id,
+        version: entry.module.version,
+        adapter: entry.adapter.key,
+      };
+      // App-home: tag with every project app by default (preview-time we don't
+      // know which one the user picked). Package-home: leave `apps` omitted so
+      // shims ship into all apps. Repo-home: leave omitted.
+      if (home.kind === "app") record.apps = apps.map((a) => a.id);
+      return record;
+    });
   }
 
   return { ...base, modules };
@@ -113,44 +130,68 @@ export type SynthesizedTemplate = {
   owner: { category: CategoryId; module: ModuleId };
 };
 
-const DEFAULT_APP_DIR = "apps/web";
-
 /**
  * Compute every template file stanza would write for a resolved selection,
  * with mustache substitution applied. Mirrors the CLI's apply path so the web
  * preview is byte-identical to what the CLI actually writes.
  *
- * Each resolved module gets a fresh render context: `package.name` and the
- * active package's slot in `packages.<dir>.name` resolve to the owning
- * module's own package. Templates with `template: true` go through
- * `renderTemplate`; raw templates pass through untouched.
+ * For each `scope: "app"` template, the function iterates the entry's targeted
+ * apps (or all project apps when the entry omits `apps`) and emits one path
+ * per app, with a fresh render context bound to that app. `scope: "package"`
+ * and `scope: "repo"` are app-agnostic and emit a single path each.
  *
  * Returns content from `tpl.content` only — never touches disk, so the
  * registry package stays node-free for client/server bundles. Local-dev
  * disk fallback is the CLI runner's concern.
  */
 export function synthesizeTemplates(
-  resolved: Resolved,
-  opts: { name: string; appDir?: string },
+  resolved: Partial<Record<CategoryId, SynthesizeEntry[]>>,
+  opts: { name: string; apps?: AppSpec[] },
 ): SynthesizedTemplate[] {
-  const appDir = opts.appDir ?? DEFAULT_APP_DIR;
+  const apps = opts.apps && opts.apps.length > 0 ? opts.apps : [defaultWebApp()];
   const out: SynthesizedTemplate[] = [];
+
+  const targetsFor = (entry: SynthesizeEntry): AppSpec[] => {
+    if (!entry.apps?.length) return apps;
+    const allowed = new Set(entry.apps);
+    return apps.filter((a) => allowed.has(a.id));
+  };
 
   for (const category of categoryOrder) {
     const home = categoryHome(category);
     const packageName = home.kind === "package" ? `@${opts.name}/${home.dir}` : "";
-    const renderContext = buildRenderContext({
-      projectName: opts.name,
-      appDir,
-      packageName,
-    });
 
     for (const entry of resolved[category] ?? []) {
+      // Each app gets its own render context so `{{ app.* }}` resolves to the
+      // active target — that's how a single module installed into multiple apps
+      // renders correctly per app.
+      const renderForApp = (app: AppSpec) =>
+        buildRenderContext({
+          projectName: opts.name,
+          app,
+          packageName,
+        });
+
       for (const tpl of entry.adapter.templates ?? []) {
         const source = tpl.content ?? "";
-        const content = tpl.template ? renderTemplate(source, renderContext) : source;
+        if (tpl.scope === "app") {
+          for (const app of targetsFor(entry)) {
+            const content = tpl.template ? renderTemplate(source, renderForApp(app)) : source;
+            out.push({
+              path: resolveTemplatePath(tpl, home, app),
+              content,
+              owner: { category, module: entry.module.id },
+            });
+          }
+          continue;
+        }
+        // Repo- or package-scoped — app-agnostic. Pick the first targeted app
+        // to seed the render context (`app.*` is just metadata; nothing under
+        // packages/* should reference it, but it has to be a valid AppSpec).
+        const seedApp = targetsFor(entry)[0] ?? apps[0]!;
+        const content = tpl.template ? renderTemplate(source, renderForApp(seedApp)) : source;
         out.push({
-          path: resolveTemplatePath(tpl, home, appDir),
+          path: resolveTemplatePath(tpl, home, seedApp),
           content,
           owner: { category, module: entry.module.id },
         });
@@ -161,7 +202,7 @@ export function synthesizeTemplates(
   return out;
 }
 
-function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, appDir: string): string {
+function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, app: AppSpec): string {
   if (tpl.scope === "repo") return tpl.dest;
   if (tpl.scope === "package") {
     // Defensive: a `scope: "package"` ref under a non-package category would be
@@ -169,5 +210,5 @@ function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, appDir: string
     // doesn't throw while the user is mid-edit.
     return home.kind === "package" ? `packages/${home.dir}/${tpl.dest}` : tpl.dest;
   }
-  return `${appDir.replace(/\/$/, "")}/${tpl.dest}`;
+  return `${app.dir.replace(/\/$/, "")}/${tpl.dest}`;
 }

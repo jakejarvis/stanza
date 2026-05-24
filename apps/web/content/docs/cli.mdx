@@ -28,28 +28,48 @@ npx stanza-cli init [name] --yes --framework=next --orm=drizzle --db=postgres --
   no defaults.
 - `--pm=<pnpm|bun|npm>` — package manager recorded in the manifest.
 
+`init` always scaffolds a **single web app** today — `{ id: "web", dir: "apps/web", kind: "web" }`
+in `stanza.json` — and tags every app-home record with `apps: ["web"]`. Multi-
+app init (scaffolding `apps/native` alongside `apps/web`, for example) is
+planned; the schema and runtime already support it. See [Concepts → Apps](/docs/concepts#apps).
+
 ## `add`
 
 Add one module to an existing project.
 
 ```sh
-npx stanza-cli add <category> <module>
+npx stanza-cli add <category> <module> [--app=<id>]
 ```
 
 Resolves peers, selects the matching adapter, and writes the module's templates,
 deps, env, and scripts to the right home. Adding a module to a single-choice
-category that's already filled fails until you remove the existing one.
+category that's already filled fails until you remove the existing one — and
+that limit is **per app** for `home: "app"` categories (so picking a framework
+for one app doesn't block a different framework for another).
+
+- `--app=<id>` — pick which app the install targets. Required for app-relevant
+  modules when the project has multiple apps and you're not running inside one
+  of them. Single-app projects auto-target; multi-app projects also auto-pick
+  when `cwd` is inside one app's directory. Interactive runs (TTY, no `--yes`)
+  fall back to a prompt; non-interactive runs error out asking for the flag.
+- The flag is meaningless for `home: "repo"` modules like `tooling`.
 
 ## `remove`
 
 Remove a module and sweep the files (regions) it owns.
 
 ```sh
-npx stanza-cli remove <category> [id]
+npx stanza-cli remove <category> [id] [--app=<id>]
 ```
 
 For single-choice categories the `id` is optional; for multi-choice categories
-(like `testing`) it's required.
+(like `testing`) it's required. `--app=<id>` scopes removal in projects with
+multiple apps — without it, `remove` looks across every app for a matching
+record.
+
+The package-dir sweep (when removing the last module under `packages/<dir>/`)
+strips the `workspace:*` dep from _every_ app's `package.json`, not just the
+first one.
 
 ## `list`
 

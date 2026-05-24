@@ -2,10 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 
 import {
-  StanzaManifestSchema,
-  type StanzaManifest,
+  type AppSpec,
   emptyManifest,
   MANIFEST_SCHEMA_URL,
+  StanzaManifestSchema,
+  type StanzaManifest,
 } from "@stanza/registry";
 
 const MANIFEST_FILENAME = "stanza.json";
@@ -50,12 +51,12 @@ export function findProjectRoot(cwd: string = process.cwd()): string | undefined
 export function initManifest(input: {
   projectRoot: string;
   name: string;
-  appDir?: string;
+  apps?: AppSpec[];
   packageManager?: StanzaManifest["packageManager"];
 }): StanzaManifest {
   const m = emptyManifest({
     name: input.name,
-    appDir: input.appDir,
+    apps: input.apps,
     packageManager: input.packageManager,
   });
   writeManifest(input.projectRoot, m);

@@ -37,6 +37,7 @@ function setup(filePath: string, initial: string) {
 
   const ctx: CodemodContext = {
     projectRoot: tmp,
+    app: manifest.apps[0]!,
     appRoot: path.join(tmp, "apps/web"),
     project: () => inMem,
     manifest,

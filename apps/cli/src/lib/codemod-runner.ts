@@ -6,6 +6,7 @@ import { addPackageDependency, addPackageScript, addEnvVar } from "@stanza/codem
 import type { CodemodContext, Project } from "@stanza/codemods";
 import { CODEMOD_CATALOG } from "@stanza/codemods/builtins";
 import type {
+  AppSpec,
   JsonValue,
   Module,
   ModuleAdapter,
@@ -16,7 +17,7 @@ import type {
 import {
   buildRenderContext,
   categoryHome,
-  installPackageJson,
+  installPackageJsonTargets,
   mergeInstallFields,
   PACKAGE_DIRS,
   renderTemplate,
@@ -45,19 +46,39 @@ export type RunResult = {
  *
  * This is the only place that writes to disk on `add`. Both the manifest
  * update and the file writes share the same dry-run gate.
+ *
+ * `targetApps` semantics depend on the module's category `home`:
+ *   - `home: "app"`     — exactly one app; templates/deps land there.
+ *   - `home: "package"` — one or more *consuming* apps; the package is written
+ *                          once and app-scoped shims loop per app.
+ *   - `home: "repo"`    — ignored; repo-home modules are project-wide. Pass
+ *                          any single app (e.g. the project's first) for
+ *                          render-context seeding.
  */
 export async function applyModule(args: {
   projectRoot: string;
   manifest: StanzaManifest;
   module: Module;
   adapter: ModuleAdapter;
+  targetApps: AppSpec[];
   registryRoot: string;
   dryRun: boolean;
 }): Promise<RunResult> {
-  const { projectRoot, module, adapter, registryRoot, dryRun } = args;
+  const { projectRoot, module, adapter, targetApps, registryRoot, dryRun } = args;
   let manifest = args.manifest;
   const touchedFiles = new Set<string>();
-  const appRoot = path.join(projectRoot, manifest.appDir);
+
+  const home = categoryHome(module.category);
+  if (home.kind === "app" && targetApps.length !== 1) {
+    throw new Error(
+      `applyModule: home:"app" modules require exactly one targetApp, got ${targetApps.length}.`,
+    );
+  }
+  if (targetApps.length === 0) {
+    throw new Error(
+      `applyModule: targetApps must be non-empty (repo-home modules still need a seed app).`,
+    );
+  }
 
   const owner = module.id;
   // Module dirs are named `<category>-<id>` (e.g. `testing-vitest`).
@@ -70,9 +91,7 @@ export async function applyModule(args: {
 
   // `categoryHome` (in @stanza/registry) is the single decision point for where
   // a module's templates/deps/scripts land — package (`packages/<dir>/`), repo
-  // root, or the active app. The web preview's `synthesizePackageJsons` reads
-  // the same helper, so the two can't disagree.
-  const home = categoryHome(module.category);
+  // root, or each targeted app.
   const packageDir = home.kind === "package" ? home.dir : null;
   const packageRoot = packageDir ? path.join(projectRoot, "packages", packageDir) : null;
   const packageName = packageDir ? `@${manifest.name}/${packageDir}` : "";
@@ -88,7 +107,7 @@ export async function applyModule(args: {
   if (needsPackage && packageDir && packageRoot) {
     const created = ensureSlotPackage({
       projectRoot,
-      appRoot,
+      consumingApps: targetApps,
       manifest,
       packageDir,
       packageName,
@@ -99,50 +118,74 @@ export async function applyModule(args: {
     if (created) bootstrappedPackage = { dir: packageDir, name: packageName };
   }
 
-  const renderContext = buildRenderContext({
-    projectName: manifest.name,
-    appDir: manifest.appDir,
-    packageName,
-  });
+  // Pre-build a render context per targeted app. Each context binds `app.*` to
+  // the active target so a module shipped into multiple apps renders correctly
+  // per app. `seedApp` covers repo/package-scoped templates — they don't
+  // reference `app.*` but `buildRenderContext` still needs a valid `AppSpec`.
+  const renderContextFor = (app: AppSpec): TemplateContext =>
+    buildRenderContext({
+      projectName: manifest.name,
+      app,
+      packageName,
+    });
+  const seedApp = targetApps[0]!;
 
-  // 1. Templates (claim regions per-template-file).
+  // 1. Templates (claim regions per-template-file). App-scoped templates loop
+  //    over `targetApps`; package/repo-scoped templates emit once.
   for (const tpl of adapter.templates ?? []) {
-    const dest = resolveTemplateDest({
+    if (tpl.scope === "app") {
+      for (const app of targetApps) {
+        const dest = path.join(projectRoot, app.dir, tpl.dest);
+        const rel = path.relative(projectRoot, dest);
+        manifest = claim(manifest, rel, "file", owner);
+        if (!dryRun) {
+          const source = readTemplateSource(tpl, moduleDir);
+          const rendered = tpl.template ? renderTemplate(source, renderContextFor(app)) : source;
+          fs.mkdirSync(path.dirname(dest), { recursive: true });
+          fs.writeFileSync(dest, rendered, "utf8");
+        }
+        touchedFiles.add(rel);
+      }
+      continue;
+    }
+    // package / repo scope — single emit.
+    const dest = resolveNonAppTemplateDest({
       tpl,
       projectRoot,
-      appRoot,
       packageRoot,
       category: module.category,
     });
     const rel = path.relative(projectRoot, dest);
-
     manifest = claim(manifest, rel, "file", owner);
     if (!dryRun) {
       const source = readTemplateSource(tpl, moduleDir);
-      const rendered = tpl.template ? renderTemplate(source, renderContext) : source;
+      const rendered = tpl.template ? renderTemplate(source, renderContextFor(seedApp)) : source;
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.writeFileSync(dest, rendered, "utf8");
     }
     touchedFiles.add(rel);
   }
 
-  // 2. Dependencies + scripts on package.json. Routes to the slot's package
-  //    when `SLOT_PACKAGE_DIR[slot]` is non-null; otherwise the active app.
-  // The slot-package path is bootstrapped above by `ensureSlotPackage`; the
-  // app path is created by `stanza init` (bootstrapShell). For `stanza add`
-  // in a pre-existing project, missing app package.json is a real misuse.
-  const pkgJsonPath = path.join(projectRoot, installPackageJson(module, manifest.appDir));
+  // 2. Dependencies + scripts on package.json. For app-home, route into each
+  //    targeted app's package.json; for package-home, into `packages/<dir>/`;
+  //    for repo-home, into the root package.json. The relevant package.json
+  //    must already exist (init's bootstrapShell creates root + per-app;
+  //    ensureSlotPackage handles the slot's).
   const hasInstall =
     Object.keys(installFields.dependencies).length > 0 ||
     Object.keys(installFields.devDependencies).length > 0 ||
     Object.keys(installFields.scripts).length > 0;
-  if (hasInstall && !fs.existsSync(pkgJsonPath)) {
-    throw new Error(
-      `Cannot apply ${module.id}: ${path.relative(projectRoot, pkgJsonPath)} doesn't exist. ` +
-        `For \`stanza add\` in an existing project, create it manually first.`,
-    );
-  }
   if (hasInstall) {
+    const installTargets = installPackageJsonTargets(module, targetApps);
+    for (const target of installTargets) {
+      const pkgJsonPath = path.join(projectRoot, target);
+      if (!fs.existsSync(pkgJsonPath)) {
+        throw new Error(
+          `Cannot apply ${module.id}: ${target} doesn't exist. ` +
+            `For \`stanza add\` in an existing project, create it manually first.`,
+        );
+      }
+    }
     // Re-pin declared `^`/`~` ranges to the latest published version that still
     // satisfies them (e.g. `^1.6.11` → `^1.8.3`), preserving the modifier. Skip
     // the network on dry-run since nothing is written. `resolveRanges` falls
@@ -153,29 +196,23 @@ export async function applyModule(args: {
     const devDeps = dryRun
       ? installFields.devDependencies
       : await resolveRanges(installFields.devDependencies);
-    for (const [name, range] of Object.entries(deps)) {
-      manifest = claim(
-        manifest,
-        path.relative(projectRoot, pkgJsonPath),
-        `dependencies.${name}`,
-        owner,
-      );
-      if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
+
+    for (const target of installTargets) {
+      const pkgJsonPath = path.join(projectRoot, target);
+      for (const [name, range] of Object.entries(deps)) {
+        manifest = claim(manifest, target, `dependencies.${name}`, owner);
+        if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
+      }
+      for (const [name, range] of Object.entries(devDeps)) {
+        manifest = claim(manifest, target, `devDependencies.${name}`, owner);
+        if (!dryRun) addPackageDependency(pkgJsonPath, name, range, { dev: true });
+      }
+      for (const [name, command] of Object.entries(installFields.scripts)) {
+        manifest = claim(manifest, target, `scripts.${name}`, owner);
+        if (!dryRun) addPackageScript(pkgJsonPath, name, command);
+      }
+      touchedFiles.add(target);
     }
-    for (const [name, range] of Object.entries(devDeps)) {
-      manifest = claim(
-        manifest,
-        path.relative(projectRoot, pkgJsonPath),
-        `devDependencies.${name}`,
-        owner,
-      );
-      if (!dryRun) addPackageDependency(pkgJsonPath, name, range, { dev: true });
-    }
-    for (const [name, command] of Object.entries(installFields.scripts)) {
-      manifest = claim(manifest, path.relative(projectRoot, pkgJsonPath), `scripts.${name}`, owner);
-      if (!dryRun) addPackageScript(pkgJsonPath, name, command);
-    }
-    touchedFiles.add(path.relative(projectRoot, pkgJsonPath));
   }
 
   // 3. Env vars in .env.example at repo root.
@@ -189,52 +226,58 @@ export async function applyModule(args: {
   }
 
   // 4. Imperative codemods — dispatched through the CLI's generic catalog.
-  // Modules don't ship code; they reference catalog entries by id and pass
-  // the per-invocation args from their manifest. Args are rendered through
-  // the same template substitution as file bodies so modules can declare
-  // e.g. `providerImport: "{{packageName}}"`.
+  //    For app-home and package-home modules, run once per targeted app so
+  //    codemods that edit files inside an app dir see the right app context.
+  //    For repo-home modules, run once with the seed app.
   if (adapter.codemods?.length) {
-    const project = lazyProject(appRoot);
-    const ctx = buildContext({
-      projectRoot,
-      appRoot,
-      manifest,
-      module,
-      adapter,
-      project: project.get,
-      touchedFiles,
-      dryRun,
-      onClaim: (file, region) => {
-        manifest = claim(manifest, file, region, owner);
-      },
-    });
-    for (const invocation of adapter.codemods) {
-      const fn = CODEMOD_CATALOG[invocation.id];
-      if (!fn) {
-        throw new Error(
-          `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
-        );
+    const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
+    for (const app of dispatchApps) {
+      const appRoot = path.join(projectRoot, app.dir);
+      const project = lazyProject(appRoot);
+      const ctx = buildContext({
+        projectRoot,
+        app,
+        appRoot,
+        manifest,
+        module,
+        adapter,
+        project: project.get,
+        touchedFiles,
+        dryRun,
+        onClaim: (file, region) => {
+          manifest = claim(manifest, file, region, owner);
+        },
+      });
+      for (const invocation of adapter.codemods) {
+        const fn = CODEMOD_CATALOG[invocation.id];
+        if (!fn) {
+          throw new Error(
+            `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
+          );
+        }
+        if (!dryRun) {
+          const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
+          const result = await fn.apply(ctx, renderedArgs);
+          result.touchedFiles.forEach((f) => touchedFiles.add(f));
+        }
       }
-      if (!dryRun) {
-        const renderedArgs = renderArgs(invocation.args ?? {}, renderContext);
-        const result = await fn.apply(ctx, renderedArgs);
-        result.touchedFiles.forEach((f) => touchedFiles.add(f));
-      }
+      if (!dryRun) await project.save();
     }
-    if (!dryRun) await project.save();
   }
 
   if (!dryRun) {
-    const record = { id: module.id, version: module.version, adapter: adapter.key };
-    // Push into the category's array, replacing any same-id record so re-adds
-    // are idempotent. Single-choice categories (cardinality "one") are kept to
-    // one record by `add`/`init` rejecting a second pick — not enforced here.
+    const record = recordFor(module, adapter, targetApps);
+    // Push into the category's array, replacing any same-(id, apps-key) record
+    // so re-adds are idempotent. Single-choice categories with home:"app" are
+    // kept to one record per app id by `add`/`init` validation; other homes
+    // stay capped at ≤ 1 total.
     const existing = manifest.modules[module.category] ?? [];
+    const sameKey = (r: typeof record) => r.id === record.id && sameAppSet(r.apps, record.apps);
     manifest = {
       ...manifest,
       modules: {
         ...manifest.modules,
-        [module.category]: [...existing.filter((r) => r.id !== module.id), record],
+        [module.category]: [...existing.filter((r) => !sameKey(r)), record],
       },
     };
     writeManifest(projectRoot, manifest);
@@ -243,14 +286,34 @@ export async function applyModule(args: {
   return { manifest, touchedFiles: [...touchedFiles], dryRun, bootstrappedPackage };
 }
 
-function resolveTemplateDest(args: {
+function recordFor(
+  module: Module,
+  adapter: ModuleAdapter,
+  targetApps: AppSpec[],
+): { id: string; version: string; adapter: string; apps?: string[] } {
+  const home = categoryHome(module.category);
+  const base = { id: module.id, version: module.version, adapter: adapter.key };
+  if (home.kind === "repo") return base;
+  // Both app-home and package-home tag with the consuming apps so `remove`
+  // can find them and so the schema stays well-formed.
+  return { ...base, apps: targetApps.map((a) => a.id) };
+}
+
+function sameAppSet(a: string[] | undefined, b: string[] | undefined): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((x) => set.has(x));
+}
+
+function resolveNonAppTemplateDest(args: {
   tpl: TemplateRef;
   projectRoot: string;
-  appRoot: string;
   packageRoot: string | null;
   category: string;
 }): string {
-  const { tpl, projectRoot, appRoot, packageRoot, category } = args;
+  const { tpl, projectRoot, packageRoot, category } = args;
   if (tpl.scope === "repo") return path.join(projectRoot, tpl.dest);
   if (tpl.scope === "package") {
     if (!packageRoot) {
@@ -261,23 +324,26 @@ function resolveTemplateDest(args: {
     }
     return path.join(packageRoot, tpl.dest);
   }
-  return path.join(appRoot, tpl.dest);
+  // scope === "app" — caller's responsibility; this helper handles only
+  // package/repo.
+  throw new Error(`resolveNonAppTemplateDest: app-scope template should be handled separately.`);
 }
 
 /**
- * Create the slot's workspace package on first need. Idempotent: if the
- * package.json/tsconfig.json/workspace dep already exist, this is a no-op.
- * Returns true when at least one file was newly created (the signal `add.ts`
- * uses to print a `pnpm install` hint).
+ * Create the slot's workspace package on first need and wire the workspace dep
+ * into every *consuming* app's package.json. Idempotent: re-applying the same
+ * module against the same apps is a no-op. Returns true when at least one file
+ * was newly created (the signal `add.ts` uses to print a `pnpm install` hint).
  *
- * These files are NOT claimed as regions: they are shared by every module
- * that lives in the package (e.g. db + orm both write into packages/db/).
- * The remove path's package-dir sweep deletes them only after every module
- * has released its claims under packages/<dir>/.
+ * The package's own `package.json` and `tsconfig.json` are NOT claimed as
+ * regions: they're shared by every module that lives in the package (e.g. db
+ * + orm both write into packages/db/). The remove path's package-dir sweep
+ * deletes them only after every module has released its claims under
+ * `packages/<dir>/`.
  */
 function ensureSlotPackage(args: {
   projectRoot: string;
-  appRoot: string;
+  consumingApps: AppSpec[];
   manifest: StanzaManifest;
   packageDir: string;
   packageName: string;
@@ -285,10 +351,17 @@ function ensureSlotPackage(args: {
   consumesPackages: string[];
   dryRun: boolean;
 }): boolean {
-  const { appRoot, packageDir, packageName, packageRoot, consumesPackages, dryRun } = args;
+  const {
+    projectRoot,
+    consumingApps,
+    packageDir,
+    packageName,
+    packageRoot,
+    consumesPackages,
+    dryRun,
+  } = args;
   const pkgPath = path.join(packageRoot, "package.json");
   const tsconfigPath = path.join(packageRoot, "tsconfig.json");
-  const appPkgPath = path.join(appRoot, "package.json");
 
   let created = false;
 
@@ -313,7 +386,7 @@ function ensureSlotPackage(args: {
     if (!dryRun) {
       // Self-contained tsconfig — generated projects don't share a base, so
       // each app and package stands on its own. Mirrors the shape framework
-      // modules ship for `apps/web/tsconfig.json`.
+      // modules ship for app `tsconfig.json`.
       fs.writeFileSync(
         tsconfigPath,
         JSON.stringify(
@@ -343,9 +416,11 @@ function ensureSlotPackage(args: {
     }
   }
 
-  // Wire the workspace dep into the host app's package.json on first
-  // bootstrap. Not region-tracked — sweep cleans it up.
-  if (fs.existsSync(appPkgPath)) {
+  // Wire the workspace dep into *every consuming* app's package.json. Not
+  // region-tracked — the sweep cleans it up.
+  for (const app of consumingApps) {
+    const appPkgPath = path.join(projectRoot, app.dir, "package.json");
+    if (!fs.existsSync(appPkgPath)) continue;
     const appPkg: { dependencies?: Record<string, string> } = JSON.parse(
       fs.readFileSync(appPkgPath, "utf8"),
     );
@@ -381,8 +456,9 @@ function ensureSlotPackage(args: {
 /**
  * Walk a codemod args object and run renderTemplate over every string leaf.
  * Non-string values pass through untouched. The contract for catalog
- * codemods is that string args may contain `{{project.name}}`, `{{project.appDir}}`,
- * `{{package.name}}`, `{{packages.<dir>.name}}` — anything else should be passed in raw.
+ * codemods is that string args may contain `{{project.name}}`, `{{app.dir}}`,
+ * `{{app.id}}`, `{{app.kind}}`, `{{package.name}}`, `{{packages.<dir>.name}}`
+ * — anything else should be passed in raw.
  */
 function renderArgs(
   args: Record<string, JsonValue>,
@@ -434,6 +510,7 @@ function lazyProject(appRoot: string): { get: () => Project; save: () => Promise
 
 function buildContext(args: {
   projectRoot: string;
+  app: AppSpec;
   appRoot: string;
   manifest: StanzaManifest;
   module: Module;
@@ -446,6 +523,7 @@ function buildContext(args: {
 }): CodemodContext {
   return {
     projectRoot: args.projectRoot,
+    app: args.app,
     appRoot: args.appRoot,
     project: args.project,
     manifest: args.manifest,
@@ -482,67 +560,78 @@ export type RevertResult = {
  * Args are reconstructed by running the original `args` template strings
  * through the same `renderTemplate` substitution used on apply, so reverts
  * see the same concrete values (e.g. `providerImport: "@my-app/auth"`).
+ *
+ * Loops over the same `targetApps` the apply path used so each codemod's
+ * revert sees the right app context.
  */
 export async function revertCodemods(args: {
   projectRoot: string;
   manifest: StanzaManifest;
   module: Module;
   adapter: ModuleAdapter;
+  targetApps: AppSpec[];
   dryRun: boolean;
 }): Promise<RevertResult> {
-  const { projectRoot, module, adapter, dryRun } = args;
+  const { projectRoot, module, adapter, targetApps, dryRun } = args;
   let manifest = args.manifest;
   const touchedFiles = new Set<string>();
   const manualCleanup: string[] = [];
-  const appRoot = path.join(projectRoot, manifest.appDir);
 
   const codemods = adapter.codemods ?? [];
   if (codemods.length === 0) return { manifest, touchedFiles: [], dryRun, manualCleanup };
+  if (targetApps.length === 0) {
+    return { manifest, touchedFiles: [], dryRun, manualCleanup };
+  }
 
   const home = categoryHome(module.category);
   const packageName = home.kind === "package" ? `@${manifest.name}/${home.dir}` : "";
-  const renderContext = buildRenderContext({
-    projectName: manifest.name,
-    appDir: manifest.appDir,
-    packageName,
-  });
+  const dispatchApps = home.kind === "repo" ? [targetApps[0]!] : targetApps;
 
-  const project = lazyProject(appRoot);
-  const ctx = buildContext({
-    projectRoot,
-    appRoot,
-    manifest,
-    module,
-    adapter,
-    project: project.get,
-    touchedFiles,
-    dryRun,
-    onRelease: (file, region) => {
-      manifest = release(manifest, file, region);
-    },
-  });
+  for (const app of dispatchApps) {
+    const appRoot = path.join(projectRoot, app.dir);
+    const renderContext = buildRenderContext({
+      projectName: manifest.name,
+      app,
+      packageName,
+    });
+    const project = lazyProject(appRoot);
+    const ctx = buildContext({
+      projectRoot,
+      app,
+      appRoot,
+      manifest,
+      module,
+      adapter,
+      project: project.get,
+      touchedFiles,
+      dryRun,
+      onRelease: (file, region) => {
+        manifest = release(manifest, file, region);
+      },
+    });
 
-  // Reverse order: if codemod B layered on top of A's output, undo B first.
-  for (const invocation of codemods.toReversed()) {
-    const fn = CODEMOD_CATALOG[invocation.id];
-    if (!fn || !fn.revert) {
-      manualCleanup.push(invocation.id);
-      continue;
+    // Reverse order: if codemod B layered on top of A's output, undo B first.
+    for (const invocation of codemods.toReversed()) {
+      const fn = CODEMOD_CATALOG[invocation.id];
+      if (!fn || !fn.revert) {
+        manualCleanup.push(invocation.id);
+        continue;
+      }
+      if (dryRun) continue;
+      try {
+        const renderedArgs = renderArgs(invocation.args ?? {}, renderContext);
+        const result = await fn.revert(ctx, renderedArgs);
+        result.touchedFiles.forEach((f) => touchedFiles.add(f));
+      } catch {
+        // Don't surface the exception body — the caller already prints a
+        // "manual cleanup" warning with the codemod id; the user can re-run
+        // with stack traces if they need details. Keep going so other codemods
+        // still get a chance to revert.
+        manualCleanup.push(invocation.id);
+      }
     }
-    if (dryRun) continue;
-    try {
-      const renderedArgs = renderArgs(invocation.args ?? {}, renderContext);
-      const result = await fn.revert(ctx, renderedArgs);
-      result.touchedFiles.forEach((f) => touchedFiles.add(f));
-    } catch {
-      // Don't surface the exception body — the caller already prints a
-      // "manual cleanup" warning with the codemod id; the user can re-run
-      // with stack traces if they need details. Keep going so other codemods
-      // still get a chance to revert.
-      manualCleanup.push(invocation.id);
-    }
+    if (!dryRun) await project.save();
   }
-  if (!dryRun) await project.save();
 
   return { manifest, touchedFiles: [...touchedFiles], dryRun, manualCleanup };
 }

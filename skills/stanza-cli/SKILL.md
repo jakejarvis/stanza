@@ -60,9 +60,9 @@ pnpm dev
 
 ## Commands
 
-- `stanza init [name] --yes ...` scaffolds a new project in a child directory of the current working directory.
-- `stanza add <category> <module>` adds one module to an existing Stanza project.
-- `stanza remove <category> [id]` removes a module. For single-choice categories the `id` is optional; for multi-choice categories it is required.
+- `stanza init [name] --yes ...` scaffolds a new project in a child directory of the current working directory. Today every `init` produces a single web app (`apps/web`, id `web`); multi-app init is planned but not yet exposed.
+- `stanza add <category> <module> [--app=<id>]` adds one module to an existing Stanza project. The `--app` flag picks which app receives an app-scoped module (`framework`/`styling`/`testing`/`email`) or which app a package-scoped module's shims (e.g. Better Auth's route handler) target. Single-app projects auto-target. Multi-app projects auto-pick if `cwd` is inside an app's `dir`; otherwise the CLI prompts interactively on a TTY or errors out in non-interactive runs.
+- `stanza remove <category> [id] [--app=<id>]` removes a module. For single-choice categories the `id` is optional; for multi-choice categories it is required. `--app` scopes removal in projects with multiple apps.
 - `stanza list` prints installed modules grouped by category from the nearest `stanza.json`.
 - `stanza search [query]` lists registry modules and their `category/id` pairs.
 

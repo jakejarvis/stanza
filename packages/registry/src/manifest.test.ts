@@ -1,6 +1,15 @@
 import { assert, describe, expect, it } from "vite-plus/test";
 
-import { CURRENT_MANIFEST_VERSION, emptyManifest, StanzaManifestSchema } from "./manifest";
+import {
+  appsForRecord,
+  CURRENT_MANIFEST_VERSION,
+  defaultWebApp,
+  emptyManifest,
+  getApp,
+  selectedAll,
+  selectedOne,
+  StanzaManifestSchema,
+} from "./manifest";
 
 describe("StanzaManifestSchema", () => {
   it("parses a manifest with a single-choice category (one record)", () => {
@@ -9,9 +18,9 @@ describe("StanzaManifestSchema", () => {
       projectShape: "monorepo",
       packageManager: "pnpm",
       name: "acme",
-      appDir: "apps/web",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
       modules: {
-        framework: [{ id: "next", version: "0.1.0", adapter: "default" }],
+        framework: [{ id: "next", version: "0.1.0", adapter: "default", apps: ["web"] }],
       },
       regions: {},
     };
@@ -19,16 +28,17 @@ describe("StanzaManifestSchema", () => {
     assert(parsed.modules.framework);
     expect(parsed.modules.framework).toHaveLength(1);
     expect(parsed.modules.framework[0]!.id).toBe("next");
+    expect(parsed.modules.framework[0]!.apps).toEqual(["web"]);
   });
 
   it("round-trips a manifest with multiple modules in one category", () => {
     const manifest = {
       ...emptyManifest({ name: "acme" }),
       modules: {
-        framework: [{ id: "next", version: "0.1.0", adapter: "default" }],
+        framework: [{ id: "next", version: "0.1.0", adapter: "default", apps: ["web"] }],
         testing: [
-          { id: "vitest", version: "0.1.0", adapter: "next" },
-          { id: "playwright", version: "0.1.0", adapter: "next" },
+          { id: "vitest", version: "0.1.0", adapter: "next", apps: ["web"] },
+          { id: "playwright", version: "0.1.0", adapter: "next", apps: ["web"] },
         ],
       },
     };
@@ -38,7 +48,86 @@ describe("StanzaManifestSchema", () => {
     expect(JSON.parse(JSON.stringify(parsed))).toEqual(manifest);
   });
 
-  it("emptyManifest seeds an empty modules record", () => {
-    expect(emptyManifest({ name: "acme" }).modules).toEqual({});
+  it("emptyManifest seeds an empty modules record and a single web app by default", () => {
+    const manifest = emptyManifest({ name: "acme" });
+    expect(manifest.modules).toEqual({});
+    expect(manifest.apps).toEqual([defaultWebApp()]);
+  });
+
+  it("emptyManifest honors a custom apps array", () => {
+    const apps = [
+      { id: "web", dir: "apps/web", kind: "web" as const },
+      { id: "native", dir: "apps/native", kind: "native" as const },
+    ];
+    expect(emptyManifest({ name: "acme", apps }).apps).toEqual(apps);
+  });
+
+  it("rejects a manifest without an apps array", () => {
+    expect(() =>
+      StanzaManifestSchema.parse({
+        version: CURRENT_MANIFEST_VERSION,
+        projectShape: "monorepo",
+        packageManager: "pnpm",
+        name: "acme",
+        apps: [],
+        modules: {},
+        regions: {},
+      }),
+    ).toThrow(/apps/);
+  });
+});
+
+describe("app-aware selectors", () => {
+  const base = emptyManifest({
+    name: "acme",
+    apps: [
+      { id: "web", dir: "apps/web", kind: "web" },
+      { id: "native", dir: "apps/native", kind: "native" },
+    ],
+  });
+  const manifest = {
+    ...base,
+    modules: {
+      framework: [
+        { id: "next", version: "0.1.0", adapter: "default", apps: ["web"] },
+        { id: "expo", version: "0.1.0", adapter: "default", apps: ["native"] },
+      ],
+      db: [{ id: "postgres", version: "0.1.0", adapter: "default" }],
+    },
+  };
+
+  it("selectedOne with appId filters to records targeting that app", () => {
+    expect(selectedOne(manifest, "framework", "web")?.id).toBe("next");
+    expect(selectedOne(manifest, "framework", "native")?.id).toBe("expo");
+  });
+
+  it("selectedOne without appId returns the first record", () => {
+    expect(selectedOne(manifest, "framework")?.id).toBe("next");
+  });
+
+  it("selectedAll with appId scopes to that app", () => {
+    expect(selectedAll(manifest, "framework", "web").map((r) => r.id)).toEqual(["next"]);
+  });
+
+  it("treats records without an `apps` field as global", () => {
+    expect(selectedOne(manifest, "db", "web")?.id).toBe("postgres");
+    expect(selectedOne(manifest, "db", "native")?.id).toBe("postgres");
+  });
+
+  it("appsForRecord expands an absent apps field to every app", () => {
+    expect(appsForRecord(manifest, manifest.modules.db[0]!).map((a) => a.id)).toEqual([
+      "web",
+      "native",
+    ]);
+  });
+
+  it("appsForRecord narrows to the listed apps", () => {
+    expect(appsForRecord(manifest, manifest.modules.framework[0]!).map((a) => a.id)).toEqual([
+      "web",
+    ]);
+  });
+
+  it("getApp throws when the id is unknown", () => {
+    expect(() => getApp(manifest, "missing")).toThrow(/No app "missing"/);
   });
 });

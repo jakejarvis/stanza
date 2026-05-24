@@ -1,8 +1,16 @@
 import { z } from "zod";
 
+/**
+ * Kind of app a framework module targets. The closed enum lets the runtime
+ * validate "you can't install Next.js into a `kind: \"native\"` app" — add new
+ * kinds here as they're introduced (and the schema picks them up).
+ */
+export const APP_KINDS = ["web", "native"] as const;
+export type AppKind = (typeof APP_KINDS)[number];
+
 /** Where a category's install fields and `scope`-derived templates land. */
 export type InstallHome =
-  | { kind: "app" } // manifest.appDir
+  | { kind: "app" } // an app entry in manifest.apps[] (selected per install)
   | { kind: "repo" } // monorepo root
   | { kind: "package"; dir: string }; // packages/<dir>/, named @<name>/<dir>
 
@@ -277,6 +285,13 @@ export type Module = ModuleInstallFields & {
   consumesPackages?: string[];
   /** Concrete install recipes keyed by adapter; the resolver picks one. */
   adapters: ModuleAdapter[];
+  /**
+   * Kind of app this module targets. Required (by convention) for `framework`
+   * modules so the runner can validate that an app's `kind` matches the
+   * framework being installed into it. Other categories can declare it later
+   * when peer-matching on `framework` isn't expressive enough.
+   */
+  appKind?: AppKind;
   homepage?: string;
   author?: string;
   /** Inlined SVG logo, populated by the registry build step. */
@@ -371,6 +386,7 @@ const moduleBaseShape = {
     .optional(),
   consumesPackages: z.array(z.string()).optional(),
   ...installFieldsSchema,
+  appKind: z.enum(APP_KINDS).optional(),
   homepage: z.string().optional(),
   author: z.string().optional(),
   logo: z.union([z.string(), z.object({ light: z.string(), dark: z.string() })]).optional(),

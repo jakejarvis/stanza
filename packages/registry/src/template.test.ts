@@ -1,21 +1,27 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import { defaultWebApp } from "./manifest";
+import type { AppSpec } from "./manifest";
 import { defineModule, type Module } from "./module";
 import type { Resolved } from "./package-json";
 import { synthesizeTemplates } from "./synthesize";
 import { buildRenderContext, renderTemplate } from "./template";
 
+const webApp: AppSpec = defaultWebApp();
+
 describe("renderTemplate", () => {
   const ctx = buildRenderContext({
     projectName: "acme",
-    appDir: "apps/web",
+    app: webApp,
     packageName: "@acme/auth",
   });
 
-  it("substitutes top-level scalar paths", () => {
-    expect(renderTemplate("name={{project.name}}, dir={{project.appDir}}", ctx)).toBe(
-      "name=acme, dir=apps/web",
-    );
+  it("substitutes project.name", () => {
+    expect(renderTemplate("name={{project.name}}", ctx)).toBe("name=acme");
+  });
+
+  it("substitutes app.* keys", () => {
+    expect(renderTemplate("{{app.id}}:{{app.kind}} ({{app.dir}})", ctx)).toBe("web:web (apps/web)");
   });
 
   it("substitutes the active package's own name via package.name", () => {
@@ -53,7 +59,7 @@ describe("buildRenderContext", () => {
   it("populates packages.<dir>.name for every PACKAGE_DIR", () => {
     const ctx = buildRenderContext({
       projectName: "acme",
-      appDir: "apps/web",
+      app: webApp,
       packageName: "",
     });
     // PACKAGE_DIRS is derived from CATEGORIES; auth + db are both package homes.
@@ -95,7 +101,7 @@ const betterAuth: Module = defineModule({
           dest: "src/api.ts",
           scope: "app",
           template: true,
-          content: 'import { auth } from "{{package.name}}";\n',
+          content: 'import { auth } from "{{package.name}}";\n// app={{app.id}}\n',
         },
         {
           // Not flagged template:true → should pass through unchanged.
@@ -120,7 +126,7 @@ describe("synthesizeTemplates", () => {
     const auth = out.find((t) => t.path === "packages/auth/src/auth.ts");
     expect(auth?.content).toBe('import { db } from "@acme/db";\nexport const auth = db;\n');
     const api = out.find((t) => t.path === "apps/web/src/api.ts");
-    expect(api?.content).toBe('import { auth } from "@acme/auth";\n');
+    expect(api?.content).toBe('import { auth } from "@acme/auth";\n// app=web\n');
   });
 
   it("leaves non-template files untouched (no substitution, raw braces preserved)", () => {
@@ -129,8 +135,29 @@ describe("synthesizeTemplates", () => {
     expect(raw?.content).toBe("hello {{not.substituted}}");
   });
 
-  it("honors a custom appDir", () => {
-    const out = synthesizeTemplates(resolved, { name: "acme", appDir: "apps/mobile" });
+  it("honors a custom apps list (single app)", () => {
+    const out = synthesizeTemplates(resolved, {
+      name: "acme",
+      apps: [{ id: "mobile", dir: "apps/mobile", kind: "native" }],
+    });
     expect(out.find((t) => t.path === "apps/mobile/src/api.ts")).toBeDefined();
+  });
+
+  it("emits one app-scoped path per app when multiple apps target the same module", () => {
+    const out = synthesizeTemplates(resolved, {
+      name: "acme",
+      apps: [
+        { id: "web", dir: "apps/web", kind: "web" },
+        { id: "native", dir: "apps/native", kind: "native" },
+      ],
+    });
+    // Package-scoped template emits once.
+    expect(out.filter((t) => t.path === "packages/auth/src/auth.ts")).toHaveLength(1);
+    // App-scoped shim ships into both apps (auth has no explicit `apps` filter
+    // so it defaults to all apps).
+    expect(out.find((t) => t.path === "apps/web/src/api.ts")?.content).toContain("// app=web");
+    expect(out.find((t) => t.path === "apps/native/src/api.ts")?.content).toContain(
+      "// app=native",
+    );
   });
 });

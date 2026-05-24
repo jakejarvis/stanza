@@ -6,6 +6,7 @@ export default defineModule({
   label: "TanStack Start",
   description: "Full-stack React framework on Vite + TanStack Router.",
   version: "0.1.0",
+  appKind: "web",
   homepage: "https://tanstack.com/start",
   adapters: [
     {

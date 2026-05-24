@@ -7,7 +7,7 @@ import {
 } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import { parseSelections, resolveSelected } from "@/lib/selection";
+import { DEFAULT_BUILDER_APPS, parseSelections, resolveSelected } from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
@@ -80,15 +80,19 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // matches what stanza actually writes. Only when something is selected, so
     // an empty builder still shows the empty state.
     const hasSelection = Object.values(resolved).some((entries) => (entries?.length ?? 0) > 0);
+    // Single web app for now — the builder UX doesn't expose multi-app config
+    // yet, but the registry's synth functions are already multi-app-shaped.
+    const apps = [...DEFAULT_BUILDER_APPS];
     const previewFiles: { path: string; content: string }[] = synthesizeTemplates(resolved, {
       name,
+      apps,
     }).map((tpl) => ({ path: tpl.path, content: tpl.content }));
     if (hasSelection) {
-      const pkgJsons = synthesizePackageJsons(resolved, { name, packageManager: pm });
+      const pkgJsons = synthesizePackageJsons(resolved, { name, apps, packageManager: pm });
       for (const [path, pkg] of Object.entries(pkgJsons)) {
         previewFiles.push({ path, content: JSON.stringify(pkg, null, 2) + "\n" });
       }
-      const manifest = synthesizeManifest(resolved, { name, packageManager: pm });
+      const manifest = synthesizeManifest(resolved, { name, apps, packageManager: pm });
       previewFiles.push({
         path: "stanza.json",
         content: JSON.stringify(manifest, null, 2) + "\n",

@@ -2,9 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import type { CategoryId } from "@stanza/registry";
+import type { AppSpec, CategoryId } from "@stanza/registry";
 import {
   appPackageJsonBase,
+  categoryHome,
   categoryOrder,
   ENV_EXAMPLE_HEADER,
   KNOWN_CATEGORIES,
@@ -83,13 +84,13 @@ export async function cmdInit(args: CliArgs): Promise<void> {
   bootstrapShell(projectRoot, {
     name: result.name,
     packageManager: result.packageManager,
-    appDir: result.appDir,
+    apps: result.apps,
   });
 
   let manifest = initManifest({
     projectRoot,
     name: result.name,
-    appDir: result.appDir,
+    apps: result.apps,
     packageManager: result.packageManager,
   });
 
@@ -99,16 +100,33 @@ export async function cmdInit(args: CliArgs): Promise<void> {
 
   const spinner = p.spinner();
 
+  // Single-app init today, so every module targets the same app. The runner is
+  // multi-app-shaped, but `stanza init` only scaffolds one app — multi-app
+  // init is a planned follow-up.
+  const targetApps = result.apps;
+  const appHomeTarget: AppSpec[] = [result.apps[0]!];
+
   // Apply in `categoryOrder`, so each category's peers (earlier one-cardinality
   // picks) are already in the manifest when its framework-varying adapter resolves.
   for (const category of categoryOrder) {
+    const home = categoryHome(category);
     for (const mod of result.selections[category] ?? []) {
       spinner.start(`Installing ${mod.label}`);
-      const adapter = resolveAdapter(mod, { manifest, pending: {} });
+      const adapter = resolveAdapter(mod, {
+        manifest,
+        pending: {},
+        targetAppId: home.kind === "app" ? appHomeTarget[0]!.id : undefined,
+      });
       if (!adapter.ok) {
         spinner.stop(`${mod.label} ${pc.red("failed")}`);
         throw new Error(
           `Could not resolve adapter for ${category}/${mod.id}: ${adapter.error.kind}`,
+        );
+      }
+      // Validate appKind when the module declares one (typically frameworks).
+      if (home.kind === "app" && mod.appKind && mod.appKind !== appHomeTarget[0]!.kind) {
+        throw new Error(
+          `${category}/${mod.id} requires an app of kind "${mod.appKind}" but "${appHomeTarget[0]!.id}" is "${appHomeTarget[0]!.kind}".`,
         );
       }
       const r = await applyModule({
@@ -116,6 +134,10 @@ export async function cmdInit(args: CliArgs): Promise<void> {
         manifest,
         module: mod,
         adapter: adapter.adapter,
+        // home: "app"     → single target app
+        // home: "package" → ship shims into every app (today: just one)
+        // home: "repo"    → seed app for render context (the first app)
+        targetApps: home.kind === "app" ? appHomeTarget : targetApps,
         registryRoot,
         dryRun,
       });
@@ -138,7 +160,7 @@ export async function cmdInit(args: CliArgs): Promise<void> {
 
 function bootstrapShell(
   projectRoot: string,
-  opts: { name: string; packageManager: "pnpm" | "bun" | "npm"; appDir: string },
+  opts: { name: string; packageManager: "pnpm" | "bun" | "npm"; apps: AppSpec[] },
 ) {
   // Root package.json. The shared builder emits the `workspaces` field for
   // bun/npm; pnpm reads its globs from pnpm-workspace.yaml (written below).
@@ -165,15 +187,17 @@ function bootstrapShell(
 
   fs.writeFileSync(path.join(projectRoot, ".env.example"), ENV_EXAMPLE_HEADER);
 
-  // App shell — empty but layout-correct. The framework module fills it in.
-  // The package.json must exist before any module runs: the runner appends
-  // deps/scripts into it (and silently no-ops if it's absent), and the slot-
-  // package bootstrap wires `@<name>/<dir>: workspace:*` into its deps map.
-  fs.mkdirSync(path.join(projectRoot, opts.appDir), { recursive: true });
-  fs.writeFileSync(
-    path.join(projectRoot, opts.appDir, "package.json"),
-    JSON.stringify(appPackageJsonBase({ name: opts.name, appDir: opts.appDir }), null, 2) + "\n",
-  );
+  // App shells — empty but layout-correct. The framework module fills each in.
+  // The per-app `package.json` must exist before any module runs: the runner
+  // appends deps/scripts into it, and the slot-package bootstrap wires
+  // `@<name>/<dir>: workspace:*` into every consuming app's deps map.
+  for (const app of opts.apps) {
+    fs.mkdirSync(path.join(projectRoot, app.dir), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, app.dir, "package.json"),
+      JSON.stringify(appPackageJsonBase({ name: opts.name, app }), null, 2) + "\n",
+    );
+  }
   fs.mkdirSync(path.join(projectRoot, "packages"), { recursive: true });
 }
 

@@ -3,8 +3,15 @@ import path from "node:path";
 
 import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
-import type { StanzaModuleRecord } from "@stanza/registry";
-import { isCategoryId, isMulti, PACKAGE_DIRS, selectedAll } from "@stanza/registry";
+import type { AppSpec, StanzaModuleRecord } from "@stanza/registry";
+import {
+  appsForRecord,
+  categoryHome,
+  isCategoryId,
+  isMulti,
+  PACKAGE_DIRS,
+  selectedAll,
+} from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -28,6 +35,10 @@ export const remove = defineCommand({
       required: false,
       description: "Module id (required for multi-choice categories).",
     },
+    app: {
+      type: "string",
+      description: "Target app id (required when the module is installed in multiple apps).",
+    },
     ...commonArgs,
   },
   run: ({ args }) => cmdRemove(args),
@@ -36,6 +47,7 @@ export const remove = defineCommand({
 export async function cmdRemove(args: CliArgs): Promise<void> {
   const slot = typeof args.slot === "string" ? args.slot : undefined;
   const moduleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
+  const appFlag = typeof args.app === "string" ? args.app : undefined;
   if (!slot) {
     p.log.error("Usage: stanza remove <category> [id]");
     process.exitCode = 1;
@@ -63,10 +75,14 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   }
 
   let manifest = readManifest(projectRoot);
+  const home = categoryHome(category);
 
-  // Resolve which record we're removing. Single-choice categories take the one
-  // record (id optional); multi-choice categories require an explicit id.
-  const records = selectedAll(manifest, category);
+  // For app-home categories, --app scopes to records in that app. For other
+  // homes the flag is mostly meaningless (records aren't app-keyed), but we
+  // honor it to filter package-home records that explicitly target one app.
+  const records = selectedAll(manifest, category, appFlag);
+
+  // Resolve which record we're removing.
   let installed: StanzaModuleRecord;
   if (isMulti(category)) {
     if (!moduleId) {
@@ -80,18 +96,25 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     }
     const record = records.find((r) => r.id === moduleId);
     if (!record) {
-      p.log.warn(`"${category}/${moduleId}" is not installed.`);
+      p.log.warn(
+        `"${category}/${moduleId}" is not installed${appFlag ? ` in app "${appFlag}"` : ""}.`,
+      );
       return;
     }
     installed = record;
   } else {
     const record = moduleId ? records.find((r) => r.id === moduleId) : records[0];
     if (!record) {
-      p.log.warn(`Category "${category}" is not filled.`);
+      p.log.warn(`Category "${category}" is not filled${appFlag ? ` in app "${appFlag}"` : ""}.`);
       return;
     }
     installed = record;
   }
+
+  // Determine which apps the module was installed for. The revert + sweep paths
+  // need this to find the right files and the right package.json entries.
+  const installedApps: AppSpec[] =
+    home.kind === "repo" ? manifest.apps : appsForRecord(manifest, installed);
 
   const manualCleanup: string[] = [];
 
@@ -107,6 +130,7 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
       manifest,
       module: mod,
       adapter,
+      targetApps: installedApps,
       dryRun,
     });
     manifest = revertResult.manifest;
@@ -166,7 +190,9 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
       else nextRegions[file] = copy;
     }
   }
-  const remaining = selectedAll(manifest, category).filter((r) => r.id !== installed.id);
+  const remaining = (manifest.modules[category] ?? []).filter(
+    (r) => !(r.id === installed.id && sameAppSet(r.apps, installed.apps)),
+  );
   const nextModules = { ...manifest.modules };
   if (remaining.length > 0) nextModules[category] = remaining;
   else delete nextModules[category];
@@ -174,10 +200,9 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
 
   // Step 3: sweep any internal package whose claims have all been released.
   // The bootstrap files (package.json, tsconfig.json, the workspace dep on
-  // the app) are system-owned — not tracked in regions, so they'd otherwise
-  // linger forever.
+  // every consuming app) are system-owned — not tracked in regions, so they'd
+  // otherwise linger forever.
   const sweptPackages: string[] = [];
-  const appPkgAbs = path.join(projectRoot, manifest.appDir, "package.json");
   for (const dir of PACKAGE_DIRS) {
     const stillUsed = Object.keys(manifest.regions).some((file) =>
       file.startsWith(`packages/${dir}/`),
@@ -187,8 +212,12 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     if (!fs.existsSync(pkgRoot)) continue;
     if (!dryRun) {
       fs.rmSync(pkgRoot, { recursive: true, force: true });
-      if (fs.existsSync(appPkgAbs)) {
-        removePackageDependency(appPkgAbs, `@${manifest.name}/${dir}`);
+      // Strip the workspace dep from every app's package.json.
+      for (const app of manifest.apps) {
+        const appPkgAbs = path.join(projectRoot, app.dir, "package.json");
+        if (fs.existsSync(appPkgAbs)) {
+          removePackageDependency(appPkgAbs, `@${manifest.name}/${dir}`);
+        }
       }
     }
     sweptPackages.push(dir);
@@ -208,4 +237,12 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     );
   }
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
+}
+
+function sameAppSet(a: string[] | undefined, b: string[] | undefined): boolean {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  const set = new Set(a);
+  return b.every((x) => set.has(x));
 }

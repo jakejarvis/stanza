@@ -1,5 +1,7 @@
 import * as p from "@clack/prompts";
+import type { AppSpec, StanzaManifest } from "@stanza/registry";
 import {
+  categoryHome,
   isCategoryId,
   isMulti,
   KNOWN_CATEGORIES,
@@ -21,6 +23,10 @@ export const add = defineCommand({
   args: {
     slot: { type: "positional", required: true, description: "Category." },
     moduleId: { type: "positional", required: true, description: "Module id." },
+    app: {
+      type: "string",
+      description: "Target app id (required for multi-app projects; auto-picked otherwise).",
+    },
     ...commonArgs,
   },
   run: ({ args }) => cmdAdd(args),
@@ -57,18 +63,66 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   }
 
   const manifest = readManifest(projectRoot);
-  const existing = selectedAll(manifest, category);
+  const home = categoryHome(category);
+  const appFlag = typeof args.app === "string" ? args.app : undefined;
+
+  // Pick target apps based on the module's home.
+  //  - home: "app"     — exactly one app, picked via cwd/flag/prompt.
+  //  - home: "package" — defaults to all apps (shims everywhere); the user can
+  //                       narrow with --app=<id>.
+  //  - home: "repo"    — no app picking; seed with the first app for context.
+  let targetApps: AppSpec[];
+  let pickedAppId: string | undefined;
+  if (home.kind === "app") {
+    const picked = await pickTargetApp({
+      manifest,
+      appFlag,
+      cwd: process.cwd(),
+      projectRoot,
+      reason: `Which app should ${pc.cyan(`${category}/${moduleId}`)} install into?`,
+    });
+    if (!picked) {
+      process.exitCode = 1;
+      return;
+    }
+    targetApps = [picked];
+    pickedAppId = picked.id;
+  } else if (home.kind === "package") {
+    if (appFlag) {
+      const picked = manifest.apps.find((a) => a.id === appFlag);
+      if (!picked) {
+        p.log.error(
+          `Unknown app "${appFlag}". Available: ${manifest.apps.map((a) => a.id).join(", ")}.`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+      targetApps = [picked];
+      pickedAppId = picked.id;
+    } else {
+      targetApps = manifest.apps;
+    }
+  } else {
+    // home: "repo"
+    targetApps = [manifest.apps[0]!];
+  }
+
+  // Per-app cardinality check for home:"app" categories; per-project for the
+  // rest. `selectedAll(manifest, category, appId)` filters to records that
+  // target the given app (or are global).
+  const existing = selectedAll(manifest, category, pickedAppId);
   if (isMulti(category)) {
-    // Multi-choice: only reject re-adding the same id.
     if (existing.some((r) => r.id === moduleId)) {
-      p.log.error(`"${category}/${moduleId}" is already added.`);
+      const where = pickedAppId ? ` in app "${pickedAppId}"` : "";
+      p.log.error(`"${category}/${moduleId}" is already added${where}.`);
       process.exitCode = 1;
       return;
     }
   } else if (existing.length > 0) {
-    // Single-choice: the category is already filled.
+    const where = pickedAppId ? ` (app "${pickedAppId}")` : "";
     p.log.error(
-      `Category "${category}" is already filled by "${existing[0]!.id}". Run \`stanza remove ${category}\` first.`,
+      `Category "${category}"${where} is already filled by "${existing[0]!.id}". ` +
+        `Run \`stanza remove ${category}${pickedAppId ? ` --app=${pickedAppId}` : ""}\` first.`,
     );
     process.exitCode = 1;
     return;
@@ -82,7 +136,16 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     return;
   }
 
-  const resolved = resolveAdapter(mod, { manifest, pending: {} });
+  // Validate appKind matches the target's kind (typically enforces framework→app-kind pairing).
+  if (home.kind === "app" && mod.appKind && mod.appKind !== targetApps[0]!.kind) {
+    p.log.error(
+      `${category}/${moduleId} targets ${pc.cyan(mod.appKind)} apps but "${targetApps[0]!.id}" is ${pc.cyan(targetApps[0]!.kind)}.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const resolved = resolveAdapter(mod, { manifest, pending: {}, targetAppId: pickedAppId });
   if (!resolved.ok) {
     p.log.error(`Cannot add ${mod.label}: ${describeResolveError(resolved.error.kind)}`);
     process.exitCode = 1;
@@ -100,6 +163,7 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
       manifest,
       module: mod,
       adapter: resolved.adapter,
+      targetApps,
       registryRoot,
       dryRun,
     });
@@ -115,6 +179,64 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     p.log.info(`Run ${pc.cyan("pnpm install")} to link ${pc.cyan(name)}.`);
   }
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
+}
+
+/**
+ * Resolve which app to target for a `home:"app"` module. Order:
+ *  1. `--app=<id>` flag wins.
+ *  2. Single-app project auto-targets.
+ *  3. Interactive TTY → prompt the user to pick.
+ *  4. Otherwise (multi-app + non-TTY) → fail with a clear "specify --app" message.
+ */
+async function pickTargetApp(args: {
+  manifest: StanzaManifest;
+  appFlag: string | undefined;
+  cwd: string;
+  projectRoot: string;
+  reason: string;
+}): Promise<AppSpec | null> {
+  const { manifest, appFlag, cwd, projectRoot, reason } = args;
+  if (appFlag) {
+    const picked = manifest.apps.find((a) => a.id === appFlag);
+    if (!picked) {
+      p.log.error(
+        `Unknown app "${appFlag}". Available: ${manifest.apps.map((a) => a.id).join(", ")}.`,
+      );
+      return null;
+    }
+    return picked;
+  }
+  if (manifest.apps.length === 1) return manifest.apps[0]!;
+
+  // Cwd inference: if you're inside one of the app dirs, that's the target.
+  const inferred = manifest.apps.find((a) => {
+    const abs = `${projectRoot.replace(/\/+$/, "")}/${a.dir.replace(/\/+$/, "")}`;
+    return cwd === abs || cwd.startsWith(`${abs}/`);
+  });
+  if (inferred) return inferred;
+
+  // Interactive prompt — only when the user is on a TTY and didn't pass --yes.
+  if (process.stdin.isTTY) {
+    const picked = await p.select({
+      message: reason,
+      options: manifest.apps.map((a) => ({
+        value: a.id,
+        label: a.id,
+        hint: `${a.dir} · ${a.kind}`,
+      })),
+    });
+    if (p.isCancel(picked)) {
+      p.cancel("Cancelled.");
+      return null;
+    }
+    return manifest.apps.find((a) => a.id === picked) ?? null;
+  }
+
+  p.log.error(
+    `This project has multiple apps (${manifest.apps.map((a) => a.id).join(", ")}). ` +
+      `Specify which with \`--app=<id>\`.`,
+  );
+  return null;
 }
 
 function describeResolveError(kind: string): string {

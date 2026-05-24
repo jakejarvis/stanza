@@ -15,33 +15,42 @@ A category has two independent properties: its **cardinality** — `one`
 `testing`) — and its **home**, where a module's output lands (`app`, `repo`, or
 `package`). See [Concepts](/docs/concepts#categories) for the full mental model.
 
-| Category    | Cardinality | Home    | What it covers                                 |
-| ----------- | ----------- | ------- | ---------------------------------------------- |
-| `framework` | one         | app     | App shell + router (Next, TanStack Start, …)   |
-| `api`       | one         | package | Typed RPC layer between framework and services |
-| `ai`        | one         | package | AI SDK + provider wiring                       |
-| `auth`      | one         | package | Authentication (Better Auth, Clerk, …)         |
-| `db`        | one         | package | Database driver (Postgres, SQLite)             |
-| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)         |
-| `styling`   | one         | app     | CSS toolchain (Tailwind, shadcn, …)            |
-| `payments`  | one         | package | Checkout + webhooks (Stripe, Polar, …)         |
-| `email`     | one         | package | Transactional email (Resend)                   |
-| `tooling`   | one         | repo    | Lint/format toolchain                          |
-| `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                |
-| `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)         |
-| `monorepo`  | many        | repo    | Monorepo task runner (Turborepo)               |
+| Category    | Cardinality | Home    | What it covers                                             |
+| ----------- | ----------- | ------- | ---------------------------------------------------------- |
+| `framework` | one         | app     | App shell + router (Next, TanStack Start, Expo, …)         |
+| `api`       | one         | package | Typed RPC layer between framework and services             |
+| `ai`        | one         | package | AI SDK + provider wiring                                   |
+| `auth`      | one         | package | Authentication (Better Auth, Clerk, …)                     |
+| `db`        | one         | package | Database driver (Postgres, SQLite)                         |
+| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)                     |
+| `styling`   | one         | app     | CSS toolchain (Tailwind for web, NativeWind for native, …) |
+| `payments`  | one         | package | Checkout + webhooks (Stripe, Polar, …)                     |
+| `email`     | one         | package | Transactional email (Resend)                               |
+| `tooling`   | one         | repo    | Lint/format toolchain                                      |
+| `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                            |
+| `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)                     |
+| `monorepo`  | many        | repo    | Monorepo task runner (Turborepo)                           |
+
+Single-choice categories with `home: "app"` (currently `framework`, `styling`)
+are enforced **per app** — a multi-app project can pick `next` for the web app
+and `expo` for a native app side by side. See [Concepts → Apps](/docs/concepts#apps).
 
 ## Framework
 
-Single-choice. Provides the app shell, router, and React (or future) runtime.
+Single-choice per app — the chosen framework wires the app shell, router, and
+React (or future) runtime. Modules declare an **`appKind`** (`web` or `native`)
+which the runner uses to validate they're installed into a compatible app: you
+can't install Next.js into a `kind: "native"` app, or Expo into a `kind: "web"`
+one. A multi-app project can pick one framework per app.
 
-| Module           | Status            | Notes                                                                                    |
-| ---------------- | ----------------- | ---------------------------------------------------------------------------------------- |
-| `tanstack-start` | 🟢&nbsp;Available | TanStack Start on Vite (no Vinxi). Provides `web`, `react`, `ssr`, `node`.               |
-| `next`           | 🟢&nbsp;Available | Next.js 16 (App Router). Provides `web`, `react`, `ssr`, `rsc`, `node`, `edge`.          |
-| `nuxt`           | 🟨&nbsp;Planned   | Vue. Requires relaxing the React-implicit assumption in peer modules (capability `vue`). |
-| `svelte`         | 🟨&nbsp;Planned   | SvelteKit (capability `svelte`).                                                         |
-| `solid`          | 🟨&nbsp;Planned   | SolidStart (capability `solid`).                                                         |
+| Module           | `appKind` | Status            | Notes                                                                                    |
+| ---------------- | --------- | ----------------- | ---------------------------------------------------------------------------------------- |
+| `tanstack-start` | web       | 🟢&nbsp;Available | TanStack Start on Vite (no Vinxi). Provides `web`, `react`, `ssr`, `node`.               |
+| `next`           | web       | 🟢&nbsp;Available | Next.js 16 (App Router). Provides `web`, `react`, `ssr`, `rsc`, `node`, `edge`.          |
+| `nuxt`           | web       | 🟨&nbsp;Planned   | Vue. Requires relaxing the React-implicit assumption in peer modules (capability `vue`). |
+| `svelte`         | web       | 🟨&nbsp;Planned   | SvelteKit (capability `svelte`).                                                         |
+| `solid`          | web       | 🟨&nbsp;Planned   | SolidStart (capability `solid`).                                                         |
+| `expo`           | native    | 🟨&nbsp;Planned   | Expo + React Native. Unblocks the first `kind: "native"` app.                            |
 
 ## API
 
@@ -92,13 +101,17 @@ Single-choice, shares `packages/db/` with the database driver.
 
 ## Styling
 
-Single-choice.
+Single-choice per app. Adapters branch on the active app's `framework` peer, so
+the same `tailwind` module ships PostCSS config for Next, a Vite plugin for
+TanStack Start, etc.
 
-| Module         | Status            | Notes                                        |
-| -------------- | ----------------- | -------------------------------------------- |
-| `tailwind`     | 🟢&nbsp;Available | Vanilla Tailwind v4, adapters per framework. |
-| `shadcn-radix` | 🟨&nbsp;Planned   | Classic shadcn/ui (Radix primitives).        |
-| `shadcn-base`  | 🟨&nbsp;Planned   | shadcn on Base UI.                           |
+| Module         | For    | Status            | Notes                                              |
+| -------------- | ------ | ----------------- | -------------------------------------------------- |
+| `tailwind`     | web    | 🟢&nbsp;Available | Vanilla Tailwind v4, adapters per web framework.   |
+| `shadcn-radix` | web    | 🟨&nbsp;Planned   | Classic shadcn/ui (Radix primitives).              |
+| `shadcn-base`  | web    | 🟨&nbsp;Planned   | shadcn on Base UI.                                 |
+| `nativewind`   | native | 🟨&nbsp;Planned   | Tailwind-style className API for React Native.     |
+| `unistyles`    | native | 🟨&nbsp;Planned   | Native StyleSheet with theme + breakpoint support. |
 
 ## Payments
 

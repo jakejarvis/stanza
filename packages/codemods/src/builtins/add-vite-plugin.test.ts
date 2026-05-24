@@ -46,6 +46,7 @@ function setup(initial: string = BASE_VITE_CONFIG) {
   const manifest = emptyManifest({ name: "t" });
   const ctx: CodemodContext = {
     projectRoot: "/repo",
+    app: manifest.apps[0]!,
     appRoot: "/repo/apps/web",
     project: () => inMem,
     manifest,

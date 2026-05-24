@@ -1,10 +1,17 @@
-import type { CategoryId, ModuleId, StanzaManifest } from "@stanza/registry";
+import type { AppSpec, CategoryId, ModuleId, StanzaManifest } from "@stanza/registry";
 import type { Project } from "ts-morph";
 
 export type CodemodContext = {
   /** Absolute path to the project root (where stanza.json lives). */
   projectRoot: string;
-  /** Absolute path to the active app dir (manifest.appDir resolved). */
+  /**
+   * The app this codemod invocation is targeting. The runner loops over a
+   * module's `apps` and dispatches once per app, so each invocation sees a
+   * single concrete app — codemods can branch on `app.kind` / `app.id` when
+   * needed.
+   */
+  app: AppSpec;
+  /** Absolute path to the active app dir (`projectRoot` + `app.dir`). */
   appRoot: string;
   /** ts-morph Project, lazily opened on first AST-touching codemod. */
   project: () => Project;

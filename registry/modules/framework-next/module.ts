@@ -6,6 +6,7 @@ export default defineModule({
   label: "Next.js",
   description: "React framework with App Router, RSC, and edge runtime.",
   version: "0.1.0",
+  appKind: "web",
   homepage: "https://nextjs.org",
   adapters: [
     {

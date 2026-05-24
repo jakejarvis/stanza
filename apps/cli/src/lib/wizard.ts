@@ -1,8 +1,9 @@
 import * as p from "@clack/prompts";
-import type { CategoryId, Module, PackageManager, RegistryIndex } from "@stanza/registry";
+import type { AppSpec, CategoryId, Module, PackageManager, RegistryIndex } from "@stanza/registry";
 import {
   categoryLabel,
   categoryOrder,
+  defaultWebApp,
   emptyManifest,
   isMulti,
   KNOWN_CATEGORIES,
@@ -15,7 +16,12 @@ import type { Registry } from "./registry-loader";
 
 export type WizardResult = {
   name: string;
-  appDir: string;
+  /**
+   * Apps to scaffold. Today the wizard always returns a single web app —
+   * multi-app init is a planned follow-up, but downstream code is already
+   * multi-app-shaped.
+   */
+  apps: AppSpec[];
   packageManager: "pnpm" | "bun" | "npm";
   /** Chosen modules, keyed by category. Single-choice categories hold one. */
   selections: Partial<Record<CategoryId, Module[]>>;
@@ -141,7 +147,7 @@ export async function runInitWizard(args: {
 
   return {
     name,
-    appDir: "apps/web",
+    apps: [defaultWebApp()],
     packageManager: pmChoice,
     selections,
   };
@@ -219,7 +225,7 @@ async function runNonInteractive(args: {
 
   return {
     name,
-    appDir: "apps/web",
+    apps: [defaultWebApp()],
     packageManager: overrides.packageManager ?? "pnpm",
     selections,
   };

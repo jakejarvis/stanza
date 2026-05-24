@@ -1,4 +1,5 @@
 export type {
+  AppKind,
   Category,
   CategoryId,
   Cardinality,
@@ -16,6 +17,7 @@ export type {
   JsonValue,
 } from "./module";
 export {
+  APP_KINDS,
   defineModule,
   CATEGORIES,
   KNOWN_CATEGORIES,
@@ -31,12 +33,21 @@ export {
   RegistryIndexSchema,
 } from "./module";
 
-export type { StanzaManifest, StanzaModuleRecord, RegionMap, RegionOwnership } from "./manifest";
+export type {
+  AppSpec,
+  StanzaManifest,
+  StanzaModuleRecord,
+  RegionMap,
+  RegionOwnership,
+} from "./manifest";
 export {
   StanzaManifestSchema,
   CURRENT_MANIFEST_VERSION,
   MANIFEST_SCHEMA_URL,
+  defaultWebApp,
   emptyManifest,
+  getApp,
+  appsForRecord,
   selectedOne,
   selectedAll,
   manifestJsonSchema,
@@ -51,10 +62,11 @@ export type {
   MergedInstallFields,
   ResolvedEntry,
   Resolved,
+  SynthesizeEntry,
 } from "./package-json";
 export {
   mergeInstallFields,
-  installPackageJson,
+  installPackageJsonTargets,
   rootPackageJson,
   appPackageJsonBase,
   slotPackageJsonBase,
