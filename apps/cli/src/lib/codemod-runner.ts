@@ -442,14 +442,15 @@ function ensureSlotPackage(args: {
     if (!dryRun) {
       // Self-contained tsconfig — generated projects don't share a base, so
       // each app and package stands on its own. Mirrors the shape framework
-      // modules ship for app `tsconfig.json`. The `ui` package adds JSX +
-      // a path alias to its own `./src/*` so internal subpath self-imports
+      // modules ship for app `tsconfig.json`. The `ui` package adds a path
+      // alias to its own `./src/*` so internal subpath self-imports
       // (e.g. button.tsx → `@<name>/ui/lib/utils`) resolve at type-check time.
       const compilerOptions: Record<string, unknown> = {
         target: "ES2022",
         lib: ["dom", "dom.iterable", "esnext"],
         module: "esnext",
         moduleResolution: "bundler",
+        jsx: "react-jsx",
         strict: true,
         noUncheckedIndexedAccess: true,
         skipLibCheck: true,
@@ -460,7 +461,6 @@ function ensureSlotPackage(args: {
         types: ["node"],
       };
       if (packageDir === "ui") {
-        compilerOptions.jsx = "react-jsx";
         compilerOptions.baseUrl = ".";
         compilerOptions.paths = { [`${packageName}/*`]: ["./src/*"] };
       }
