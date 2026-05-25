@@ -21,6 +21,7 @@
  */
 import type { Codemod } from "../index";
 import addArrayEntryInCall from "./add-array-entry-in-call";
+import addJsxChild from "./add-jsx-child";
 import addPackageDep from "./add-package-dep";
 import addPluginToCall from "./add-plugin-to-call";
 import appendToFile from "./append-to-file";
@@ -32,6 +33,7 @@ import wrapRootLayout from "./wrap-root-layout";
 
 export const CODEMOD_CATALOG: Record<string, Codemod> = {
   [addArrayEntryInCall.id]: addArrayEntryInCall,
+  [addJsxChild.id]: addJsxChild,
   [addPackageDep.id]: addPackageDep,
   [addPluginToCall.id]: addPluginToCall,
   [appendToFile.id]: appendToFile,
@@ -44,6 +46,7 @@ export const CODEMOD_CATALOG: Record<string, Codemod> = {
 
 export {
   addArrayEntryInCall,
+  addJsxChild,
   addPackageDep,
   addPluginToCall,
   appendToFile,
@@ -54,6 +57,7 @@ export {
   wrapRootLayout,
 };
 export type { AddArrayEntryInCallArgs } from "./add-array-entry-in-call";
+export type { AddJsxChildArgs } from "./add-jsx-child";
 export type { AddPackageDepArgs } from "./add-package-dep";
 export type { AddPluginToCallArgs } from "./add-plugin-to-call";
 export type { AppendToFileArgs } from "./append-to-file";

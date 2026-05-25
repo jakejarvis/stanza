@@ -72,7 +72,7 @@ export function PackageManagerSelect({
   onValueChange: (pm: PackageManager) => void;
 }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
           <Button variant="outline" aria-label="Package manager">

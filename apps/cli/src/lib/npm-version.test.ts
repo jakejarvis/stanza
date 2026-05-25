@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { clearVersionCacheForTests, resolveRange, resolveRanges } from "./npm-version";
+import {
+  clearVersionCacheForTests,
+  resolveExactVersion,
+  resolveRange,
+  resolveRanges,
+} from "./npm-version";
 
 const VERSIONS = ["1.6.11", "1.6.20", "1.7.0", "1.8.3", "2.0.0"];
 
@@ -95,6 +100,36 @@ describe("resolveRange", () => {
       expect.stringContaining("/@scope%2Fpkg"),
       expect.anything(),
     );
+  });
+});
+
+describe("resolveExactVersion", () => {
+  it("bumps to the latest version satisfying ^${input}, stripping the modifier", async () => {
+    vi.stubGlobal("fetch", mockFetch());
+    expect(await resolveExactVersion("pnpm", "1.6.11")).toBe("1.8.3");
+  });
+
+  it("falls back to the input version when STANZA_NO_NPM_LOOKUP is set", async () => {
+    process.env.STANZA_NO_NPM_LOOKUP = "1";
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await resolveExactVersion("pnpm", "1.6.11")).toBe("1.6.11");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back when the request rejects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<FetchStub>(async () => {
+        throw new Error("offline");
+      }),
+    );
+    expect(await resolveExactVersion("pnpm", "1.6.11")).toBe("1.6.11");
+  });
+
+  it("falls back when nothing satisfies the implied caret range", async () => {
+    vi.stubGlobal("fetch", mockFetch(["0.9.0"]));
+    expect(await resolveExactVersion("pnpm", "1.6.11")).toBe("1.6.11");
   });
 });
 

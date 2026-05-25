@@ -73,26 +73,40 @@ export function installPackageJsonTargets(module: Module, apps: AppSpec[]): stri
   return apps.map((a) => `${a.dir.replace(/\/+$/, "")}/package.json`);
 }
 
-const PM_VERSION: Record<PackageManager, string> = {
-  pnpm: "pnpm@10.33.4",
-  bun: "bun@1.3.14",
-  npm: "npm@10.9.0",
+/**
+ * Floor version per package manager — used when the caller doesn't supply a
+ * resolved version. The CLI runs this through `resolveExactVersion` at init
+ * time so newly-generated projects get the latest matching release; the web
+ * preview's synth path uses the floor as-is to avoid per-render npm lookups.
+ * Stored as bare versions (no `${pm}@` prefix) so callers can feed them
+ * directly into the version resolver.
+ */
+export const PM_FLOOR_VERSION: Record<PackageManager, string> = {
+  pnpm: "10.33.4",
+  bun: "1.3.14",
+  npm: "10.9.0",
 };
 
 /**
  * Root `package.json`. pnpm reads its workspace globs from `pnpm-workspace.yaml`,
  * so the `workspaces` field is emitted only for bun/npm.
+ *
+ * `packageManagerVersion` overrides the floor — pass a resolver result (e.g.
+ * from `resolveExactVersion`) to pin to the latest matching release. Corepack
+ * requires an exact version, so this value must not carry a `^`/`~` prefix.
  */
 export function rootPackageJson(opts: {
   name: string;
   packageManager: PackageManager;
+  packageManagerVersion?: string;
 }): PackageJson {
   const { name, packageManager } = opts;
+  const pmVersion = opts.packageManagerVersion ?? PM_FLOOR_VERSION[packageManager];
   const pkg: PackageJson = {
     name,
     private: true,
     version: "0.1.0",
-    packageManager: PM_VERSION[packageManager],
+    packageManager: `${packageManager}@${pmVersion}`,
     scripts: {
       dev: `${packageManager} -r run dev`,
       build: `${packageManager} -r run build`,

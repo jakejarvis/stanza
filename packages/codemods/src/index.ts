@@ -8,6 +8,7 @@ export type {
   ExportSpecifier,
   ImportDeclaration,
   JsxAttribute,
+  JsxElement,
   JsxOpeningElement,
   Node,
   Project,

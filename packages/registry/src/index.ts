@@ -71,6 +71,7 @@ export {
   appPackageJsonBase,
   slotPackageJsonBase,
   synthesizePackageJsons,
+  PM_FLOOR_VERSION,
 } from "./package-json";
 
 export {

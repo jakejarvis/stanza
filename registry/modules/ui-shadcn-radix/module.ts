@@ -3,9 +3,8 @@ import { defineModule } from "@stanza/registry";
 export default defineModule({
   id: "shadcn-radix",
   category: "ui",
-  label: "shadcn (Radix)",
-  description:
-    "shadcn/ui registry preset `radix-nova` — Tailwind + Radix primitives in packages/ui.",
+  label: "shadcn/ui (Radix)",
+  description: "shadcn/ui with Tailwind + Radix primitives.",
   version: "0.1.0",
   peers: { framework: ["next", "tanstack-start"] },
   homepage: "https://ui.shadcn.com",
@@ -44,6 +43,12 @@ export default defineModule({
           template: true,
         },
         {
+          src: "shared/package/src/components/dropdown-menu.tsx",
+          dest: "src/components/dropdown-menu.tsx",
+          scope: "package",
+          template: true,
+        },
+        {
           src: "shared/package/components.json",
           dest: "components.json",
           scope: "package",
@@ -60,7 +65,7 @@ export default defineModule({
           dest: "postcss.config.mjs",
           scope: "package",
         },
-        // apps/<id>/ — outer shadcn config + ThemeProvider + postcss re-export.
+        // apps/<id>/ — outer shadcn config + ThemeProvider/ThemeToggle + postcss re-export.
         {
           src: "next/app/components.json",
           dest: "components.json",
@@ -77,6 +82,12 @@ export default defineModule({
           src: "next/app/components/theme-provider.tsx",
           dest: "components/theme-provider.tsx",
           scope: "app",
+        },
+        {
+          src: "next/app/components/theme-toggle.tsx",
+          dest: "components/theme-toggle.tsx",
+          scope: "app",
+          template: true,
         },
       ],
       codemods: [
@@ -120,6 +131,20 @@ export default defineModule({
             paths: { "{{package.name}}/*": ["../../packages/ui/src/*"] },
           },
         },
+        // Drop a working <ThemeToggle /> into the starter homepage so the
+        // dark-mode wiring is visible on first run — gated on the framework
+        // starter's "Welcome to Stanza" fingerprint, so a user-edited page
+        // is left untouched.
+        {
+          id: "add-jsx-child",
+          args: {
+            file: "app/page.tsx",
+            parent: "main",
+            element: "<ThemeToggle />",
+            onlyIfContains: ["Welcome to Stanza"],
+            imports: [{ from: "@/components/theme-toggle", named: ["ThemeToggle"] }],
+          },
+        },
       ],
     },
     {
@@ -143,6 +168,12 @@ export default defineModule({
           template: true,
         },
         {
+          src: "shared/package/src/components/dropdown-menu.tsx",
+          dest: "src/components/dropdown-menu.tsx",
+          scope: "package",
+          template: true,
+        },
+        {
           src: "shared/package/components.json",
           dest: "components.json",
           scope: "package",
@@ -156,7 +187,7 @@ export default defineModule({
         },
         // apps/<id>/ — outer shadcn config + the TSS-native ThemeProvider
         // (ScriptOnce-based, per https://ui.shadcn.com/docs/dark-mode/tanstack-start —
-        // next-themes is Next-only).
+        // next-themes is Next-only) + the user-mountable ThemeToggle.
         {
           src: "tanstack-start/app/components.json",
           dest: "components.json",
@@ -167,6 +198,12 @@ export default defineModule({
           src: "tanstack-start/app/components/theme-provider.tsx",
           dest: "components/theme-provider.tsx",
           scope: "app",
+        },
+        {
+          src: "tanstack-start/app/components/theme-toggle.tsx",
+          dest: "components/theme-toggle.tsx",
+          scope: "app",
+          template: true,
         },
       ],
       codemods: [
@@ -222,6 +259,19 @@ export default defineModule({
           id: "set-tsconfig-paths",
           args: {
             paths: { "{{package.name}}/*": ["../../packages/ui/src/*"] },
+          },
+        },
+        // Seed the starter route with a working <ThemeToggle />. Gated on
+        // the framework's "Welcome to Stanza" fingerprint so a customized
+        // index.tsx is left alone.
+        {
+          id: "add-jsx-child",
+          args: {
+            file: "src/routes/index.tsx",
+            parent: "main",
+            element: "<ThemeToggle />",
+            onlyIfContains: ["Welcome to Stanza"],
+            imports: [{ from: "@/components/theme-toggle", named: ["ThemeToggle"] }],
           },
         },
       ],

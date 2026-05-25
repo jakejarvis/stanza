@@ -10,6 +10,7 @@ import {
   ENV_EXAMPLE_HEADER,
   KNOWN_CATEGORIES,
   PEER_CATEGORIES,
+  PM_FLOOR_VERSION,
   resolveAdapter,
   rootPackageJson,
 } from "@stanza/registry";
@@ -19,6 +20,7 @@ import pc from "picocolors";
 import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { initManifest } from "../lib/manifest";
+import { resolveExactVersion } from "../lib/npm-version";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
@@ -82,7 +84,7 @@ export async function cmdInit(args: CliArgs): Promise<void> {
   fs.mkdirSync(projectRoot, { recursive: true });
 
   // Bootstrap the empty monorepo shell.
-  bootstrapShell(projectRoot, {
+  await bootstrapShell(projectRoot, {
     name: result.name,
     packageManager: result.packageManager,
     apps: result.apps,
@@ -166,16 +168,28 @@ export async function cmdInit(args: CliArgs): Promise<void> {
   );
 }
 
-function bootstrapShell(
+async function bootstrapShell(
   projectRoot: string,
   opts: { name: string; packageManager: "pnpm" | "bun" | "npm"; apps: AppSpec[] },
 ) {
+  // Pin `packageManager` to the latest released version that still satisfies
+  // the floor (Corepack requires an exact version, so the modifier is stripped).
+  // Falls back to the floor on any lookup failure — same chain as `resolveRange`.
+  const packageManagerVersion = await resolveExactVersion(
+    opts.packageManager,
+    PM_FLOOR_VERSION[opts.packageManager],
+  );
+
   // Root package.json. The shared builder emits the `workspaces` field for
   // bun/npm; pnpm reads its globs from pnpm-workspace.yaml (written below).
   fs.writeFileSync(
     path.join(projectRoot, "package.json"),
     JSON.stringify(
-      rootPackageJson({ name: opts.name, packageManager: opts.packageManager }),
+      rootPackageJson({
+        name: opts.name,
+        packageManager: opts.packageManager,
+        packageManagerVersion,
+      }),
       null,
       2,
     ) + "\n",

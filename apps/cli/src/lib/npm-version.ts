@@ -63,6 +63,18 @@ export async function resolveRange(name: string, range: string): Promise<string>
   return max ? `${modifier}${max}` : range;
 }
 
+/**
+ * Like `resolveRange` but returns an exact version with no modifier — for fields
+ * that require pinned versions (e.g. `packageManager` in package.json, which
+ * Corepack reads). Treats `version` as `^${version}` for the lookup, then strips
+ * the modifier from the result. Falls back to `version` verbatim on any lookup
+ * failure, same as `resolveRange`.
+ */
+export async function resolveExactVersion(name: string, version: string): Promise<string> {
+  const resolved = await resolveRange(name, `^${version}`);
+  return resolved.replace(/^[\^~]/, "");
+}
+
 /** Resolve a whole `name -> range` map in parallel; failures fall back per-entry. */
 export async function resolveRanges(deps: Record<string, string>): Promise<Record<string, string>> {
   const entries = await Promise.all(
