@@ -355,6 +355,12 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/registry
 
+  registry/modules/email-resend:
+    dependencies:
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
   registry/modules/framework-next:
     dependencies:
       '@stanza/codemods':
