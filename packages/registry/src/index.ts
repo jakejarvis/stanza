@@ -54,7 +54,7 @@ export {
 } from "./manifest";
 
 export type { ResolveContext, ResolveResult, ResolveError } from "./resolver";
-export { resolveAdapter, isCompatible, categoryOrder } from "./resolver";
+export { resolveAdapter, isCompatible, categoryOrder, activePeerIds } from "./resolver";
 
 export type {
   PackageManager,

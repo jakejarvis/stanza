@@ -94,6 +94,21 @@ function pendingPeers(
 }
 
 /**
+ * Active peer ids — the URL-derived equivalent of the CLI runner's
+ * `activePeerIds(manifest, app.id)`. Single source of truth for what
+ * `synthesizeTemplates` should expose under `{{peers.<category>}}` in the
+ * Handlebars render context.
+ */
+export function selectedPeerIds(selections: Selections): Partial<Record<CategoryId, string>> {
+  const out: Partial<Record<CategoryId, string>> = {};
+  for (const category of PEER_CATEGORIES) {
+    const id = selections[category]?.[0];
+    if (id) out[category] = id;
+  }
+  return out;
+}
+
+/**
  * Resolve each selected module's adapter against the chosen one-cardinality
  * peers — the same logic the CLI uses. Modules whose peers aren't satisfied are
  * dropped from the result.

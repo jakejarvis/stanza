@@ -25,6 +25,7 @@
     "@changesets/cli": "^2.31.0",
     "@stanza/registry": "workspace:*",
     "@types/node": "^25.9.1",
+    "jiti": "^2.7.0",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:"
   },

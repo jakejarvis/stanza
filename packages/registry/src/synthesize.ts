@@ -146,7 +146,7 @@ export type SynthesizedTemplate = {
  */
 export function synthesizeTemplates(
   resolved: Partial<Record<CategoryId, SynthesizeEntry[]>>,
-  opts: { name: string; apps?: AppSpec[] },
+  opts: { name: string; apps?: AppSpec[]; peers?: Partial<Record<CategoryId, string>> },
 ): SynthesizedTemplate[] {
   const apps = opts.apps && opts.apps.length > 0 ? opts.apps : [defaultWebApp()];
   const out: SynthesizedTemplate[] = [];
@@ -170,6 +170,7 @@ export function synthesizeTemplates(
           projectName: opts.name,
           app,
           packageName,
+          peers: opts.peers,
         });
 
       for (const tpl of entry.adapter.templates ?? []) {

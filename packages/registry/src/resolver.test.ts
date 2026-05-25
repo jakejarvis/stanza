@@ -2,7 +2,7 @@ import { assert, describe, expect, it } from "vite-plus/test";
 
 import { emptyManifest } from "./manifest";
 import { defineModule, type Module } from "./module";
-import { resolveAdapter } from "./resolver";
+import { activePeerIds, resolveAdapter } from "./resolver";
 
 const drizzle: Module = defineModule({
   id: "drizzle",
@@ -154,5 +154,71 @@ describe("resolveAdapter — add-ons", () => {
     assert(!result.ok);
     // Still missing-peer for orm — the testing pick did not satisfy or interfere.
     expect(result.error.kind).toBe("missing-peer");
+  });
+});
+
+// Module with both a generic default and a framework-specific override —
+// mirrors the tooling-eslint-prettier shape after its standalone refactor.
+const eslintLike: Module = defineModule({
+  id: "eslint-like",
+  category: "tooling",
+  label: "ESLint-like",
+  description: "",
+  version: "0.1.0",
+  adapters: [
+    { key: "next", match: { framework: "next" } },
+    { key: "default", match: {} },
+  ],
+});
+
+describe("resolveAdapter — default + framework-specific adapters coexist", () => {
+  it("picks the framework-specific adapter when its peer is active", () => {
+    const result = resolveAdapter(eslintLike, {
+      manifest: emptyManifest({ name: "t" }),
+      pending: { framework: next },
+    });
+    expect(result.ok).toBe(true);
+    assert(result.ok);
+    expect(result.adapter.key).toBe("next");
+  });
+
+  it("falls back to the empty-match default when no framework is selected", () => {
+    const result = resolveAdapter(eslintLike, {
+      manifest: emptyManifest({ name: "t" }),
+      pending: {},
+    });
+    expect(result.ok).toBe(true);
+    assert(result.ok);
+    expect(result.adapter.key).toBe("default");
+  });
+});
+
+describe("activePeerIds", () => {
+  it("returns an empty record for a manifest with no selections", () => {
+    expect(activePeerIds(emptyManifest({ name: "t" }))).toEqual({});
+  });
+
+  it("reads the installed framework id from the manifest", () => {
+    const manifest = {
+      ...emptyManifest({ name: "t" }),
+      modules: {
+        framework: [{ id: "next", version: "0.1.0", adapter: "default", apps: ["web"] }],
+      },
+    };
+    expect(activePeerIds(manifest, "web")).toEqual({ framework: "next" });
+  });
+
+  it("scopes app-home peer lookups to the targetAppId", () => {
+    const manifest = {
+      ...emptyManifest({ name: "t" }),
+      modules: {
+        framework: [
+          { id: "next", version: "0.1.0", adapter: "default", apps: ["web"] },
+          { id: "expo", version: "0.1.0", adapter: "default", apps: ["native"] },
+        ],
+      },
+    };
+    expect(activePeerIds(manifest, "web").framework).toBe("next");
+    expect(activePeerIds(manifest, "native").framework).toBe("expo");
   });
 });

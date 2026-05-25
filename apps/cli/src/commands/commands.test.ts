@@ -330,3 +330,91 @@ describe("tooling slot (single-choice, repo-scoped)", () => {
     expect(manifest.modules.tooling[0].id).toBe("biome");
   });
 });
+
+describe("tooling-eslint-prettier — framework-conditional rendering", () => {
+  it("installs without a framework via the default adapter (pure-TS config)", async () => {
+    await cmdInit(args({ name: "app", yes: true, tooling: "eslint-prettier" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const projectRoot = path.join(tmp, "app");
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(manifest.modules.tooling?.[0]).toMatchObject({
+      id: "eslint-prettier",
+      adapter: "default",
+    });
+
+    const config = fs.readFileSync(path.join(projectRoot, "eslint.config.mjs"), "utf8");
+    // Framework-specific blocks must be absent.
+    expect(config).not.toContain("@next/eslint-plugin-next");
+    expect(config).not.toContain("eslint-plugin-react");
+    expect(config).not.toContain("core-web-vitals");
+    expect(config).not.toContain(".next");
+    expect(config).not.toContain("routeTree.gen.ts");
+    // Pure-TS base is still present.
+    expect(config).toContain('import tseslint from "typescript-eslint";');
+    expect(config).toContain('import prettier from "eslint-config-prettier";');
+
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
+    expect(rootPkg.devDependencies.eslint).toBeTruthy();
+    expect(rootPkg.devDependencies["@next/eslint-plugin-next"]).toBeUndefined();
+    expect(rootPkg.devDependencies["eslint-plugin-react"]).toBeUndefined();
+    expect(rootPkg.devDependencies["eslint-plugin-react-hooks"]).toBeUndefined();
+  });
+
+  it("layers Next-specific plugins when framework=next", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next", tooling: "eslint-prettier" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const projectRoot = path.join(tmp, "app");
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(manifest.modules.tooling?.[0]).toMatchObject({
+      id: "eslint-prettier",
+      adapter: "next",
+    });
+
+    const config = fs.readFileSync(path.join(projectRoot, "eslint.config.mjs"), "utf8");
+    expect(config).toContain('import next from "@next/eslint-plugin-next";');
+    expect(config).toContain("core-web-vitals");
+    expect(config).toContain("**/.next/**");
+    // TanStack-specific bits must not leak in.
+    expect(config).not.toContain('import react from "eslint-plugin-react";');
+    expect(config).not.toContain("routeTree.gen.ts");
+
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
+    expect(rootPkg.devDependencies["@next/eslint-plugin-next"]).toBeTruthy();
+    expect(rootPkg.devDependencies["eslint-plugin-react-hooks"]).toBeTruthy();
+    expect(rootPkg.devDependencies["eslint-plugin-react"]).toBeUndefined();
+  });
+
+  it("layers TanStack-specific plugins when framework=tanstack-start", async () => {
+    await cmdInit(
+      args({
+        name: "app",
+        yes: true,
+        framework: "tanstack-start",
+        tooling: "eslint-prettier",
+      }),
+    );
+    expect(process.exitCode).toBeFalsy();
+
+    const projectRoot = path.join(tmp, "app");
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(manifest.modules.tooling?.[0]).toMatchObject({
+      id: "eslint-prettier",
+      adapter: "tanstack-start",
+    });
+
+    const config = fs.readFileSync(path.join(projectRoot, "eslint.config.mjs"), "utf8");
+    expect(config).toContain('import react from "eslint-plugin-react";');
+    expect(config).toContain("routeTree.gen.ts");
+    expect(config).toContain("react/react-in-jsx-scope");
+    // Next-specific bits must not leak in.
+    expect(config).not.toContain("@next/eslint-plugin-next");
+    expect(config).not.toContain("core-web-vitals");
+
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf8"));
+    expect(rootPkg.devDependencies["eslint-plugin-react"]).toBeTruthy();
+    expect(rootPkg.devDependencies["eslint-plugin-react-hooks"]).toBeTruthy();
+    expect(rootPkg.devDependencies["@next/eslint-plugin-next"]).toBeUndefined();
+  });
+});

@@ -15,6 +15,7 @@ import type {
   TemplateRef,
 } from "@stanza/registry";
 import {
+  activePeerIds,
   buildRenderContext,
   categoryHome,
   installPackageJsonTargets,
@@ -122,11 +123,14 @@ export async function applyModule(args: {
   // the active target so a module shipped into multiple apps renders correctly
   // per app. `seedApp` covers repo/package-scoped templates — they don't
   // reference `app.*` but `buildRenderContext` still needs a valid `AppSpec`.
+  // Peers are resolved per-app so app-scoped templates see the right framework
+  // (e.g. web's framework vs native's) when conditionally branching.
   const renderContextFor = (app: AppSpec): TemplateContext =>
     buildRenderContext({
       projectName: manifest.name,
       app,
       packageName,
+      peers: activePeerIds(manifest, app.id),
     });
   const seedApp = targetApps[0]!;
 
@@ -593,6 +597,7 @@ export async function revertCodemods(args: {
       projectName: manifest.name,
       app,
       packageName,
+      peers: activePeerIds(manifest, app.id),
     });
     const project = lazyProject(appRoot);
     const ctx = buildContext({

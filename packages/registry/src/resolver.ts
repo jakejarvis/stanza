@@ -45,7 +45,7 @@ export type ResolveResult =
  * always wins on tiebreak when no peers are required.
  */
 export function resolveAdapter(module: Module, context: ResolveContext): ResolveResult {
-  const activePeers = activePeerIds(context);
+  const activePeers = activePeerIdsForContext(context);
 
   // Check declared peers are satisfied (id present + on allow-list if specified).
   for (const category of PEER_CATEGORIES) {
@@ -87,20 +87,39 @@ export function isCompatible(module: Module, context: ResolveContext): boolean {
 }
 
 /**
- * Active peer ids — only `cardinality: "one"` categories can be peers, so we
- * iterate `PEER_CATEGORIES` and read the single installed/pending pick. When
- * `targetAppId` is set, the installed lookup is scoped to that app so e.g.
- * web's styling adapter peer-matches against web's framework, not native's.
+ * Active peer ids from the manifest alone — only `cardinality: "one"`
+ * categories can be peers, so we iterate `PEER_CATEGORIES` and read the
+ * single installed pick. When `targetAppId` is set, the lookup is scoped to
+ * that app so e.g. web's styling adapter peer-matches against web's
+ * framework, not native's.
+ *
+ * Exported so callers outside the resolver (the CLI runner and web
+ * synthesize, which both feed peers into the template render context) share
+ * exactly one implementation.
+ */
+export function activePeerIds(
+  manifest: StanzaManifest,
+  targetAppId?: string,
+): Partial<Record<CategoryId, string>> {
+  const out: Partial<Record<CategoryId, string>> = {};
+  for (const category of PEER_CATEGORIES) {
+    const installed = selectedOne(manifest, category, targetAppId)?.id;
+    if (installed) out[category] = installed;
+  }
+  return out;
+}
+
+/**
+ * Layer in-flight `pending` picks over the manifest's installed peers.
  * Pending picks aren't yet app-scoped — they belong to the same in-flight
  * resolution and only one app is being processed at a time.
  */
-function activePeerIds(context: ResolveContext): Partial<Record<CategoryId, string>> {
-  const out: Partial<Record<CategoryId, string>> = {};
+function activePeerIdsForContext(context: ResolveContext): Partial<Record<CategoryId, string>> {
+  const installed = activePeerIds(context.manifest, context.targetAppId);
+  const out: Partial<Record<CategoryId, string>> = { ...installed };
   for (const category of PEER_CATEGORIES) {
     const pending = context.pending[category]?.id;
-    const installed = selectedOne(context.manifest, category, context.targetAppId)?.id;
-    const chosen = pending ?? installed;
-    if (chosen) out[category] = chosen;
+    if (pending) out[category] = pending;
   }
   return out;
 }

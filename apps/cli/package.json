@@ -48,6 +48,7 @@
   "dependencies": {
     "@clack/prompts": "^1.4.0",
     "citty": "^0.2.2",
+    "handlebars": "^4.7.9",
     "picocolors": "^1.1.1",
     "semver": "^7.8.1",
     "ts-morph": "^28.0.0",

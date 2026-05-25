@@ -40,18 +40,58 @@ describe("renderTemplate", () => {
     expect(renderTemplate("{{  project.name  }}", ctx)).toBe("acme");
   });
 
-  it("throws on a missing top-level key", () => {
-    expect(() => renderTemplate("{{missing}}", ctx)).toThrow(/missing or non-string key "missing"/);
+  it("renders missing keys as empty strings (non-strict Handlebars)", () => {
+    expect(renderTemplate("[{{missing}}]", ctx)).toBe("[]");
+    expect(renderTemplate("[{{packages.nope.name}}]", ctx)).toBe("[]");
   });
 
-  it("throws on a missing nested key", () => {
-    expect(() => renderTemplate("{{packages.nope.name}}", ctx)).toThrow(
-      /missing or non-string key "packages.nope.name"/,
-    );
+  it("does not HTML-escape values (noEscape=true)", () => {
+    // Without noEscape, the "/" in package names would become "&#x2F;".
+    expect(renderTemplate("{{package.name}}", ctx)).toBe("@acme/auth");
   });
 
-  it("throws when a path resolves to an object instead of a string", () => {
-    expect(() => renderTemplate("{{project}}", ctx)).toThrow(/missing or non-string key "project"/);
+  describe("peers + conditionals", () => {
+    const withNext = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      peers: { framework: "next" },
+    });
+    const withTanstack = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      peers: { framework: "tanstack-start" },
+    });
+    const noFramework = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+    });
+
+    it("renders an `if (eq)` block when the active peer matches", () => {
+      const tpl = '{{#if (eq peers.framework "next")}}NEXT{{/if}}';
+      expect(renderTemplate(tpl, withNext)).toBe("NEXT");
+      expect(renderTemplate(tpl, withTanstack)).toBe("");
+      expect(renderTemplate(tpl, noFramework)).toBe("");
+    });
+
+    it("matches hyphenated peer ids", () => {
+      const tpl = '{{#if (eq peers.framework "tanstack-start")}}TS{{/if}}';
+      expect(renderTemplate(tpl, withTanstack)).toBe("TS");
+      expect(renderTemplate(tpl, withNext)).toBe("");
+    });
+
+    it("renders an `unless` block when the active peer is absent", () => {
+      const tpl = "{{#unless peers.framework}}NONE{{/unless}}";
+      expect(renderTemplate(tpl, noFramework)).toBe("NONE");
+      expect(renderTemplate(tpl, withNext)).toBe("");
+    });
+
+    it("exposes the raw peer id under {{peers.<category>}}", () => {
+      expect(renderTemplate("[{{peers.framework}}]", withNext)).toBe("[next]");
+      expect(renderTemplate("[{{peers.framework}}]", noFramework)).toBe("[]");
+    });
   });
 });
 
@@ -65,6 +105,19 @@ describe("buildRenderContext", () => {
     // PACKAGE_DIRS is derived from CATEGORIES; auth + db are both package homes.
     expect(ctx.packages.auth?.name).toBe("@acme/auth");
     expect(ctx.packages.db?.name).toBe("@acme/db");
+  });
+
+  it("materializes every PEER_CATEGORIES key under `peers` (undefined when unset)", () => {
+    const ctx = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      peers: { framework: "next" },
+    });
+    expect(ctx.peers.framework).toBe("next");
+    // styling is a PEER_CATEGORY but not set — the key exists, value is undefined.
+    expect("styling" in ctx.peers).toBe(true);
+    expect(ctx.peers.styling).toBeUndefined();
   });
 });
 

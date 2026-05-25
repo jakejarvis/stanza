@@ -7,7 +7,12 @@ import {
 } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
-import { DEFAULT_BUILDER_APPS, parseSelections, resolveSelected } from "@/lib/selection";
+import {
+  DEFAULT_BUILDER_APPS,
+  parseSelections,
+  resolveSelected,
+  selectedPeerIds,
+} from "@/lib/selection";
 import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
@@ -47,6 +52,7 @@ export const getBuilderState = createServerFn({ method: "GET" })
 
     const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);
+    const peers = selectedPeerIds(selections);
 
     // Templates carry their own content; package.json, stanza.json, and
     // .env.example are synthesized — the CLI never ships them as templates, it
@@ -61,6 +67,7 @@ export const getBuilderState = createServerFn({ method: "GET" })
     const previewFiles: { path: string; content: string }[] = synthesizeTemplates(resolved, {
       name,
       apps,
+      peers,
     }).map((tpl) => ({ path: tpl.path, content: tpl.content }));
     if (hasSelection) {
       const pkgJsons = synthesizePackageJsons(resolved, { name, apps, packageManager: pm });
