@@ -20,23 +20,45 @@
  * subpath export.
  */
 import type { Codemod } from "../index";
+import addArrayEntryInCall from "./add-array-entry-in-call";
 import addPackageDep from "./add-package-dep";
 import addPluginToCall from "./add-plugin-to-call";
 import appendToFile from "./append-to-file";
 import reExport from "./re-export";
+import replaceImport from "./replace-import";
+import setHtmlAttributes from "./set-html-attributes";
+import setTsconfigPaths from "./set-tsconfig-paths";
 import wrapRootLayout from "./wrap-root-layout";
 
 export const CODEMOD_CATALOG: Record<string, Codemod> = {
+  [addArrayEntryInCall.id]: addArrayEntryInCall,
   [addPackageDep.id]: addPackageDep,
   [addPluginToCall.id]: addPluginToCall,
   [appendToFile.id]: appendToFile,
   [reExport.id]: reExport,
+  [replaceImport.id]: replaceImport,
+  [setHtmlAttributes.id]: setHtmlAttributes,
+  [setTsconfigPaths.id]: setTsconfigPaths,
   [wrapRootLayout.id]: wrapRootLayout,
 };
 
-export { addPackageDep, addPluginToCall, appendToFile, reExport, wrapRootLayout };
+export {
+  addArrayEntryInCall,
+  addPackageDep,
+  addPluginToCall,
+  appendToFile,
+  reExport,
+  replaceImport,
+  setHtmlAttributes,
+  setTsconfigPaths,
+  wrapRootLayout,
+};
+export type { AddArrayEntryInCallArgs } from "./add-array-entry-in-call";
 export type { AddPackageDepArgs } from "./add-package-dep";
 export type { AddPluginToCallArgs } from "./add-plugin-to-call";
 export type { AppendToFileArgs } from "./append-to-file";
 export type { ReExportArgs } from "./re-export";
+export type { ReplaceImportArgs } from "./replace-import";
+export type { SetHtmlAttributesArgs } from "./set-html-attributes";
+export type { SetTsconfigPathsArgs } from "./set-tsconfig-paths";
 export type { WrapRootLayoutArgs } from "./wrap-root-layout";

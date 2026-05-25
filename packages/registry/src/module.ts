@@ -46,11 +46,11 @@ export const CATEGORIES = [
     home: { kind: "app" },
   },
   {
-    id: "styling",
-    label: "Styling",
-    description: "CSS / styling system.",
+    id: "ui",
+    label: "UI",
+    description: "Styling system + component primitives.",
     cardinality: "one",
-    home: { kind: "app" },
+    home: { kind: "package", dir: "ui" },
   },
   {
     id: "db",

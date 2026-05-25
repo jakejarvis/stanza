@@ -51,7 +51,7 @@ describe("cmdInit --yes", () => {
         name: "app",
         yes: true,
         framework: "next",
-        styling: "tailwind",
+        ui: "tailwind",
         db: "postgres",
         orm: "drizzle",
         auth: "better-auth",
@@ -63,7 +63,7 @@ describe("cmdInit --yes", () => {
     expect(fs.existsSync(path.join(projectRoot, "stanza.json"))).toBe(true);
     const manifest = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
     expect(manifest.modules.framework[0].id).toBe("next");
-    expect(manifest.modules.styling[0].id).toBe("tailwind");
+    expect(manifest.modules.ui[0].id).toBe("tailwind");
     expect(manifest.modules.db[0].id).toBe("postgres");
     expect(manifest.modules.orm[0].id).toBe("drizzle");
     expect(manifest.modules.auth[0].id).toBe("better-auth");
@@ -85,7 +85,7 @@ describe("cmdInit --yes", () => {
 
     const manifest = JSON.parse(fs.readFileSync(path.join(tmp, "minimal", "stanza.json"), "utf8"));
     expect(manifest.modules.framework?.[0]?.id).toBe("next");
-    expect(manifest.modules.styling).toBeUndefined();
+    expect(manifest.modules.ui).toBeUndefined();
     expect(manifest.modules.auth).toBeUndefined();
   });
 

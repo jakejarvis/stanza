@@ -82,7 +82,7 @@ describe("resolveAdapter", () => {
   it("falls back to a default (empty-match) adapter when no peers are required", () => {
     const tailwind: Module = defineModule({
       id: "tailwind",
-      category: "styling",
+      category: "ui",
       label: "",
       description: "",
       version: "0.1.0",

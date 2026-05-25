@@ -15,13 +15,13 @@ const main = defineCommand({
     name: "stanza",
     version,
     description:
-      "Modular monorepo template CLI — shadcn for stacks.\n\n" +
+      "Modular monorepo scaffolding CLI.\n\n" +
       "Examples\n" +
       "  stanza init my-app --yes --framework=next --orm=drizzle --db=postgres --testing=vitest,playwright\n" +
       "  stanza add auth better-auth\n" +
       "  stanza add testing vitest\n" +
       "  stanza remove testing vitest\n" +
-      "  stanza remove styling\n\n" +
+      "  stanza remove payments\n\n" +
       "Docs: https://stanza.tools",
   },
   subCommands: { init, add, remove, list, search },

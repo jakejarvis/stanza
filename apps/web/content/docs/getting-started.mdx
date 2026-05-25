@@ -8,13 +8,11 @@ Scaffold a new monorepo, then layer in modules as you go.
 ## Prerequisites
 
 - **Node.js** 20 or newer.
-- A package manager — **pnpm** (recommended), **npm**, or **bun**. Stanza writes
-  a workspace-based monorepo, so a workspace-aware package manager is required.
+- A package manager — **pnpm** (recommended), **npm**, or **bun**. Stanza writes a workspace-based monorepo, so a workspace-aware package manager is required.
 
 ## Create a project
 
-The create command launches an interactive wizard that walks you through each
-category:
+The create command launches an interactive wizard that walks you through each category:
 
 ```sh
 pnpm create stanza my-app
@@ -27,17 +25,11 @@ npm create stanza@latest -- my-app
 bun create stanza@latest my-app
 ```
 
-To run it without the wizard — in CI, for example — see
-[Non-interactive setup](#non-interactive-setup) below.
+To run it without the wizard — in CI, for example — see [Non-interactive setup](/docs/getting-started#non-interactive-setup) below.
 
 ## What you get
 
-Stanza generates a clean monorepo: your app under `apps/web/` (one of
-potentially many apps as the registry grows), internal packages under
-`packages/`, and a `stanza.json` manifest at the root. The manifest records the
-apps in the project, the modules you selected, and which files each one owns —
-it's how `add` and `remove` know what's installed and what to clean up. You
-generally don't edit it by hand.
+Stanza generates a clean monorepo: your app under `apps/web/` (one of potentially many apps as the registry grows), internal packages under `packages/`, and a `stanza.json` manifest at the root. The manifest records the apps in the project, the modules you selected, and which files each one owns — it's how `add` and `remove` know what's installed and what to clean up. You generally don't edit it by hand.
 
 ## Install and run
 
@@ -49,19 +41,13 @@ pnpm dev
 
 ## Add a module
 
-Every category — `framework`, `styling`, `db`, `orm`, `auth`, `tooling`,
-`testing` — is one command away:
+Every category — `framework`, `ui`, `db`, `orm`, `auth`, `tooling`, `testing` — is one command away:
 
 ```sh
 npx stanza-cli add auth better-auth
 ```
 
-Stanza resolves peer constraints, picks the adapter that matches your stack, and
-writes the module's templates, dependencies, and environment variables into the
-appropriate place. For `auth`, `db`, and `orm` that's an internal workspace
-package (e.g. `packages/auth/`, named `@my-app/auth`) that your app consumes via
-`workspace:*`. After adding a package-scoped module, re-run your package
-manager's install so the new workspace package links:
+Stanza resolves peer constraints, picks the adapter that matches your stack, and writes the module's templates, dependencies, and environment variables into the appropriate place. For `auth`, `db`, and `orm` that's an internal workspace package (e.g. `packages/auth/`, named `@my-app/auth`) that your app consumes via `workspace:*`. After adding a package-scoped module, re-run your package manager's install so the new workspace package links:
 
 ```sh
 pnpm install
@@ -75,19 +61,16 @@ npx stanza-cli search drizzle        # find modules in the registry by query
 npx stanza-cli remove auth           # remove a module and sweep the files it owns
 ```
 
-`stanza search` prints each module's `category/id` pair — use the **id**, not the
-display label, when passing it to `add`.
+`stanza search` prints each module's `category/id` pair — use the **id**, not the display label, when passing it to `add`.
 
 ## Non-interactive setup
 
-Pass `--yes` and select each category explicitly with a flag. Single-choice
-categories take one id; multi-choice categories (like `testing`) take a
-comma-separated list:
+Pass `--yes` and select each category explicitly with a flag. Single-choice categories take one id; multi-choice categories (like `testing`) take a comma-separated list:
 
 ```sh
 npx -y stanza-cli@latest init my-app --yes \
   --framework=next \
-  --styling=tailwind \
+  --ui=tailwind \
   --db=postgres \
   --orm=drizzle \
   --auth=better-auth \
@@ -95,5 +78,4 @@ npx -y stanza-cli@latest init my-app --yes \
   --pm=pnpm
 ```
 
-`--yes` never fills in defaults for categories you omit — any category without a
-flag is simply skipped.
+`--yes` never fills in defaults for categories you omit — any category without a flag is simply skipped.

@@ -117,13 +117,39 @@ export function appPackageJsonBase(opts: { name: string; app: AppSpec }): Packag
   };
 }
 
+/**
+ * Subpath-`exports` map per package home. The `ui` home doesn't ship a barrel
+ * — apps import shadcn-style subpaths (`@<name>/ui/lib/utils`, etc.) — so the
+ * bootstrap omits `main`/`types` + the `.` entry.
+ *
+ * Keep keys to *real* `home.dir` values from `CATEGORIES`. Unknown dirs fall
+ * back to the barrel shape (one `.` entry → `./src/index.ts`).
+ */
+const PACKAGE_EXPORTS: Record<string, PackageJson> = {
+  ui: {
+    type: "module",
+    exports: {
+      "./globals.css": "./src/styles/globals.css",
+      "./postcss.config": "./postcss.config.mjs",
+      "./lib/*": "./src/lib/*.ts",
+      "./components/*": "./src/components/*.tsx",
+      "./hooks/*": "./src/hooks/*.ts",
+    },
+  },
+};
+
 /** Slot-package `package.json` for `packages/<dir>/` — matches the CLI's `ensureSlotPackage`. */
 export function slotPackageJsonBase(opts: { name: string; dir: string }): PackageJson {
-  return {
+  const base: PackageJson = {
     name: `@${opts.name}/${opts.dir}`,
     version: "0.0.0",
     private: true,
     type: "module",
+  };
+  const override = PACKAGE_EXPORTS[opts.dir];
+  if (override) return { ...base, ...override };
+  return {
+    ...base,
     main: "./src/index.ts",
     types: "./src/index.ts",
     exports: { ".": "./src/index.ts" },

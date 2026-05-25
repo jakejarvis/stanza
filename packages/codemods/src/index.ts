@@ -7,6 +7,8 @@ export type {
   ExportDeclaration,
   ExportSpecifier,
   ImportDeclaration,
+  JsxAttribute,
+  JsxOpeningElement,
   Node,
   Project,
   SourceFile,

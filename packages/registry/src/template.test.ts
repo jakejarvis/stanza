@@ -115,9 +115,9 @@ describe("buildRenderContext", () => {
       peers: { framework: "next" },
     });
     expect(ctx.peers.framework).toBe("next");
-    // styling is a PEER_CATEGORY but not set — the key exists, value is undefined.
-    expect("styling" in ctx.peers).toBe(true);
-    expect(ctx.peers.styling).toBeUndefined();
+    // ui is a PEER_CATEGORY but not set — the key exists, value is undefined.
+    expect("ui" in ctx.peers).toBe(true);
+    expect(ctx.peers.ui).toBeUndefined();
   });
 });
 

@@ -2,10 +2,10 @@ import { defineModule } from "@stanza/registry";
 
 export default defineModule({
   id: "tailwind",
-  category: "styling",
+  category: "ui",
   label: "Tailwind CSS",
   description: "Utility-first CSS framework. Pairs with any web framework.",
-  version: "0.1.0",
+  version: "0.2.0",
   peers: { framework: ["next", "tanstack-start"] },
   homepage: "https://tailwindcss.com",
   // `tailwindcss` itself is shared; the per-framework integration dep varies.
@@ -18,7 +18,19 @@ export default defineModule({
         "@tailwindcss/postcss": "^4.3.0",
         postcss: "^8.5.15",
       },
-      templates: [{ src: "next/postcss.config.mjs", dest: "postcss.config.mjs", scope: "app" }],
+      templates: [
+        // Real plugin config lives in `packages/ui/` alongside the deps so
+        // pnpm's isolated linker exposes `@tailwindcss/postcss` to it. The
+        // app's `postcss.config.mjs` just re-exports it via the workspace
+        // package's subpath export.
+        { src: "package/postcss.config.mjs", dest: "postcss.config.mjs", scope: "package" },
+        {
+          src: "next/postcss.config.mjs",
+          dest: "postcss.config.mjs",
+          scope: "app",
+          template: true,
+        },
+      ],
       codemods: [
         {
           // framework-next ships its own `app/globals.css` with base styles.

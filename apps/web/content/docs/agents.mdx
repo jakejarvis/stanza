@@ -3,53 +3,35 @@ title: Agents
 description: Drive Stanza from Claude Code, Codex, Cursor, or any other coding agent.
 ---
 
-Stanza is built to be agent-friendly: every verb has a non-interactive form, the
-manifest is declarative state, and `--dry-run` previews any mutation before it
-runs. An agent that follows a handful of rules can scaffold and modify a Stanza
-project as reliably as a human at a prompt.
+Stanza is built to be agent-friendly: every verb has a non-interactive form, the manifest is declarative state, and `--dry-run` previews any mutation before it runs. An agent that follows a handful of rules can scaffold and modify a Stanza project as reliably as a human at a prompt.
 
 ## SKILL.md
 
-For Claude Code, Codex, and other agent runtimes that load skills, Stanza ships
-a self-contained skill bundle. Install it with the
-[Skills CLI](https://skills.sh):
+For Claude Code, Codex, and other agent runtimes that load skills, Stanza ships a self-contained skill bundle. Install it with the [Skills CLI](https://skills.sh):
 
 ```sh
 npx skills add https://github.com/jakejarvis/stanza --skill stanza-cli
 ```
 
-That drops the skill into your agent's skill directory; the agent picks it up
-on the next prompt that matches its triggers (running `stanza-cli`, creating a
-project, adding modules, etc.). The skill is designed to work without access to
-this source repo — it encodes the published CLI contract alone.
+That drops the skill into your agent's skill directory; the agent picks it up on the next prompt that matches its triggers (running `stanza-cli`, creating a project, adding modules, etc.). The skill is designed to work without access to this source repo — it encodes the published CLI contract alone.
 
-The source lives at
-[`skills/stanza-cli/`](https://github.com/jakejarvis/stanza/tree/main/skills/stanza-cli)
-if you'd rather vendor it directly.
+<Callout type="info">
+  The source lives at
+  [`skills/stanza-cli/`](https://github.com/jakejarvis/stanza/tree/main/skills/stanza-cli) if you'd
+  rather vendor it directly.
+</Callout>
 
 ## Agent guidance
 
 A few rules on top of the [CLI surface](/docs/cli) keep agent runs predictable:
 
-- **Discover before assuming.** The registry evolves — confirm any module id
-  with [`npx -y stanza-cli@latest search`](/docs/cli#search) before passing it
-  to `add`. Use the printed `category/id` value, not the display label.
-- **Prefer `npx` for automation.** `npx -y stanza-cli@latest <verb>` avoids the
-  package-manager argument-forwarding ambiguity that `pnpm create` / `npm
-create` / `bun create` introduce.
-- **Preview with [`--dry-run`](/docs/cli#global-flags)** before mutating
-  commands when you want to show the user what's about to happen.
-- **Respect the [dirty-worktree refusal](/docs/cli#global-flags).** Commit or
-  stash first. Only reach for `--dangerously-allow-dirty` with the user's
-  explicit approval.
-- **Pass [`--app=<id>`](/docs/cli#add)** to `add`/`remove` in multi-app
-  projects. Single-app projects auto-target, but if `stanza.json`'s `apps`
-  array has more than one entry, scripts should pass the flag explicitly
-  rather than relying on cwd inference.
-- **`stanza.json` is generated state.** Don't hand-edit it; use the verbs that
-  maintain it (`add`, `remove`).
-- **Generated files are user-owned source.** Once Stanza writes a template,
-  edit it like any other file in the repo.
+- **Discover before assuming.** The registry evolves — confirm any module id with [`npx -y stanza-cli@latest search`](/docs/cli#search) before passing it to `add`. Use the printed `category/id` value, not the display label.
+- **Prefer `npx` for automation.** `npx -y stanza-cli@latest <verb>` avoids the package-manager argument-forwarding ambiguity that `pnpm create` / `npm create` / `bun create` introduce.
+- **Preview with [`--dry-run`](/docs/cli#global-flags)** before mutating commands when you want to show the user what's about to happen.
+- **Respect the [dirty-worktree refusal](/docs/cli#global-flags).** Commit or stash first. Only reach for `--dangerously-allow-dirty` with the user's explicit approval.
+- **Pass [`--app=<id>`](/docs/cli#add)** to `add`/`remove` in multi-app projects. Single-app projects auto-target, but if `stanza.json`'s `apps` array has more than one entry, scripts should pass the flag explicitly rather than relying on cwd inference.
+- **`stanza.json` is generated state.** Don't hand-edit it; use the verbs that maintain it (`add`, `remove`).
+- **Generated files are user-owned source.** Once Stanza writes a template, edit it like any other file in the repo.
 
 ## Common errors
 
@@ -63,8 +45,7 @@ create` / `bun create` introduce.
 
 ## Putting it together
 
-A minimal agent script that scaffolds a project, adds auth, and verifies
-nothing else changed:
+A minimal agent script that scaffolds a project, adds auth, and verifies nothing else changed:
 
 ```sh
 # 1. Confirm the modules exist.
@@ -73,7 +54,7 @@ npx -y stanza-cli@latest search
 # 2. Scaffold.
 npx -y stanza-cli@latest init my-app --yes \
   --framework=tanstack-start \
-  --styling=tailwind \
+  --ui=tailwind \
   --db=postgres \
   --orm=drizzle \
   --pm=pnpm
@@ -90,5 +71,4 @@ pnpm install
 npx -y stanza-cli@latest list
 ```
 
-When reporting results back to the user, include the exact command run, whether
-it wrote files, and any follow-up install needed.
+When reporting results back to the user, include the exact command run, whether it wrote files, and any follow-up install needed.

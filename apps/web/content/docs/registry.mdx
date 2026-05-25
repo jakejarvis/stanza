@@ -3,45 +3,33 @@ title: Registry
 description: The roadmap of first-party modules Stanza ships — what's available today and what's planned.
 ---
 
-Every module fills exactly one **category**. This page is the canonical roadmap
-of the first-party modules Stanza ships: what's available today, and what's on
-the way. Self-hosted registries can add their own modules — see
-[the open registry](/docs/concepts#open-registry).
+Every module fills exactly one **category**. This page is the canonical roadmap of the first-party modules Stanza ships: what's available today, and what's on the way. Self-hosted registries can add their own modules — see [the open registry](/docs/concepts#open-registry).
 
 ## Categories
 
-A category has two independent properties: its **cardinality** — `one`
-(single-choice, like `framework` or `auth`) or `many` (coexisting, like
-`testing`) — and its **home**, where a module's output lands (`app`, `repo`, or
-`package`). See [Concepts](/docs/concepts#categories) for the full mental model.
+A category has two independent properties: its **cardinality** — `one` (single-choice, like `framework` or `auth`) or `many` (coexisting, like `testing`) — and its **home**, where a module's output lands (`app`, `repo`, or `package`). See [Concepts](/docs/concepts#categories) for the full mental model.
 
-| Category    | Cardinality | Home    | What it covers                                             |
-| ----------- | ----------- | ------- | ---------------------------------------------------------- |
-| `framework` | one         | app     | App shell + router (Next, TanStack Start, Expo, …)         |
-| `api`       | one         | package | Typed RPC layer between framework and services             |
-| `ai`        | one         | package | AI SDK + provider wiring                                   |
-| `auth`      | one         | package | Authentication (Better Auth, Clerk, …)                     |
-| `db`        | one         | package | Database driver (Postgres, SQLite)                         |
-| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)                     |
-| `styling`   | one         | app     | CSS toolchain (Tailwind for web, NativeWind for native, …) |
-| `payments`  | one         | package | Checkout + webhooks (Stripe, Polar, …)                     |
-| `email`     | one         | package | Transactional email (Resend)                               |
-| `tooling`   | one         | repo    | Lint/format toolchain                                      |
-| `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                            |
-| `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)                     |
-| `monorepo`  | many        | repo    | Monorepo task runner (Turborepo)                           |
+| Category    | Cardinality | Home    | What it covers                                              |
+| ----------- | ----------- | ------- | ----------------------------------------------------------- |
+| `framework` | one         | app     | App shell + router (Next, TanStack Start, Expo, …)          |
+| `api`       | one         | package | Typed RPC layer between framework and services              |
+| `ai`        | one         | package | AI SDK + provider wiring                                    |
+| `auth`      | one         | package | Authentication (Better Auth, Clerk, …)                      |
+| `db`        | one         | package | Database driver (Postgres, SQLite)                          |
+| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)                      |
+| `ui`        | one         | package | Styling system + component primitives (Tailwind, shadcn, …) |
+| `payments`  | one         | package | Checkout + webhooks (Stripe, Polar, …)                      |
+| `email`     | one         | package | Transactional email (Resend)                                |
+| `tooling`   | one         | repo    | Lint/format toolchain                                       |
+| `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                             |
+| `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)                      |
+| `monorepo`  | many        | repo    | Monorepo task runner (Turborepo)                            |
 
-Single-choice categories with `home: "app"` (currently `framework`, `styling`)
-are enforced **per app** — a multi-app project can pick `next` for the web app
-and `expo` for a native app side by side. See [Concepts → Apps](/docs/concepts#apps).
+Single-choice categories with `home: "app"` (currently `framework`) are enforced **per app** — a multi-app project can pick `next` for the web app and `expo` for a native app side by side. See [Concepts → Apps](/docs/concepts#apps).
 
 ## Framework
 
-Single-choice per app — the chosen framework wires the app shell, router, and
-React (or future) runtime. Modules declare an **`appKind`** (`web` or `native`)
-which the runner uses to validate they're installed into a compatible app: you
-can't install Next.js into a `kind: "native"` app, or Expo into a `kind: "web"`
-one. A multi-app project can pick one framework per app.
+Single-choice per app — the chosen framework wires the app shell, router, and React (or future) runtime. Modules declare an **`appKind`** (`web` or `native`) which the runner uses to validate they're installed into a compatible app: you can't install Next.js into a `kind: "native"` app, or Expo into a `kind: "web"` one. A multi-app project can pick one framework per app.
 
 | Module           | `appKind` | Status            | Notes                                                                                    |
 | ---------------- | --------- | ----------------- | ---------------------------------------------------------------------------------------- |
@@ -54,8 +42,7 @@ one. A multi-app project can pick one framework per app.
 
 ## API
 
-Single-choice, constraint-bearing. An optional layer between the framework and
-the database or services, installed as its own workspace package.
+Single-choice, constraint-bearing. An optional layer between the framework and the database or services, installed as its own workspace package.
 
 | Module | Status          | Notes                             |
 | ------ | --------------- | --------------------------------- |
@@ -99,24 +86,21 @@ Single-choice, shares `packages/db/` with the database driver.
 | `drizzle` | 🟢&nbsp;Available | Drizzle ORM 0.45. Peers on `db` (postgres, sqlite). |
 | `prisma`  | 🟢&nbsp;Available | Prisma 7. Peers on `db` (postgres, sqlite).         |
 
-## Styling
+## UI
 
-Single-choice per app. Adapters branch on the active app's `framework` peer, so
-the same `tailwind` module ships PostCSS config for Next, a Vite plugin for
-TanStack Start, etc.
+Single-choice. Installs into `packages/ui/` so styles + component primitives are shared across every app via `workspace:*`. Adapters branch on the active app's `framework` peer (PostCSS for Next, Vite plugin for TanStack Start, …).
 
-| Module         | For    | Status            | Notes                                              |
-| -------------- | ------ | ----------------- | -------------------------------------------------- |
-| `tailwind`     | web    | 🟢&nbsp;Available | Vanilla Tailwind v4, adapters per web framework.   |
-| `shadcn-radix` | web    | 🟨&nbsp;Planned   | Classic shadcn/ui (Radix primitives).              |
-| `shadcn-base`  | web    | 🟨&nbsp;Planned   | shadcn on Base UI.                                 |
-| `nativewind`   | native | 🟨&nbsp;Planned   | Tailwind-style className API for React Native.     |
-| `unistyles`    | native | 🟨&nbsp;Planned   | Native StyleSheet with theme + breakpoint support. |
+| Module         | For    | Status            | Notes                                                                 |
+| -------------- | ------ | ----------------- | --------------------------------------------------------------------- |
+| `tailwind`     | web    | 🟢&nbsp;Available | Bare Tailwind v4 in `packages/ui/`; apps re-export postcss config.    |
+| `shadcn-radix` | web    | 🟢&nbsp;Available | shadcn/ui registry preset `radix-nova` (Radix primitives) + Tailwind. |
+| `shadcn-base`  | web    | 🟢&nbsp;Available | shadcn/ui registry preset `base-nova` (Base UI) + Tailwind.           |
+| `nativewind`   | native | 🟨&nbsp;Planned   | Tailwind-style className API for React Native.                        |
+| `unistyles`    | native | 🟨&nbsp;Planned   | Native StyleSheet with theme + breakpoint support.                    |
 
 ## Payments
 
-Single-choice, constraint-bearing. Installs into `packages/payments/`, plus
-a Better Auth plugin when auth is selected.
+Single-choice, constraint-bearing. Installs into `packages/payments/`, plus a Better Auth plugin when auth is selected.
 
 | Module   | Status            | Notes                                                                                                                                                                                                                                     |
 | -------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -135,8 +119,7 @@ Single-choice, installs into `packages/email/`.
 
 ## Tooling
 
-Single-choice, repo-scoped. The three toolchains are mutually exclusive
-substitutes.
+Single-choice, repo-scoped. The three toolchains are mutually exclusive substitutes.
 
 | Module            | Status            | Notes                                                  |
 | ----------------- | ----------------- | ------------------------------------------------------ |
@@ -146,8 +129,7 @@ substitutes.
 
 ## Testing
 
-Coexisting, app-scoped. Vitest and Playwright are independent and routinely run
-side by side.
+Coexisting, app-scoped. Vitest and Playwright are independent and routinely run side by side.
 
 | Module       | Status            | Notes                                                             |
 | ------------ | ----------------- | ----------------------------------------------------------------- |
@@ -167,8 +149,7 @@ Coexisting, repo-scoped.
 
 ## Monorepo
 
-Coexisting, repo-scoped. Currently hardcoded as Turborepo; becomes a real
-configurable category when a second option lands.
+Coexisting, repo-scoped. Currently hardcoded as Turborepo; becomes a real configurable category when a second option lands.
 
 | Module      | Status            | Notes                                                              |
 | ----------- | ----------------- | ------------------------------------------------------------------ |
@@ -177,9 +158,7 @@ configurable category when a second option lands.
 
 ## Package manager
 
-Not a category — a top-level field in `stanza.json`
-(`packageManager: "pnpm" | "bun" | "npm"`). The wizard prompts for it; codemods
-only ever touch `package.json`, never lockfiles.
+Not a category — a top-level field in `stanza.json` (`packageManager: "pnpm" | "bun" | "npm"`). The wizard prompts for it; codemods only ever touch `package.json`, never lockfiles.
 
 | Manager | Status                      |
 | ------- | --------------------------- |

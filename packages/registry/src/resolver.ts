@@ -90,7 +90,7 @@ export function isCompatible(module: Module, context: ResolveContext): boolean {
  * Active peer ids from the manifest alone — only `cardinality: "one"`
  * categories can be peers, so we iterate `PEER_CATEGORIES` and read the
  * single installed pick. When `targetAppId` is set, the lookup is scoped to
- * that app so e.g. web's styling adapter peer-matches against web's
+ * that app so e.g. web's ui adapter peer-matches against web's
  * framework, not native's.
  *
  * Exported so callers outside the resolver (the CLI runner and web

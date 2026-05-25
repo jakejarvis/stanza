@@ -390,31 +390,32 @@ function ensureSlotPackage(args: {
     if (!dryRun) {
       // Self-contained tsconfig — generated projects don't share a base, so
       // each app and package stands on its own. Mirrors the shape framework
-      // modules ship for app `tsconfig.json`.
+      // modules ship for app `tsconfig.json`. The `ui` package adds JSX +
+      // a path alias to its own `./src/*` so internal subpath self-imports
+      // (e.g. button.tsx → `@<name>/ui/lib/utils`) resolve at type-check time.
+      const compilerOptions: Record<string, unknown> = {
+        target: "ES2022",
+        lib: ["dom", "dom.iterable", "esnext"],
+        module: "esnext",
+        moduleResolution: "bundler",
+        strict: true,
+        noUncheckedIndexedAccess: true,
+        skipLibCheck: true,
+        esModuleInterop: true,
+        resolveJsonModule: true,
+        isolatedModules: true,
+        noEmit: true,
+        types: ["node"],
+      };
+      if (packageDir === "ui") {
+        compilerOptions.jsx = "react-jsx";
+        compilerOptions.baseUrl = ".";
+        compilerOptions.paths = { [`${packageName}/*`]: ["./src/*"] };
+      }
       fs.writeFileSync(
         tsconfigPath,
-        JSON.stringify(
-          {
-            compilerOptions: {
-              target: "ES2022",
-              lib: ["dom", "dom.iterable", "esnext"],
-              module: "esnext",
-              moduleResolution: "bundler",
-              strict: true,
-              noUncheckedIndexedAccess: true,
-              skipLibCheck: true,
-              esModuleInterop: true,
-              resolveJsonModule: true,
-              isolatedModules: true,
-              noEmit: true,
-              types: ["node"],
-            },
-            include: ["src"],
-            exclude: ["node_modules"],
-          },
-          null,
-          2,
-        ) + "\n",
+        JSON.stringify({ compilerOptions, include: ["src"], exclude: ["node_modules"] }, null, 2) +
+          "\n",
         "utf8",
       );
     }
@@ -473,13 +474,19 @@ function renderArgs(
     if (Array.isArray(value)) return value.map(visit);
     if (value && typeof value === "object") {
       const out: Record<string, JsonValue> = {};
-      for (const [k, v] of Object.entries(value)) out[k] = visit(v);
+      // Render keys too — `set-tsconfig-paths` and similar codemods use
+      // mustache-substituted strings as object keys (e.g. `"@<name>/ui/*"`).
+      // Keys without `{{ }}` pass through Handlebars unchanged, so this is
+      // safe for the other codemods whose keys are stable identifiers.
+      for (const [k, v] of Object.entries(value)) {
+        out[renderTemplate(k, context)] = visit(v);
+      }
       return out;
     }
     return value;
   };
   const out: Record<string, JsonValue> = {};
-  for (const [k, v] of Object.entries(args)) out[k] = visit(v);
+  for (const [k, v] of Object.entries(args)) out[renderTemplate(k, context)] = visit(v);
   return out;
 }
 

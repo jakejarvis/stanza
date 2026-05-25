@@ -3,32 +3,18 @@ title: Introduction
 description: Assemble modular full-stack TypeScript monorepos with Stanza.
 ---
 
-Stanza is a shadcn-style CLI for assembling modular full-stack TypeScript
-monorepos. Pick a framework, styling, database, ORM, and auth — Stanza vendors
-idiomatic code directly into your repo, with no runtime dependency to carry
-around.
+Stanza is a [shadcn](https://ui.shadcn.com/docs)-style CLI for assembling modular full-stack TypeScript monorepos. Pick a framework, UI, database, ORM, and auth — Stanza vendors idiomatic code directly into your repo, with no additional runtime dependencies to maintain afterwards.
 
 ## Why Stanza
 
-- **`add` works after `init`.** Run `stanza add` on an existing project. It reads
-  your `stanza.json` manifest, resolves peer constraints, and picks the right
-  adapter for your stack — so adding auth to a Next + Drizzle app writes
+- **`add` works after `init`.** Run `stanza add` on an existing project. It reads your `stanza.json` manifest, resolves peer constraints, and picks the right adapter for your stack — so adding auth to a Next + Drizzle app writes
   different code than adding it to a TanStack Start + Prisma app.
-- **Your code, vendored.** Generated files land in your repo verbatim. There's no
-  `@stanza/runtime` package to install, and nothing to upgrade out from under
-  you — the code is yours to edit.
-- **Open registry.** Modules are plain static JSON. The CLI ships with a default
-  registry, but you can point it at your own host with `STANZA_REGISTRY` and
-  serve custom modules.
+- **Your code, vendored.** Generated files land in your repo verbatim. There's no `@stanza/runtime` package to install, and nothing to upgrade out from under you — the code is yours to edit.
+- **Open registry.** Modules are plain static JSON. The CLI ships with a default registry, but you can point it at your own host with `STANZA_REGISTRY` and serve custom modules.
 
 ## How it fits together
 
-You choose modules across a small set of **categories** — `framework`, `styling`,
-`db`, `orm`, `auth`, `tooling`, `testing`. Stanza scaffolds a clean monorepo,
-vendoring each module's templates, dependencies, and environment variables into
-the right place: app shell code into your app, data and auth layers into their
-own workspace packages. Later, `stanza add` and `stanza remove` layer modules in
-and out without you hand-editing the wiring.
+You choose modules across a small set of **categories** — `framework`, `ui`, `db`, `orm`, `auth`, `tooling`, `testing`, [and more](/docs/registry). Stanza scaffolds a clean monorepo, vendoring each module's templates, dependencies, and environment variables into the right place: app shell code into your app, data and auth layers into their own workspace packages. Later, `stanza add` and `stanza remove` layer modules in and out without you hand-editing the wiring.
 
 ## Next steps
 
