@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import type { AppSpec, CategoryId, Module } from "@stanza/registry";
+import type { AppSpec, CategoryId, Module, Resolved, ResolvedEntry } from "@stanza/registry";
 import {
   appPackageJsonBase,
   categoryHome,
@@ -10,17 +10,20 @@ import {
   ENV_EXAMPLE_HEADER,
   KNOWN_CATEGORIES,
   PEER_CATEGORIES,
+  pmRun,
   PM_FLOOR_VERSION,
   resolveAdapter,
   rootPackageJson,
+  synthesizeReadme,
 } from "@stanza/registry";
 import { type ArgsDef, defineCommand } from "citty";
 import pc from "picocolors";
 
 import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
-import { initManifest } from "../lib/manifest";
+import { initManifest, writeManifest } from "../lib/manifest";
 import { resolveExactVersion } from "../lib/npm-version";
+import { writeFreshReadme } from "../lib/readme";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
@@ -118,6 +121,10 @@ export async function cmdInit(args: CliArgs): Promise<void> {
     if (pick) fullPending[cat] = pick;
   }
 
+  // Collected as each module applies; feeds `synthesizeReadme` at the end
+  // (`Module` objects are already in memory from the wizard — no reload needed).
+  const resolvedAll: Resolved = {};
+
   for (const category of categoryOrder) {
     const home = categoryHome(category);
     for (const mod of result.selections[category] ?? []) {
@@ -152,10 +159,30 @@ export async function cmdInit(args: CliArgs): Promise<void> {
         dryRun,
       });
       manifest = r.manifest;
+      (resolvedAll[category] ??= []).push({
+        module: mod,
+        adapter: adapter.adapter,
+      } satisfies ResolvedEntry);
       telemetry.capture("cli_module", { action: "install", group: category, module: mod.id });
       spinner.stop(`${pc.green("✓")} ${mod.label}`);
     }
   }
+
+  // Final step: synthesize the project README from the assembled selection and
+  // record its checksum on the manifest. Init writes into a fresh directory,
+  // so there's no existing README to clobber — `stanza add`/`remove` use the
+  // checksum to detect user edits before regenerating.
+  const readmeContent = synthesizeReadme(resolvedAll, {
+    name: result.name,
+    apps: result.apps,
+    packageManager: result.packageManager,
+    peers: Object.fromEntries(Object.entries(fullPending).map(([k, v]) => [k, v.id])) as Partial<
+      Record<CategoryId, string>
+    >,
+  });
+  const checksum = writeFreshReadme(projectRoot, readmeContent, dryRun);
+  manifest = { ...manifest, readmeChecksum: checksum };
+  if (!dryRun) writeManifest(projectRoot, manifest);
 
   p.outro(
     [
@@ -163,7 +190,7 @@ export async function cmdInit(args: CliArgs): Promise<void> {
       "",
       `  ${pc.dim("$")} cd ${result.name}`,
       `  ${pc.dim("$")} ${result.packageManager} install`,
-      `  ${pc.dim("$")} ${result.packageManager} dev`,
+      `  ${pc.dim("$")} ${pmRun(result.packageManager, "dev")}`,
     ].join("\n"),
   );
 }

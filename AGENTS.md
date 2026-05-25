@@ -1,6 +1,6 @@
 # Stanza
 
-Shadcn-style CLI for assembling modular full-stack TS monorepos. Currently ships `init`, `add`, `remove`, `list`, `search` against these **categories**: `framework`, `ui`, `db`, `orm`, `auth`, `tooling`, `testing`. `swap` + `update` verbs and more categories are planned — the manifest already reserves the fields they'll need (`modules[category][].version`, `regions`). See the [module registry](apps/web/content/docs/registry.mdx) for the module roadmap and [TODO.md](TODO.md) for active work.
+Shadcn-style CLI for assembling modular full-stack TS monorepos. Currently ships `init`, `add`, `remove`, `list`, `search` against these **categories**: `framework`, `ui`, `db`, `orm`, `auth`, `tooling`, `testing`. `swap` + `update` verbs and more categories are planned — the manifest already reserves the fields they'll need (`modules[category][].version`, `regions`). See the [module registry](apps/web/content/docs/registry.mdx) for the module roadmap.
 
 Three things differentiate Stanza from other scaffolders:
 

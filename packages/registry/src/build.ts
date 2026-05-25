@@ -47,9 +47,11 @@ async function main() {
     // because the runner falls back to disk when `content` is absent.
     const templatesDir = path.join(modulesDir, dir, "templates");
     const logo = readLogo(path.join(modulesDir, dir));
+    const readme = readReadme(path.join(modulesDir, dir));
     const inlined: Module = {
       ...mod,
       ...(logo ? { logo } : {}),
+      ...(readme ? { readme } : {}),
       adapters: mod.adapters.map((adapter) => ({
         ...adapter,
         templates: adapter.templates?.map((tpl) => ({
@@ -112,6 +114,18 @@ function readLogo(moduleDir: string): Logo | undefined {
   }
   const single = path.join(moduleDir, "logo.svg");
   if (fs.existsSync(single)) return fs.readFileSync(single, "utf8");
+  return undefined;
+}
+
+/**
+ * Convention: a module ships its README contribution by dropping `readme.md`
+ * in its directory. We inline the contents into the module manifest so HTTP-
+ * loaded modules stay self-contained. Absent → undefined; `synthesizeReadme`
+ * falls back to the module's `description` for those.
+ */
+function readReadme(moduleDir: string): string | undefined {
+  const file = path.join(moduleDir, "readme.md");
+  if (fs.existsSync(file)) return fs.readFileSync(file, "utf8");
   return undefined;
 }
 

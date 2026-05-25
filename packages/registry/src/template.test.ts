@@ -45,6 +45,46 @@ describe("renderTemplate", () => {
     expect(renderTemplate("[{{packages.nope.name}}]", ctx)).toBe("[]");
   });
 
+  describe("{{run}} helper", () => {
+    const withPnpm = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      packageManager: "pnpm",
+    });
+    const withBun = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      packageManager: "bun",
+    });
+    const withNpm = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      packageManager: "npm",
+    });
+
+    it("emits `<pm> <script>` for pnpm and bun", () => {
+      expect(renderTemplate('{{run "dev"}}', withPnpm)).toBe("pnpm dev");
+      expect(renderTemplate('{{run "dev"}}', withBun)).toBe("bun dev");
+    });
+
+    it("emits `npm run <script>` for npm", () => {
+      expect(renderTemplate('{{run "dev"}}', withNpm)).toBe("npm run dev");
+      expect(renderTemplate('{{run "db:push"}}', withNpm)).toBe("npm run db:push");
+    });
+
+    it("defaults to pnpm when no package manager is supplied", () => {
+      const noPm = buildRenderContext({
+        projectName: "acme",
+        app: webApp,
+        packageName: "",
+      });
+      expect(renderTemplate('{{run "test"}}', noPm)).toBe("pnpm test");
+    });
+  });
+
   it("does not HTML-escape values (noEscape=true)", () => {
     // Without noEscape, the "/" in package names would become "&#x2F;".
     expect(renderTemplate("{{package.name}}", ctx)).toBe("@acme/auth");

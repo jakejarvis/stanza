@@ -130,5 +130,13 @@ async function importModule(modulesDir: string, dirName: string): Promise<Module
   if (!mod.default) {
     throw new Error(`Module ${dirName} has no default export at ${entry}`);
   }
+  // Mirror `build.ts`: a sidecar `readme.md` next to `module.ts` is inlined
+  // onto the manifest so the dev-time FS loader and the inlined-JSON loader
+  // produce equivalent modules. Authors edit a real markdown file rather than
+  // a string literal in `module.ts`.
+  const readmeFile = path.join(modulesDir, dirName, "readme.md");
+  if (fs.existsSync(readmeFile)) {
+    return { ...mod.default, readme: fs.readFileSync(readmeFile, "utf8") };
+  }
   return mod.default;
 }

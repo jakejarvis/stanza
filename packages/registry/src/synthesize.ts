@@ -8,7 +8,9 @@ import {
 import {
   categoryHome,
   type CategoryId,
+  categoryLabel,
   type InstallHome,
+  isMulti,
   type ModuleId,
   type TemplateRef,
 } from "./module";
@@ -20,7 +22,7 @@ import {
   type SynthesizeEntry,
 } from "./package-json";
 import { categoryOrder } from "./resolver";
-import { buildRenderContext, renderTemplate } from "./template";
+import { buildRenderContext, pmRun, renderTemplate } from "./template";
 
 /** Header `stanza init` writes at the top of `.env.example`. */
 export const ENV_EXAMPLE_HEADER = "# Stanza-managed environment variables.\n";
@@ -146,7 +148,12 @@ export type SynthesizedTemplate = {
  */
 export function synthesizeTemplates(
   resolved: Partial<Record<CategoryId, SynthesizeEntry[]>>,
-  opts: { name: string; apps?: AppSpec[]; peers?: Partial<Record<CategoryId, string>> },
+  opts: {
+    name: string;
+    apps?: AppSpec[];
+    packageManager?: PackageManager;
+    peers?: Partial<Record<CategoryId, string>>;
+  },
 ): SynthesizedTemplate[] {
   const apps = opts.apps && opts.apps.length > 0 ? opts.apps : [defaultWebApp()];
   const out: SynthesizedTemplate[] = [];
@@ -170,6 +177,7 @@ export function synthesizeTemplates(
           projectName: opts.name,
           app,
           packageName,
+          packageManager: opts.packageManager,
           peers: opts.peers,
         });
 
@@ -212,4 +220,115 @@ function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, app: AppSpec):
     return home.kind === "package" ? `packages/${home.dir}/${tpl.dest}` : tpl.dest;
   }
   return `${app.dir.replace(/\/$/, "")}/${tpl.dest}`;
+}
+
+/**
+ * Compose the project's `README.md` from the resolved selection — header with
+ * the project name, a stack summary table, getting-started commands, and a
+ * section per installed module rendered from each module's `readme` field
+ * (Handlebars against the standard render context). Modules without a `readme`
+ * fall back to their `description` so every selection still produces a
+ * section.
+ *
+ * Pure function of the resolved selection, mirroring `synthesizeEnvExample` /
+ * `synthesizeManifest` — so the CLI's apply path and the web preview produce
+ * byte-identical output for the same inputs.
+ */
+export function synthesizeReadme(
+  resolved: Resolved,
+  opts: {
+    name: string;
+    apps?: AppSpec[];
+    packageManager?: PackageManager;
+    peers?: Partial<Record<CategoryId, string>>;
+  },
+): string {
+  const apps = opts.apps && opts.apps.length > 0 ? opts.apps : [defaultWebApp()];
+  const pm: PackageManager = opts.packageManager ?? "pnpm";
+  const peers = opts.peers ?? {};
+  const hasEnv = synthesizeEnvExample(resolved).length > ENV_EXAMPLE_HEADER.length;
+
+  const lines: string[] = [];
+  lines.push(`# ${opts.name}`);
+  lines.push("");
+  lines.push("Generated with [Stanza](https://stanza.tools).");
+  lines.push("");
+
+  // Stack summary table — only categories with at least one selection.
+  const stackRows: { label: string; modules: string }[] = [];
+  for (const category of categoryOrder) {
+    const entries = resolved[category];
+    if (!entries?.length) continue;
+    stackRows.push({
+      label: categoryLabel(category),
+      modules: entries.map((e) => e.module.label).join(isMulti(category) ? ", " : ""),
+    });
+  }
+  if (stackRows.length > 0) {
+    lines.push("## Stack");
+    lines.push("");
+    lines.push("| Category | Module |");
+    lines.push("| --- | --- |");
+    for (const row of stackRows) lines.push(`| ${row.label} | ${row.modules} |`);
+    lines.push("");
+  }
+
+  lines.push("## Getting started");
+  lines.push("");
+  lines.push("```sh");
+  lines.push(`${pm} install`);
+  lines.push(pmRun(pm, "dev"));
+  lines.push("```");
+  lines.push("");
+  if (hasEnv) {
+    lines.push("Copy `.env.example` to `.env` and fill in the values before starting.");
+    lines.push("");
+  }
+
+  // Per-module sections, in topological category order. Each renders the
+  // module's `readme` (Handlebars against the standard context) or falls back
+  // to its `description` when none is provided. Repo/package-home modules use
+  // the first targeted app to seed the render context (same trick
+  // `synthesizeTemplates` uses for app-agnostic templates).
+  const hasModules = categoryOrder.some((c) => (resolved[c]?.length ?? 0) > 0);
+  if (hasModules) {
+    lines.push("## Modules");
+    lines.push("");
+    for (const category of categoryOrder) {
+      const home = categoryHome(category);
+      const packageName = home.kind === "package" ? `@${opts.name}/${home.dir}` : "";
+      for (const entry of resolved[category] ?? []) {
+        const targetApps = appsForEntry(entry, apps);
+        const seedApp = targetApps[0] ?? apps[0]!;
+        const ctx = buildRenderContext({
+          projectName: opts.name,
+          app: seedApp,
+          packageName,
+          packageManager: pm,
+          peers,
+        });
+        lines.push(`### ${categoryLabel(category)} — ${entry.module.label}`);
+        lines.push("");
+        const body = entry.module.readme
+          ? renderTemplate(entry.module.readme, ctx).trim()
+          : `> ${entry.module.description}`;
+        lines.push(body);
+        lines.push("");
+      }
+    }
+  }
+
+  return lines.join("\n").replace(/\n+$/, "\n");
+}
+
+/**
+ * Apps an entry targets, defaulting to every project app when `entry.apps` is
+ * absent. Mirrors `synthesizeTemplates`' filter so the README's seed app
+ * agrees with what the templates render against.
+ */
+function appsForEntry(entry: ResolvedEntry, apps: AppSpec[]): AppSpec[] {
+  const withApps = entry as SynthesizeEntry;
+  if (!withApps.apps?.length) return apps;
+  const allowed = new Set(withApps.apps);
+  return apps.filter((a) => allowed.has(a.id));
 }

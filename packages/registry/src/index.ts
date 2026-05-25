@@ -79,11 +79,12 @@ export {
   appendEnvVar,
   synthesizeEnvExample,
   synthesizeManifest,
+  synthesizeReadme,
   synthesizeTemplates,
 } from "./synthesize";
 
 export type { TemplateContext } from "./template";
-export { renderTemplate, buildRenderContext } from "./template";
+export { renderTemplate, buildRenderContext, pmRun } from "./template";
 
 export type { ProjectNameValidation } from "./project-name";
 export { validateProjectName } from "./project-name";

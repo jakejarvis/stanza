@@ -9,7 +9,7 @@ npm init stanza my-revolutionary-app
 Pick a framework, ORM, database, auth provider, and UI — get a clean monorepo with idiomatic code, vendored into your repo. Layer in more modules later with `stanza-cli add`.
 
 > [!WARNING]
-> 🚧 **Major work in progress!** See the [module registry](https://stanza.tools/docs/registry) for the module roadmap, and [TODO.md](./TODO.md) for active work.
+> **Major work in progress!** See the [module registry](https://stanza.tools/docs/registry) for the roadmap.
 
 ## Why Stanza?
 

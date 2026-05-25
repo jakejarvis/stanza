@@ -1,0 +1,1 @@
+The web app lives in `{{app.dir}}`. Start the Vite dev server with `{{run "dev"}}` and open the printed URL. Routes are under `{{app.dir}}/src/routes/` — TanStack Router's file-based routing generates `routeTree.gen.ts` on the fly.

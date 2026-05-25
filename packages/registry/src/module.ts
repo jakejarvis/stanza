@@ -186,17 +186,33 @@ export type PeerRequirement = {
 };
 
 /**
+ * Fields that route to a single target, used inside `app` overlays where the
+ * recursive `app: { app: {...} }` would be meaningless.
+ */
+export type AppInstallFields = {
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  env?: EnvVar[];
+  scripts?: Record<string, string>;
+};
+
+/**
  * Fields that can appear on either a module (shared across all adapters) or
  * an adapter (variation per peer combination). When both define the same
  * field, the adapter-level value is merged on top of the module-level one:
  * - `dependencies`/`devDependencies`/`scripts` — merged per-key (adapter wins).
  * - `env` — merged by `name` (adapter wins).
+ *
+ * The `app` overlay routes its fields to the *consuming app(s)* regardless of
+ * the module's category home. Used by `home: "package"` modules whose
+ * app-scoped shims import npm packages directly — the shim's dep belongs with
+ * the app, not the shared package (e.g. `next-themes` for a shadcn shim that
+ * lives in `apps/<id>/components/theme-provider.tsx`). Forbidden on
+ * `home: "repo"` modules; redundant on `home: "app"` modules (their primary
+ * fields already land in the apps).
  */
-export type ModuleInstallFields = {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  env?: EnvVar[];
-  scripts?: Record<string, string>;
+export type ModuleInstallFields = AppInstallFields & {
+  app?: AppInstallFields;
 };
 
 export type ModuleAdapter = ModuleInstallFields & {
@@ -303,6 +319,14 @@ export type Module = ModuleInstallFields & {
   author?: string;
   /** Inlined SVG logo, populated by the registry build step. */
   logo?: Logo;
+  /**
+   * Markdown contributed to the project README, rendered with the same
+   * Handlebars context as templates (`{{ project.name }}`, `{{ peers.* }}`,
+   * `{{ packages.<dir>.name }}`). Populated by the registry build from a
+   * sidecar `readme.md` next to `module.ts` — module authors don't set it
+   * directly. Used by `synthesizeReadme` to compose a per-project README.
+   */
+  readme?: string;
 };
 
 /**
@@ -321,11 +345,33 @@ export type RegistryIndex = {
 };
 
 /**
- * Identity helper for module manifests — full inference + IDE autocomplete with
- * zero runtime cost.
+ * Identity helper for module manifests — full inference + IDE autocomplete.
+ * Also throws early on the one structural rule that's hard to express in
+ * the type system: an `app` install-fields overlay is meaningless for
+ * `home: "repo"` modules (there's no app target to route to).
  */
 export function defineModule(module: Module): Module {
+  if (categoryHome(module.category).kind === "repo") {
+    const hasApp = hasAppOverlay(module) || module.adapters.some((a) => hasAppOverlay(a));
+    if (hasApp) {
+      throw new Error(
+        `defineModule(${module.category}/${module.id}): \`app\` install fields are ` +
+          `forbidden for \`home: "repo"\` modules. Move the deps to top-level ` +
+          `\`dependencies\` (they'll route to the repo root) or split out an app-home module.`,
+      );
+    }
+  }
   return module;
+}
+
+function hasAppOverlay(x: ModuleInstallFields): boolean {
+  if (!x.app) return false;
+  return Boolean(
+    (x.app.dependencies && Object.keys(x.app.dependencies).length > 0) ||
+    (x.app.devDependencies && Object.keys(x.app.devDependencies).length > 0) ||
+    (x.app.scripts && Object.keys(x.app.scripts).length > 0) ||
+    (x.app.env && x.app.env.length > 0),
+  );
 }
 
 // Runtime-validatable schema for third-party / fetched manifests.
@@ -348,11 +394,18 @@ const envVarSchema = z.object({
   description: z.string().optional(),
 });
 
-const installFieldsSchema = {
+const appInstallFieldsSchema = {
   dependencies: z.record(z.string(), z.string()).optional(),
   devDependencies: z.record(z.string(), z.string()).optional(),
   env: z.array(envVarSchema).optional(),
   scripts: z.record(z.string(), z.string()).optional(),
+};
+
+const installFieldsSchema = {
+  ...appInstallFieldsSchema,
+  // The `app` overlay routes to consuming app(s) instead of the module's
+  // home target. Non-recursive — `app.app` would be meaningless.
+  app: z.object(appInstallFieldsSchema).optional(),
 };
 
 const adapterSchema = z.object({
@@ -397,12 +450,31 @@ const moduleBaseShape = {
   homepage: z.string().optional(),
   author: z.string().optional(),
   logo: z.union([z.string(), z.object({ light: z.string(), dark: z.string() })]).optional(),
+  readme: z.string().optional(),
 };
 
-export const ModuleSchema = z.object({
-  ...moduleBaseShape,
-  adapters: z.array(adapterSchema),
-}) satisfies z.ZodType<Module>;
+export const ModuleSchema = z
+  .object({
+    ...moduleBaseShape,
+    adapters: z.array(adapterSchema),
+  })
+  .superRefine((mod, ctx) => {
+    if (categoryHome(mod.category).kind !== "repo") return;
+    const offenders: string[] = [];
+    if (hasAppOverlay(mod)) offenders.push("module");
+    for (const a of mod.adapters) {
+      if (hasAppOverlay(a)) offenders.push(`adapter "${a.key}"`);
+    }
+    if (offenders.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          `\`app\` install fields are forbidden for \`home: "repo"\` modules ` +
+          `(category "${mod.category}"). Offenders: ${offenders.join(", ")}.`,
+        path: ["app"],
+      });
+    }
+  }) satisfies z.ZodType<Module>;
 
 /** Category metadata as served in the registry `index.json`. */
 const categorySchema = z.object({

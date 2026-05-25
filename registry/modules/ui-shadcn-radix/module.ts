@@ -25,10 +25,15 @@ export default defineModule({
     {
       key: "next",
       match: { framework: "next" },
-      // next-themes powers shadcn's <ThemeProvider> on Next — class strategy +
-      // localStorage + system-pref subscription, all out of the box.
-      dependencies: { "next-themes": "^0.4.6" },
       devDependencies: { "@tailwindcss/postcss": "^4.1.18" },
+      // `next-themes` powers shadcn's <ThemeProvider> on Next. It's imported
+      // only from the app-side `theme-provider.tsx` shim, not from anything
+      // in packages/ui — route via the `app` overlay so the dep lands in
+      // `apps/<id>/package.json` next to its consumer instead of the shared
+      // ui package.
+      app: {
+        dependencies: { "next-themes": "^0.4.6" },
+      },
       templates: [
         // packages/ui/ — shared shadcn surface.
         {

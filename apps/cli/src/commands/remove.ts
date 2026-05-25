@@ -18,6 +18,7 @@ import pc from "picocolors";
 import { revertCodemods } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
+import { regenerateReadmeIfUnmodified } from "../lib/readme";
 import { regionsOwnedBy } from "../lib/region-tracker";
 import { loadRegistry } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
@@ -153,15 +154,20 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
       continue;
     }
     if (file.endsWith("package.json")) {
-      if (region.startsWith("dependencies.") || region.startsWith("devDependencies.")) {
-        const name = region.split(".").slice(1).join(".");
+      // `app.dependencies.X` and `app.devDependencies.X` come from the
+      // `app` install-fields overlay (package-home module routing a dep into
+      // the consuming app). Strip the `app.` prefix and treat identically to
+      // the primary forms — both end up calling `removePackageDependency`.
+      const stripped = region.startsWith("app.") ? region.slice("app.".length) : region;
+      if (stripped.startsWith("dependencies.") || stripped.startsWith("devDependencies.")) {
+        const name = stripped.split(".").slice(1).join(".");
         if (!dryRun) removePackageDependency(abs, name);
         continue;
       }
-      if (region.startsWith("scripts.")) {
+      if (stripped.startsWith("scripts.")) {
         if (!dryRun) {
           const pkg = JSON.parse(fs.readFileSync(abs, "utf8"));
-          delete pkg.scripts?.[region.slice("scripts.".length)];
+          delete pkg.scripts?.[stripped.slice("scripts.".length)];
           fs.writeFileSync(abs, JSON.stringify(pkg, null, 2) + "\n");
         }
         continue;
@@ -224,6 +230,22 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   }
 
   if (!dryRun) writeManifest(projectRoot, manifest);
+
+  // Refresh the project README to drop the removed module's section — but
+  // only if the user hasn't edited it.
+  const regen = await regenerateReadmeIfUnmodified({
+    projectRoot,
+    manifest,
+    registry,
+    dryRun,
+  });
+  if (regen.status === "written" && !dryRun) {
+    manifest = regen.manifest;
+    writeManifest(projectRoot, manifest);
+  }
+  if (regen.status === "skipped") {
+    p.log.warn("Skipped README.md refresh (user-modified). Delete the file to regenerate.");
+  }
 
   telemetry.capture("cli_module", { action: "remove", group, module: installed.id });
   p.log.success(`${pc.green("✓")} Removed ${installed.id} from ${group}`);

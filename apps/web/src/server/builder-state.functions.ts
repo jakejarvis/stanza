@@ -3,6 +3,7 @@ import {
   synthesizeEnvExample,
   synthesizeManifest,
   synthesizePackageJsons,
+  synthesizeReadme,
   synthesizeTemplates,
 } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
@@ -67,6 +68,7 @@ export const getBuilderState = createServerFn({ method: "GET" })
     const previewFiles: { path: string; content: string }[] = synthesizeTemplates(resolved, {
       name,
       apps,
+      packageManager: pm,
       peers,
     }).map((tpl) => ({ path: tpl.path, content: tpl.content }));
     if (hasSelection) {
@@ -82,6 +84,10 @@ export const getBuilderState = createServerFn({ method: "GET" })
       previewFiles.push({
         path: ".env.example",
         content: synthesizeEnvExample(resolved),
+      });
+      previewFiles.push({
+        path: "README.md",
+        content: synthesizeReadme(resolved, { name, apps, packageManager: pm, peers }),
       });
     }
 

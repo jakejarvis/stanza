@@ -34,6 +34,17 @@ export type MergedInstallFields = {
   devDependencies: Record<string, string>;
   scripts: Record<string, string>;
   env: EnvVar[];
+  /**
+   * App-routed overlay: same shape as the primary fields, but destined for
+   * the consuming app(s)' `package.json` instead of the module's home target.
+   * Always present (possibly empty) for downstream-callsite ergonomics.
+   */
+  app: {
+    dependencies: Record<string, string>;
+    devDependencies: Record<string, string>;
+    scripts: Record<string, string>;
+    env: EnvVar[];
+  };
 };
 
 /**
@@ -41,16 +52,30 @@ export type MergedInstallFields = {
  * Adapter values win per-key. Env merges by `name`. Single source of truth for
  * both the CLI's apply path and the web builder's preview synthesis, so the two
  * can never disagree about what a selection installs.
+ *
+ * The `app` overlay merges identically — module-level `app.*` defaults are
+ * overridden per-key by adapter-level `app.*`.
  */
 export function mergeInstallFields(module: Module, adapter: ModuleAdapter): MergedInstallFields {
   const envByName = new Map<string, EnvVar>();
   for (const v of module.env ?? []) envByName.set(v.name, v);
   for (const v of adapter.env ?? []) envByName.set(v.name, v);
+
+  const appEnvByName = new Map<string, EnvVar>();
+  for (const v of module.app?.env ?? []) appEnvByName.set(v.name, v);
+  for (const v of adapter.app?.env ?? []) appEnvByName.set(v.name, v);
+
   return {
     dependencies: { ...module.dependencies, ...adapter.dependencies },
     devDependencies: { ...module.devDependencies, ...adapter.devDependencies },
     scripts: { ...module.scripts, ...adapter.scripts },
     env: [...envByName.values()],
+    app: {
+      dependencies: { ...module.app?.dependencies, ...adapter.app?.dependencies },
+      devDependencies: { ...module.app?.devDependencies, ...adapter.app?.devDependencies },
+      scripts: { ...module.app?.scripts, ...adapter.app?.scripts },
+      env: [...appEnvByName.values()],
+    },
   };
 }
 
@@ -241,6 +266,31 @@ export function synthesizePackageJsons(
     return apps.filter((a) => allowed.has(a.id));
   };
 
+  /**
+   * Apply the `app` overlay to every targeted app. No-op when the overlay has
+   * nothing — and a duplicate-but-harmless write when the module is already
+   * `home: "app"` (the primary pass put the same fields there).
+   */
+  const applyAppOverlay = (entry: SynthesizeEntry, fields: MergedInstallFields): void => {
+    if (
+      Object.keys(fields.app.dependencies).length === 0 &&
+      Object.keys(fields.app.devDependencies).length === 0 &&
+      Object.keys(fields.app.scripts).length === 0
+    ) {
+      return;
+    }
+    for (const app of targetsFor(entry)) {
+      const appPkg = appPkgs.get(app.id);
+      if (!appPkg) continue;
+      for (const [n, r] of Object.entries(fields.app.dependencies)) addDep(appPkg, n, r);
+      for (const [n, r] of Object.entries(fields.app.devDependencies)) addDep(appPkg, n, r, true);
+      for (const [n, c] of Object.entries(fields.app.scripts)) {
+        const scripts = (appPkg.scripts ??= {});
+        if (scripts[n] === undefined) scripts[n] = c;
+      }
+    }
+  };
+
   // Routing target comes from `categoryHome` — the same decision the CLI applies.
   const route = (entry: SynthesizeEntry, home: InstallHome) => {
     const fields = mergeInstallFields(entry.module, entry.adapter);
@@ -262,9 +312,12 @@ export function synthesizePackageJsons(
         addDep(pkg, `@${name}/${peer}`, "workspace:*");
       }
       applyFields(pkg, fields);
+      applyAppOverlay(entry, fields);
       return;
     }
     if (home.kind === "repo") {
+      // `app` overlay is schema-rejected for repo-home modules, so nothing
+      // to fan out here.
       applyFields(root, fields);
       return;
     }
@@ -273,6 +326,7 @@ export function synthesizePackageJsons(
       const appPkg = appPkgs.get(app.id);
       if (appPkg) applyFields(appPkg, fields);
     }
+    applyAppOverlay(entry, fields);
   };
 
   for (const category of categoryOrder) {

@@ -229,6 +229,58 @@ export async function applyModule(args: {
     touchedFiles.add(".env.example");
   }
 
+  // 2b. `app` install-fields overlay — routes per-dep into each consuming
+  //    app's package.json regardless of category home. Use case: package-home
+  //    modules whose app-scoped shims import an npm package that conceptually
+  //    belongs with the app (e.g. shadcn-next ships `theme-provider.tsx` into
+  //    apps/<id>/components/, but `next-themes` is imported FROM the app, so
+  //    the dep belongs in the app's package.json, not packages/ui's). Schema
+  //    rejects this overlay for repo-home modules.
+  const appFields = installFields.app;
+  const hasAppInstall =
+    Object.keys(appFields.dependencies).length > 0 ||
+    Object.keys(appFields.devDependencies).length > 0 ||
+    Object.keys(appFields.scripts).length > 0;
+  if (hasAppInstall) {
+    const appTargets = targetApps.map((a) => `${a.dir.replace(/\/+$/, "")}/package.json`);
+    for (const target of appTargets) {
+      const pkgJsonPath = path.join(projectRoot, target);
+      if (!fs.existsSync(pkgJsonPath)) {
+        throw new Error(`Cannot apply ${module.id} app overlay: ${target} doesn't exist.`);
+      }
+    }
+    const appDeps = dryRun ? appFields.dependencies : await resolveRanges(appFields.dependencies);
+    const appDevDeps = dryRun
+      ? appFields.devDependencies
+      : await resolveRanges(appFields.devDependencies);
+    for (const target of appTargets) {
+      const pkgJsonPath = path.join(projectRoot, target);
+      for (const [name, range] of Object.entries(appDeps)) {
+        manifest = claim(manifest, target, `app.dependencies.${name}`, owner);
+        if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
+      }
+      for (const [name, range] of Object.entries(appDevDeps)) {
+        manifest = claim(manifest, target, `app.devDependencies.${name}`, owner);
+        if (!dryRun) addPackageDependency(pkgJsonPath, name, range, { dev: true });
+      }
+      for (const [name, command] of Object.entries(appFields.scripts)) {
+        manifest = claim(manifest, target, `app.scripts.${name}`, owner);
+        if (!dryRun) addPackageScript(pkgJsonPath, name, command);
+      }
+      touchedFiles.add(target);
+    }
+  }
+  if (appFields.env.length > 0) {
+    // App-overlay env vars share the same `.env.example` destination — no
+    // separate per-app env files yet. Treat them like primary env.
+    const envFile = path.join(projectRoot, ".env.example");
+    for (const v of appFields.env) {
+      manifest = claim(manifest, ".env.example", v.name, owner);
+      if (!dryRun) addEnvVar(envFile, v.name, v.example, v.description);
+    }
+    touchedFiles.add(".env.example");
+  }
+
   // 4. Imperative codemods — dispatched through the CLI's generic catalog.
   //    For app-home and package-home modules, run once per targeted app so
   //    codemods that edit files inside an app dir see the right app context.

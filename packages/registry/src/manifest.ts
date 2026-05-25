@@ -80,6 +80,13 @@ export type StanzaManifest = {
    */
   modules: Partial<Record<CategoryId, StanzaModuleRecord[]>>;
   regions: RegionOwnership;
+  /**
+   * SHA-256 of the README.md Stanza last wrote. When `stanza add`/`remove`
+   * regenerate the README they compare the current file's hash against this
+   * value — a mismatch means the user edited it, and the refresh is skipped.
+   * Absent on legacy manifests; treated as "user-owned" in that case.
+   */
+  readmeChecksum?: string;
 };
 
 const appSpecSchema = z.object({
@@ -109,6 +116,7 @@ export const StanzaManifestSchema = z.object({
     ),
   ),
   regions: z.record(z.string(), z.record(z.string(), z.string())),
+  readmeChecksum: z.string().optional(),
 }) satisfies z.ZodType<StanzaManifest>;
 
 /**

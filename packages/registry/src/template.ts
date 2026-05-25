@@ -2,6 +2,7 @@ import Handlebars from "handlebars";
 
 import type { AppSpec } from "./manifest";
 import { type CategoryId, PACKAGE_DIRS, PEER_CATEGORIES } from "./module";
+import type { PackageManager } from "./package-json";
 
 /**
  * Handlebars context consumed by {@link renderTemplate}. The shape is the
@@ -19,6 +20,9 @@ import { type CategoryId, PACKAGE_DIRS, PEER_CATEGORIES } from "./module";
  *                               category, or undefined. Useful with the `eq`
  *                               helper for conditional blocks:
  *                               {{#if (eq peers.framework "next")}}…{{/if}}
+ *   {{ pm }}                  — project's package manager id ("pnpm" | "bun" |
+ *                               "npm"). Use in shell commands so docs and
+ *                               error messages match the user's chosen pm.
  *
  * `app.*` is rebound per target app on every render pass, so a module installed
  * into two apps renders correctly in each.
@@ -29,7 +33,19 @@ export type TemplateContext = {
   package: { name: string };
   packages: Record<string, { name: string }>;
   peers: Partial<Record<CategoryId, string>>;
+  pm: PackageManager;
 };
+
+/**
+ * Compose a "run a package.json script" invocation for the given pm. npm
+ * requires the `run` keyword (`npm run dev`); pnpm and bun accept the script
+ * name directly (`pnpm dev`, `bun dev`). Shared by the `{{run}}` Handlebars
+ * helper and by `synthesizeReadme`'s getting-started block so docs and synth
+ * agree on the exact command shape.
+ */
+export function pmRun(pm: PackageManager, script: string): string {
+  return pm === "npm" ? `npm run ${script}` : `${pm} ${script}`;
+}
 
 // Module-singleton instance so registered helpers don't leak into other
 // Handlebars consumers (the global is shared otherwise).
@@ -38,6 +54,13 @@ const hb = Handlebars.create();
 // String-equality helper for matching against a peer id, e.g.
 //   {{#if (eq peers.framework "next")}}…{{/if}}
 hb.registerHelper("eq", (a: unknown, b: unknown) => a === b);
+
+// pm-aware script invocation, e.g. `{{run "dev"}}` → `pnpm dev` / `bun dev` /
+// `npm run dev`. Reads the active pm from the current data context.
+hb.registerHelper("run", function (this: TemplateContext, script: unknown): string {
+  if (typeof script !== "string") return "";
+  return pmRun(this.pm, script);
+});
 
 /**
  * Render a Handlebars template against a {@link TemplateContext}. Output is
@@ -72,6 +95,7 @@ export function buildRenderContext(opts: {
   projectName: string;
   app: AppSpec;
   packageName: string;
+  packageManager?: PackageManager;
   peers?: Partial<Record<CategoryId, string>>;
 }): TemplateContext {
   const packages: Record<string, { name: string }> = {};
@@ -86,5 +110,6 @@ export function buildRenderContext(opts: {
     package: { name: opts.packageName },
     packages,
     peers,
+    pm: opts.packageManager ?? "pnpm",
   };
 }

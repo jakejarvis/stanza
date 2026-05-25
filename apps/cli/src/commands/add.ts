@@ -13,7 +13,8 @@ import pc from "picocolors";
 
 import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
-import { findProjectRoot, readManifest } from "../lib/manifest";
+import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
+import { regenerateReadmeIfUnmodified } from "../lib/readme";
 import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
@@ -178,6 +179,20 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     const { name } = result.bootstrappedPackage;
     p.log.info(`Run ${pc.cyan("pnpm install")} to link ${pc.cyan(name)}.`);
   }
+
+  // Refresh the project README to reflect the new selection — but only if the
+  // user hasn't edited it. `applyModule` has already written the manifest.
+  const regen = await regenerateReadmeIfUnmodified({
+    projectRoot,
+    manifest: result.manifest,
+    registry,
+    dryRun,
+  });
+  if (regen.status === "written" && !dryRun) writeManifest(projectRoot, regen.manifest);
+  if (regen.status === "skipped") {
+    p.log.warn("Skipped README.md refresh (user-modified). Delete the file to regenerate.");
+  }
+
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
 }
 
