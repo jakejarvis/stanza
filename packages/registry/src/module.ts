@@ -74,6 +74,20 @@ export const CATEGORIES = [
     home: { kind: "package", dir: "auth" },
   },
   {
+    id: "payments",
+    label: "Payments",
+    description: "Checkout + webhooks.",
+    cardinality: "one",
+    home: { kind: "package", dir: "payments" },
+  },
+  {
+    id: "email",
+    label: "Email",
+    description: "Transactional email.",
+    cardinality: "one",
+    home: { kind: "package", dir: "email" },
+  },
+  {
     id: "tooling",
     label: "Tooling",
     description: "Linter + formatter toolchain.",
@@ -93,13 +107,6 @@ export const CATEGORIES = [
     description: "Deploy targets.",
     cardinality: "many",
     home: { kind: "repo" },
-  },
-  {
-    id: "email",
-    label: "Email",
-    description: "Transactional email.",
-    cardinality: "many",
-    home: { kind: "app" },
   },
   {
     id: "monorepo",

@@ -57,12 +57,13 @@ export default defineModule({
           // Splice tailwindcss() into the framework's existing vite.config.ts
           // between tanstackStart() and react() — Start's plugin order is
           // strict, and we want Tailwind compiled before React's JSX transform.
-          id: "add-vite-plugin",
+          id: "add-plugin-to-call",
           args: {
+            file: "vite.config.ts",
+            callee: "defineConfig",
+            property: "plugins",
             call: "tailwindcss()",
-            importFrom: "@tailwindcss/vite",
-            importName: "tailwindcss",
-            importKind: "default",
+            imports: [{ from: "@tailwindcss/vite", default: "tailwindcss" }],
             position: "before:react",
           },
         },

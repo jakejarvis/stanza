@@ -10,7 +10,7 @@ let modulesPromise: Promise<Record<string, Module>> | undefined;
  * `getHighlighter()` pattern: load once per server instance, reuse across every
  * `getBuilderState` invocation. Registry data is immutable per deployment, so
  * cache lifetime = process lifetime (deploy-scoped on Vercel; restart the dev
- * server after `vp run registry:build` to pick up local edits).
+ * server after `vp run @stanza/web#prebuild` to pick up local edits).
  *
  * Per-module failures are isolated — the failing module is dropped from the
  * result and reported, the rest still resolve.

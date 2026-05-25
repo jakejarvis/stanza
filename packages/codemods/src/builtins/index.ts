@@ -20,20 +20,23 @@
  * subpath export.
  */
 import type { Codemod } from "../index";
-import addVitePlugin from "./add-vite-plugin";
+import addPackageDep from "./add-package-dep";
+import addPluginToCall from "./add-plugin-to-call";
 import appendToFile from "./append-to-file";
 import reExport from "./re-export";
 import wrapRootLayout from "./wrap-root-layout";
 
 export const CODEMOD_CATALOG: Record<string, Codemod> = {
-  [addVitePlugin.id]: addVitePlugin,
+  [addPackageDep.id]: addPackageDep,
+  [addPluginToCall.id]: addPluginToCall,
   [appendToFile.id]: appendToFile,
   [reExport.id]: reExport,
   [wrapRootLayout.id]: wrapRootLayout,
 };
 
-export { addVitePlugin, appendToFile, reExport, wrapRootLayout };
-export type { AddVitePluginArgs } from "./add-vite-plugin";
+export { addPackageDep, addPluginToCall, appendToFile, reExport, wrapRootLayout };
+export type { AddPackageDepArgs } from "./add-package-dep";
+export type { AddPluginToCallArgs } from "./add-plugin-to-call";
 export type { AppendToFileArgs } from "./append-to-file";
 export type { ReExportArgs } from "./re-export";
 export type { WrapRootLayoutArgs } from "./wrap-root-layout";

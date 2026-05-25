@@ -16,7 +16,6 @@
     "lint:fix": "vp lint --fix",
     "fmt": "vp fmt",
     "fmt:check": "vp fmt --check",
-    "registry:build": "bun scripts/registry-build.ts",
     "changeset": "vp exec changeset",
     "release": "vp run build:cli && changeset publish",
     "prepare": "vp config"
@@ -26,7 +25,6 @@
     "@changesets/cli": "^2.31.0",
     "@stanza/registry": "workspace:*",
     "@types/node": "^25.9.1",
-    "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:"
   },

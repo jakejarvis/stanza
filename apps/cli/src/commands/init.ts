@@ -2,13 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import type { AppSpec, CategoryId } from "@stanza/registry";
+import type { AppSpec, CategoryId, Module } from "@stanza/registry";
 import {
   appPackageJsonBase,
   categoryHome,
   categoryOrder,
   ENV_EXAMPLE_HEADER,
   KNOWN_CATEGORIES,
+  PEER_CATEGORIES,
   resolveAdapter,
   rootPackageJson,
 } from "@stanza/registry";
@@ -106,15 +107,25 @@ export async function cmdInit(args: CliArgs): Promise<void> {
   const targetApps = result.apps;
   const appHomeTarget: AppSpec[] = [result.apps[0]!];
 
-  // Apply in `categoryOrder`, so each category's peers (earlier one-cardinality
-  // picks) are already in the manifest when its framework-varying adapter resolves.
+  // Precompute the full peer map from all of `result.selections` so adapter
+  // selection is invariant to apply order. Without this, modules whose adapter
+  // varies by a peer that's applied LATER (e.g. a future `auth` adapter that
+  // matches on `payments`) would pick the less-specific variant. Apply still
+  // runs in `categoryOrder` — the order affects file-write sequence and the
+  // manifest's record order, not which adapter each module picks.
+  const fullPending: Partial<Record<CategoryId, Module>> = {};
+  for (const cat of PEER_CATEGORIES) {
+    const pick = result.selections[cat]?.[0];
+    if (pick) fullPending[cat] = pick;
+  }
+
   for (const category of categoryOrder) {
     const home = categoryHome(category);
     for (const mod of result.selections[category] ?? []) {
       spinner.start(`Installing ${mod.label}`);
       const adapter = resolveAdapter(mod, {
         manifest,
-        pending: {},
+        pending: fullPending,
         targetAppId: home.kind === "app" ? appHomeTarget[0]!.id : undefined,
       });
       if (!adapter.ok) {

@@ -118,12 +118,12 @@ TanStack Start, etc.
 Single-choice, constraint-bearing. Installs into `packages/payments/`, plus
 a Better Auth plugin when auth is selected.
 
-| Module   | Status          | Notes                         |
-| -------- | --------------- | ----------------------------- |
-| `stripe` | 🟨&nbsp;Planned | Checkout Sessions + webhooks. |
-| `polar`  | 🟨&nbsp;Planned | Polar SDK.                    |
-| `autumn` | 🟨&nbsp;Planned | Autumn.                       |
-| `dodo`   | 🟨&nbsp;Planned | Dodo Payments.                |
+| Module   | Status            | Notes                                                                                                                                                                                                                                     |
+| -------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `polar`  | 🟢&nbsp;Available | `@polar-sh/sdk` + framework-native route handlers. Bridge variant (when `auth: better-auth` is selected) ships `@polar-sh/better-auth` and wires the plugin into `auth.ts`; the Better Auth catchall serves checkout / portal / webhooks. |
+| `stripe` | 🟨&nbsp;Planned   | Checkout Sessions + webhooks.                                                                                                                                                                                                             |
+| `autumn` | 🟨&nbsp;Planned   | Autumn.                                                                                                                                                                                                                                   |
+| `dodo`   | 🟨&nbsp;Planned   | Dodo Payments.                                                                                                                                                                                                                            |
 
 ## Email
 

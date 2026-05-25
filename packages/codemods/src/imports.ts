@@ -1,32 +1,45 @@
 import type { SourceFile } from "ts-morph";
 
+/** Plain name (`useState`) or aliased (`{ name: "polar", alias: "polarClient" }`). */
+export type NamedImportSpec = string | { name: string; alias?: string };
+
+const namedImportKey = (name: string, alias: string | undefined): string =>
+  `${name}|${alias ?? ""}`;
+
 /**
  * Idempotently add a named import. If the module specifier is already
  * imported, merges the named entries; otherwise inserts a new import after
- * the last existing import statement.
+ * the last existing import statement. Aliased and plain forms coexist —
+ * `polar` and `polar as polarClient` from the same module are treated as
+ * distinct entries (same name, different local binding).
  */
 export function addNamedImport(
   sourceFile: SourceFile,
   moduleSpecifier: string,
-  named: string | string[],
+  named: NamedImportSpec | NamedImportSpec[],
 ): void {
-  const names = Array.isArray(named) ? named : [named];
+  const list = Array.isArray(named) ? named : [named];
+  const normalized = list.map((n) => (typeof n === "string" ? { name: n } : n));
   const existing = sourceFile.getImportDeclaration(
     (decl) => decl.getModuleSpecifierValue() === moduleSpecifier,
   );
 
   if (existing) {
-    const already = new Set(existing.getNamedImports().map((n) => n.getName()));
-    const toAdd = names.filter((n) => !already.has(n));
+    const already = new Set(
+      existing
+        .getNamedImports()
+        .map((n) => namedImportKey(n.getName(), n.getAliasNode()?.getText())),
+    );
+    const toAdd = normalized.filter((spec) => !already.has(namedImportKey(spec.name, spec.alias)));
     if (toAdd.length > 0) {
-      existing.addNamedImports(toAdd.map((name) => ({ name })));
+      existing.addNamedImports(toAdd.map((spec) => ({ name: spec.name, alias: spec.alias })));
     }
     return;
   }
 
   sourceFile.addImportDeclaration({
     moduleSpecifier,
-    namedImports: names.map((name) => ({ name })),
+    namedImports: normalized.map((spec) => ({ name: spec.name, alias: spec.alias })),
   });
 }
 

@@ -30,6 +30,25 @@ describe("addNamedImport", () => {
     addNamedImport(sf, "react", "useState");
     expect(sf.getText().match(/useState/g)?.length).toBe(1);
   });
+
+  it("supports aliased named imports", () => {
+    const sf = file("");
+    addNamedImport(sf, "@stanza/payments", { name: "polar", alias: "polarClient" });
+    expect(sf.getText()).toContain(`import { polar as polarClient } from "@stanza/payments"`);
+  });
+
+  it("treats aliased and plain forms of the same name as distinct", () => {
+    const sf = file(`import { polar } from "@stanza/payments";\n`);
+    addNamedImport(sf, "@stanza/payments", { name: "polar", alias: "polarClient" });
+    const text = sf.getText();
+    expect(text).toMatch(/import \{ polar, polar as polarClient \} from "@stanza\/payments"/);
+  });
+
+  it("is idempotent on the same aliased import", () => {
+    const sf = file(`import { polar as polarClient } from "@stanza/payments";\n`);
+    addNamedImport(sf, "@stanza/payments", { name: "polar", alias: "polarClient" });
+    expect(sf.getText().match(/polarClient/g)?.length).toBe(1);
+  });
 });
 
 describe("addDefaultImport", () => {

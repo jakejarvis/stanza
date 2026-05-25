@@ -1,30 +1,33 @@
-#!/usr/bin/env bun
 /**
  * Static registry build. Scans `registry/modules/*`, imports each module's
  * default export, writes:
- *   - dist/registry/index.json           — registry index (slot/module summaries)
- *   - dist/registry/modules/<slot>-<id>.json — per-module full manifests
- *   - dist/schema.json                   — JSON Schema for stanza.json (served at the web root)
+ *   - <out>/registry/index.json           — registry index (slot/module summaries)
+ *   - <out>/registry/modules/<slot>-<id>.json — per-module full manifests
+ *   - <out>/schema.json                   — JSON Schema for stanza.json (served at the web root)
  *
- * The output directory is what gets uploaded to the CDN (Vercel) and what
- * the CLI's HTTP loader hits at runtime.
+ * The output base defaults to `<repoRoot>/dist`. Pass a positional arg to
+ * redirect — e.g. the web app's prebuild points it at `apps/web/public/` so
+ * the registry lands directly under `public/registry/`.
+ *
+ * Invoked via `jiti packages/registry/src/build.ts [outBase]`.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { Logo, Module, RegistryIndex } from "@stanza/registry";
-import { CATEGORIES, manifestJsonSchema } from "@stanza/registry";
+import { manifestJsonSchema } from "./manifest";
+import { CATEGORIES, type Logo, type Module, type RegistryIndex } from "./module";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = findRepoRoot(here);
 const modulesDir = path.join(repoRoot, "registry", "modules");
-const outDir = path.join(repoRoot, "dist", "registry");
+const outBase = path.resolve(process.argv[2] ?? path.join(repoRoot, "dist"));
+const registryDir = path.join(outBase, "registry");
 
 await main();
 
 async function main() {
-  fs.mkdirSync(path.join(outDir, "modules"), { recursive: true });
+  fs.mkdirSync(path.join(registryDir, "modules"), { recursive: true });
 
   const dirs = fs
     .readdirSync(modulesDir, { withFileTypes: true })
@@ -59,7 +62,7 @@ async function main() {
     // Dirs/files are keyed by `<category>-<id>` (e.g. testing-vitest). The
     // CLI's HTTP loader builds the same filename from the category it's asked for.
     fs.writeFileSync(
-      path.join(outDir, "modules", `${mod.category}-${mod.id}.json`),
+      path.join(registryDir, "modules", `${mod.category}-${mod.id}.json`),
       JSON.stringify(inlined, null, 2),
     );
 
@@ -80,16 +83,16 @@ async function main() {
     modules: summaries,
   };
 
-  fs.writeFileSync(path.join(outDir, "index.json"), JSON.stringify(index, null, 2));
+  fs.writeFileSync(path.join(registryDir, "index.json"), JSON.stringify(index, null, 2));
 
   // The stanza.json JSON Schema is served at the web root (not under /registry/),
-  // so it lands at dist/ rather than dist/registry/.
+  // so it lands at <outBase>/schema.json rather than <outBase>/registry/schema.json.
   fs.writeFileSync(
-    path.join(repoRoot, "dist", "schema.json"),
+    path.join(outBase, "schema.json"),
     JSON.stringify(manifestJsonSchema(), null, 2),
   );
 
-  console.log(`Wrote ${summaries.length} modules to ${outDir} (+ dist/schema.json)`);
+  console.log(`Wrote ${summaries.length} modules to ${outBase}`);
 }
 
 /**

@@ -22,14 +22,6 @@ jobs:
           node-version: 24
           cache: true
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Build registry
-        run: vp run registry:build
-
       - name: Lint
         run: vp check
 

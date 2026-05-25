@@ -16,6 +16,7 @@ export { SyntaxKind } from "ts-morph";
 export { openProject } from "./project";
 
 export { addNamedImport, addDefaultImport, removeImport } from "./imports";
+export type { NamedImportSpec } from "./imports";
 
 export { addArrayElement, removeArrayElement } from "./arrays";
 
