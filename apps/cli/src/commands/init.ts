@@ -107,12 +107,9 @@ export async function cmdInit(args: CliArgs): Promise<void> {
   const targetApps = result.apps;
   const appHomeTarget: AppSpec[] = [result.apps[0]!];
 
-  // Precompute the full peer map from all of `result.selections` so adapter
-  // selection is invariant to apply order. Without this, modules whose adapter
-  // varies by a peer that's applied LATER (e.g. a future `auth` adapter that
-  // matches on `payments`) would pick the less-specific variant. Apply still
-  // runs in `categoryOrder` — the order affects file-write sequence and the
-  // manifest's record order, not which adapter each module picks.
+  // Pass the full peer set up front so a module whose adapter matches on a
+  // peer applied LATER in `categoryOrder` still picks the most-specific
+  // variant.
   const fullPending: Partial<Record<CategoryId, Module>> = {};
   for (const cat of PEER_CATEGORIES) {
     const pick = result.selections[cat]?.[0];

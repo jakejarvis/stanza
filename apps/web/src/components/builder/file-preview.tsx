@@ -1,6 +1,7 @@
 import { themeToTreeStyles } from "@pierre/trees";
-import { FileTree, useFileTree, useFileTreeSelection } from "@pierre/trees/react";
+import { FileTree, useFileTree, useFileTreeSelector } from "@pierre/trees/react";
 import { IconLoader2 } from "@tabler/icons-react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -103,6 +104,16 @@ export function FilePreview({
     unsafeCSS: TRUNCATE_FIX_CSS,
   });
 
+  // URL hash mirrors the open file ("apps/web/src/index.tsx" etc.) so refreshes
+  // and shared links land on the same selection. Slashes are valid in a URL
+  // fragment, so paths go in raw — no encoding needed.
+  const hash = useLocation({ select: (l) => l.hash });
+  // Read inside the reseed effect without making it a dep — otherwise every
+  // back/forward would collapse + re-expand the whole tree.
+  const hashRef = useRef(hash);
+  hashRef.current = hash;
+  const navigate = useNavigate({ from: "/" });
+
   // Re-seed the model when `filePaths` changes. `resetPaths` collapses
   // everything and clears selection, so we replay both manually.
   const prevPathsRef = useRef(filePaths);
@@ -130,18 +141,66 @@ export function FilePreview({
     expanded.sort();
     const previousSelection = model.getSelectedPaths()[0];
     model.resetPaths(filePaths, { initialExpandedPaths: expanded });
-    // Keep the open file if it survived, else fall back to the default.
+    // Prefer the hash (deep link / refresh), then the prior selection, then
+    // the default. The hash is read via ref so its changes don't reseed.
+    const initialHash = hashRef.current;
     const next =
-      previousSelection != null && filePaths.includes(previousSelection)
-        ? previousSelection
-        : defaultPathFor(filePaths);
+      initialHash && filePaths.includes(initialHash)
+        ? initialHash
+        : previousSelection != null && filePaths.includes(previousSelection)
+          ? previousSelection
+          : defaultPathFor(filePaths);
     if (next) model.getItem(next)?.select();
     prevPathsRef.current = filePaths;
   }, [model, filePaths]);
 
-  const selectedPaths = useFileTreeSelection(model);
-  const activePath = selectedPaths[0] ?? defaultPathFor(filePaths);
+  // Project to "current file selection (undefined for nothing/folder)". The
+  // selector pattern lets the tree skip re-rendering us on unrelated state
+  // changes, and `isDirectory()` is the canonical file/folder discriminator.
+  const fileSelection = useFileTreeSelector(model, (m) => {
+    const sel = m.getSelectedPaths()[0];
+    if (!sel) return undefined;
+    return m.getItem(sel)?.isDirectory() === false ? sel : undefined;
+  });
+  // Folder clicks in @pierre/trees both expand AND select, dropping the file
+  // selection. Latch the last file so folder expansion leaves the preview
+  // and the URL hash on the user's chosen file. Invalidate when the latched
+  // file disappears from filePaths (e.g. its owning module was deselected).
+  const lastFileRef = useRef<string | undefined>(undefined);
+  if (lastFileRef.current && !filePaths.includes(lastFileRef.current)) {
+    lastFileRef.current = undefined;
+  }
+  if (fileSelection !== undefined) lastFileRef.current = fileSelection;
+  const activePath = lastFileRef.current ?? defaultPathFor(filePaths);
   const preview = activePath ? previews[activePath] : undefined;
+
+  // URL → tree: back/forward (and intra-app links) drop a new hash; reflect
+  // it in the tree. Skipped on the initial reseed since that effect already
+  // honors the hash via `hashRef`.
+  useEffect(() => {
+    if (!hash || !filePaths.includes(hash)) return;
+    if (model.getSelectedPaths()[0] === hash) return;
+    model.getItem(hash)?.select();
+  }, [hash, filePaths, model]);
+
+  // Tree → URL: keep the hash in sync with the open file. The hash is empty
+  // when the active file is the implicit default (so shareable URLs stay
+  // clean) or when there's no valid file at all (so a stale hash gets
+  // cleared after the owning module is deselected).
+  useEffect(() => {
+    const nextHash =
+      activePath && filePaths.includes(activePath) && activePath !== defaultPathFor(filePaths)
+        ? activePath
+        : "";
+    if (nextHash === hash) return;
+    void navigate({
+      search: (prev) => prev,
+      hash: nextHash,
+      replace: true,
+      resetScroll: false,
+      hashScrollIntoView: false,
+    });
+  }, [activePath, hash, filePaths, navigate]);
 
   // Drive the tree's palette from the app theme; otherwise it auto-detects via
   // `prefers-color-scheme` and mismatches when the user overrides the OS theme.

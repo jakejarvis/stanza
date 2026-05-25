@@ -394,6 +394,12 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/registry
 
+  registry/modules/payments-stripe:
+    dependencies:
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
   registry/modules/styling-tailwind:
     dependencies:
       '@stanza/codemods':

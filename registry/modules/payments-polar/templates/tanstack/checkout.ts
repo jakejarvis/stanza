@@ -2,9 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { polar } from "{{package.name}}";
 
-// GET /api/checkout?products=<product_id>[&products=<product_id>...]
-// Creates a Polar checkout session and 302-redirects to the hosted checkout
-// page. Polar substitutes `{CHECKOUT_ID}` in `successUrl` at redirect time.
 export const Route = createFileRoute("/api/checkout")({
   server: {
     handlers: {

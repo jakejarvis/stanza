@@ -16,15 +16,10 @@ import {
 type ArrayLiteral = ArrayLiteralExpression;
 
 /**
- * Insert a plugin call into the `<property>: [...]` array of the FIRST
- * argument of a CallExpression whose callee matches `args.callee`. The array
- * property is auto-created with `[]` when missing. Each module specifier in
- * `args.imports` is added (deduped, alias-aware).
- *
- * Covers the "add to a framework config's plugin array" pattern generically —
- * `defineConfig({ plugins: [...] })` (Vite), `betterAuth({ plugins: [...] })`
- * (Better Auth), `createApp({ plugins: [...] })` (Vue), etc. — so module
- * authors don't need to keep adding niche per-framework codemods.
+ * Splice a plugin call into a `<property>: [...]` array inside a
+ * CallExpression's first object argument — `defineConfig({ plugins: [...] })`,
+ * `betterAuth({ plugins: [...] })`, etc. Creates the array property when
+ * missing; adds the named/default imports (alias-aware); idempotent.
  */
 export type AddPluginToCallArgs = {
   /** Path to the file, relative to `base`. */
@@ -151,11 +146,7 @@ function regionKeyFor(args: AddPluginToCallArgs): string {
   return `${args.callee}.${args.property}.${leading}`;
 }
 
-/**
- * Find the target plugins array in the file. Returns `null` if any step
- * fails (no matching call, wrong arg shape, missing property). Used by
- * `revert` where missing structure is fine — there's nothing to remove.
- */
+/** Returns `null` if the structure isn't present — fine for `revert`. */
 function findPluginsArray(sf: SourceFile, args: AddPluginToCallArgs): ArrayLiteral | null {
   const call = findCalleeCall(sf, args.callee);
   if (!call) return null;
@@ -166,13 +157,7 @@ function findPluginsArray(sf: SourceFile, args: AddPluginToCallArgs): ArrayLiter
   return prop?.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression) ?? null;
 }
 
-/**
- * Locate (or create) the target plugins array. Apply path uses this — if the
- * object literal exists but lacks the property, we add `<property>: []` so
- * downstream insert always has somewhere to land. Throws actionably when the
- * surrounding structure isn't what we expect (no matching call, wrong arg
- * shape, property exists with a non-array value).
- */
+/** Same as `findPluginsArray` but creates `<property>: []` when missing. */
 function getOrCreatePluginsArray(sf: SourceFile, args: AddPluginToCallArgs): ArrayLiteral {
   const call = findCalleeCall(sf, args.callee);
   if (!call) {
@@ -193,10 +178,8 @@ function getOrCreatePluginsArray(sf: SourceFile, args: AddPluginToCallArgs): Arr
 
   const prop = argNode.getProperty(args.property);
   if (!prop) {
-    // Create `<property>: []` matching the surrounding indent. ts-morph's
-    // `addPropertyAssignment` uses its default 4-space indent which doesn't
-    // match 2-space configs — same indent-preservation logic the array-
-    // element insertion uses below.
+    // ts-morph's `addPropertyAssignment` ignores the surrounding indent and
+    // injects 4 spaces, breaking 2-space configs — text-edit it ourselves.
     const properties = argNode.getProperties();
     if (properties.length > 0) {
       const last = properties[properties.length - 1]!;
@@ -204,12 +187,9 @@ function getOrCreatePluginsArray(sf: SourceFile, args: AddPluginToCallArgs): Arr
       const indent = trivia.match(/\n([ \t]*)$/)?.[1] ?? "  ";
       sf.insertText(last.getEnd(), `,\n${indent}${args.property}: []`);
     } else {
-      // Empty object literal — fall back to ts-morph's default formatting.
       argNode.addPropertyAssignment({ name: args.property, initializer: "[]" });
     }
-    // `sf.insertText` and `addPropertyAssignment` both invalidate the captured
-    // `argNode` reference — re-traverse from the source file to find the new
-    // property's array literal.
+    // `argNode` is stale after the mutation — re-traverse.
     const refreshedArgs = findCalleeCall(sf, args.callee)?.getArguments();
     const refreshed = refreshedArgs?.[args.argIndex ?? 0]?.asKind(
       SyntaxKind.ObjectLiteralExpression,
@@ -248,13 +228,8 @@ function findCalleeCall(sf: SourceFile, callee: string) {
     ?.asKind(SyntaxKind.CallExpression);
 }
 
-/**
- * Splice a new call expression into the array while preserving the indent
- * style of existing elements. ts-morph's `insertElement` reformats with
- * `manipulationSettings.indentationText` (default 4 spaces), which breaks
- * 2-space configs — we do the text edit ourselves and copy the existing
- * leading whitespace.
- */
+/** Text-edit insertion so we keep the array's existing indent (ts-morph's
+ *  `insertElement` would reformat to 4-space). */
 function insertPluginCall(
   sf: SourceFile,
   plugins: ArrayLiteral,

@@ -1,35 +1,30 @@
 import { defineModule } from "@stanza/registry";
 
 // SDK is auth-agnostic. `+better-auth` adapters additionally wire the
-// `@polar-sh/better-auth` plugin into `packages/auth/src/auth.ts` so the
-// auth catchall serves `/api/auth/polar/*`.
+// `@better-auth/stripe` plugin into `packages/auth/src/auth.ts` so the auth
+// catchall serves `/api/auth/stripe/*`.
 export default defineModule({
-  id: "polar",
+  id: "stripe",
   category: "payments",
-  label: "Polar",
-  description: "Merchant of record for subscriptions, checkout, and webhooks.",
+  label: "Stripe",
+  description: "Payments, subscriptions, and webhooks via the Stripe API.",
   version: "0.1.0",
   peers: { framework: ["next", "tanstack-start"] },
-  homepage: "https://polar.sh",
-  dependencies: { "@polar-sh/sdk": "^0.47.1" },
+  homepage: "https://stripe.com",
+  dependencies: { stripe: "^22.1.1" },
   env: [
     {
-      name: "POLAR_ACCESS_TOKEN",
-      example: "polar_oat_...",
+      name: "STRIPE_SECRET_KEY",
+      example: "sk_test_...",
       required: true,
-      description: "Polar organization access token (from the dashboard).",
+      description: "Stripe secret key (prefer a restricted API key — `rk_test_…` / `rk_live_…`).",
     },
     {
-      name: "POLAR_WEBHOOK_SECRET",
+      name: "STRIPE_WEBHOOK_SECRET",
       example: "whsec_...",
       required: true,
-      description: "Webhook signing secret (set when configuring the webhook endpoint).",
-    },
-    {
-      name: "POLAR_SERVER",
-      example: "sandbox",
-      required: false,
-      description: 'Polar API server: "sandbox" or "production". Defaults to production.',
+      description:
+        "Webhook signing secret (Dashboard → Workbench → Webhooks; from `stripe listen` locally).",
     },
   ],
   adapters: [
@@ -37,7 +32,7 @@ export default defineModule({
       key: "next",
       match: { framework: "next" },
       templates: [
-        { src: "shared/polar.ts", dest: "src/polar.ts", scope: "package" },
+        { src: "shared/stripe.ts", dest: "src/stripe.ts", scope: "package" },
         { src: "shared/index.ts", dest: "src/index.ts", scope: "package" },
         {
           src: "next/checkout.ts",
@@ -45,14 +40,19 @@ export default defineModule({
           scope: "app",
           template: true,
         },
-        { src: "next/webhook.ts", dest: "app/api/webhook/polar/route.ts", scope: "app" },
+        {
+          src: "next/webhook.ts",
+          dest: "app/api/webhook/stripe/route.ts",
+          scope: "app",
+          template: true,
+        },
       ],
     },
     {
       key: "tanstack-start",
       match: { framework: "tanstack-start" },
       templates: [
-        { src: "shared/polar.ts", dest: "src/polar.ts", scope: "package" },
+        { src: "shared/stripe.ts", dest: "src/stripe.ts", scope: "package" },
         { src: "shared/index.ts", dest: "src/index.ts", scope: "package" },
         {
           src: "tanstack/checkout.ts",
@@ -60,18 +60,23 @@ export default defineModule({
           scope: "app",
           template: true,
         },
-        { src: "tanstack/webhook.ts", dest: "src/routes/api/webhook/polar.ts", scope: "app" },
+        {
+          src: "tanstack/webhook.ts",
+          dest: "src/routes/api/webhook/stripe.ts",
+          scope: "app",
+          template: true,
+        },
       ],
     },
     // Bridge variants ship the standalone /api/checkout (visibility) but skip
-    // the standalone webhook — Polar delivers to one URL, and the plugin's
+    // the standalone webhook — Stripe delivers to one URL, and the plugin's
     // handler reconciles with auth customers.
     {
       key: "next+better-auth",
       match: { framework: "next", auth: "better-auth" },
-      dependencies: { "@polar-sh/better-auth": "^1.8.4" },
+      dependencies: { "@better-auth/stripe": "^1.6.11" },
       templates: [
-        { src: "shared/polar.ts", dest: "src/polar.ts", scope: "package" },
+        { src: "shared/stripe.ts", dest: "src/stripe.ts", scope: "package" },
         { src: "shared/better-auth.ts", dest: "src/better-auth.ts", scope: "package" },
         { src: "shared/index.better-auth.ts", dest: "src/index.ts", scope: "package" },
         {
@@ -96,11 +101,11 @@ export default defineModule({
             base: "package:auth",
             callee: "betterAuth",
             property: "plugins",
-            call: "polarPlugin",
+            call: "stripeAuthPlugin",
             imports: [
               {
                 from: "{{packages.payments.name}}",
-                named: [{ name: "polarPlugin" }],
+                named: [{ name: "stripeAuthPlugin" }],
               },
             ],
           },
@@ -110,9 +115,9 @@ export default defineModule({
     {
       key: "tanstack-start+better-auth",
       match: { framework: "tanstack-start", auth: "better-auth" },
-      dependencies: { "@polar-sh/better-auth": "^1.8.4" },
+      dependencies: { "@better-auth/stripe": "^1.6.11" },
       templates: [
-        { src: "shared/polar.ts", dest: "src/polar.ts", scope: "package" },
+        { src: "shared/stripe.ts", dest: "src/stripe.ts", scope: "package" },
         { src: "shared/better-auth.ts", dest: "src/better-auth.ts", scope: "package" },
         { src: "shared/index.better-auth.ts", dest: "src/index.ts", scope: "package" },
         {
@@ -137,11 +142,11 @@ export default defineModule({
             base: "package:auth",
             callee: "betterAuth",
             property: "plugins",
-            call: "polarPlugin",
+            call: "stripeAuthPlugin",
             imports: [
               {
                 from: "{{packages.payments.name}}",
-                named: [{ name: "polarPlugin" }],
+                named: [{ name: "stripeAuthPlugin" }],
               },
             ],
           },

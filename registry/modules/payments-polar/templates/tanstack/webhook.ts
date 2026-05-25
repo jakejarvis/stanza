@@ -3,9 +3,6 @@ import { validateEvent, WebhookVerificationError } from "@polar-sh/sdk/webhooks"
 
 const webhookSecret = process.env.POLAR_WEBHOOK_SECRET;
 
-// POST /api/webhook/polar — verifies the Polar webhook signature and dispatches.
-// Polar retries on non-2xx and timeouts; return 200 fast and enqueue any slow
-// work (email, sync, etc.) elsewhere. Dedupe on the `webhook-id` header.
 export const Route = createFileRoute("/api/webhook/polar")({
   server: {
     handlers: {

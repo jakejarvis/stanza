@@ -3,15 +3,11 @@ import path from "node:path";
 import { addPackageDependency, type Codemod, removePackageDependency } from "../index";
 
 /**
- * Idempotently add a dependency entry to a package.json. Used when an adapter
- * needs to wire a cross-package workspace dep that doesn't live in the
- * module's own package — e.g., the `payments-polar +better-auth` bridge
- * adapter has to add `{{packages.payments.name}}: workspace:*` to
- * `packages/auth/package.json` so the modified `auth.ts` can import from it.
- *
- * For the common case of adding deps to *this* module's own package, prefer
- * the declarative `dependencies` / `devDependencies` fields on the module or
- * adapter — they route via `installPackageJsonTargets` automatically.
+ * Add a dep to a package.json. Use the declarative `dependencies` /
+ * `devDependencies` fields when the dep belongs in the module's own package;
+ * reach for this only for cross-package wiring (e.g., the polar/stripe
+ * `+better-auth` bridges adding `{{packages.payments.name}}` to
+ * `packages/auth/package.json`).
  */
 export type AddPackageDepArgs = {
   /**
