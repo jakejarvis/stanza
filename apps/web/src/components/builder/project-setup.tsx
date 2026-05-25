@@ -1,7 +1,8 @@
 import { validateProjectName } from "@stanza/registry";
 import { IconAlertCircle } from "@tabler/icons-react";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Field, FieldError } from "@/components/ui/field";
@@ -17,10 +18,9 @@ export function ProjectSetup({
   defaultName: string;
   onNameChange: (name: string) => void;
 }) {
-  // Debounce the upward push (navigates → reruns the loader) while keeping the
-  // field responsive. `lastSyncedRef` ignores the echo of our own pushes —
-  // otherwise `setDraft(name)` would clobber characters the user typed between
-  // the debounce firing and the new `name` prop arriving.
+  // `lastSyncedRef` ignores the echo of our own pushes — otherwise
+  // `setDraft(name)` would clobber characters the user typed between the
+  // debounce firing and the new `name` prop arriving.
   const [draft, setDraft] = useState(name);
   const lastSyncedRef = useRef(name);
 
@@ -38,19 +38,14 @@ export function ProjectSetup({
   // shouldn't render a "required" error.
   const showError = !validation.ok && draft.trim().length > 0;
 
-  // Read the latest `onNameChange` without making the debounce effect re-run
-  // every time the parent rebuilds the callback.
-  const commit = useEffectEvent((next: string) => {
-    lastSyncedRef.current = next;
-    onNameChange(next);
-  });
+  const [debouncedDraft] = useDebouncedValue(draft, { wait: 300 });
 
   useEffect(() => {
-    if (draft === lastSyncedRef.current) return undefined;
-    if (!validation.ok) return undefined;
-    const timer = setTimeout(() => commit(draft), 300);
-    return () => clearTimeout(timer);
-  }, [draft, validation.ok]);
+    if (debouncedDraft === lastSyncedRef.current) return;
+    if (!validateProjectName(debouncedDraft).ok) return;
+    lastSyncedRef.current = debouncedDraft;
+    onNameChange(debouncedDraft);
+  }, [debouncedDraft, onNameChange]);
 
   const onDraftChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value),

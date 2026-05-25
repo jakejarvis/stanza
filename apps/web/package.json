@@ -23,6 +23,7 @@
     "@takumi-rs/image-response": "^1.5.1",
     "@tanstack/react-devtools": "^0.10.5",
     "@tanstack/react-hotkeys": "^0.10.0",
+    "@tanstack/react-pacer": "^0.22.1",
     "@tanstack/react-router": "^1.170.8",
     "@tanstack/react-router-devtools": "^1.167.0",
     "@tanstack/react-router-ssr-query": "^1.167.0",

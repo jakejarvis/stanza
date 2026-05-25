@@ -4,6 +4,7 @@ import type { ModuleSummary, RegistryIndex } from "@stanza/registry";
 import { categoryLabel } from "@stanza/registry";
 import { IconBookmark, IconSearch } from "@tabler/icons-react";
 import { formatForDisplay, useHotkey } from "@tanstack/react-hotkeys";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useNavigate } from "@tanstack/react-router";
 import type { SortedResult } from "fumadocs-core/search";
 import { useDocsSearch } from "fumadocs-core/search/client";
@@ -76,30 +77,29 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
     docsSearch.setSearch(query);
   }, [query, docsSearch]);
 
-  // Modules: small hand-rolled debounced fetch (not worth abstracting).
+  // Modules: debounce the query, then fetch with an abort signal for any
+  // request that's still in-flight when the debounced value changes again.
   const [moduleResults, setModuleResults] = useState<ModuleSummary[] | null>(null);
+  const [debouncedQuery] = useDebouncedValue(query, { wait: DEBOUNCE_MS });
   useEffect(() => {
-    if (!query.trim()) {
+    if (!debouncedQuery.trim()) {
       setModuleResults(null);
       return () => {};
     }
     const controller = new AbortController();
-    const timer = setTimeout(() => {
-      fetch(`/api/search/modules?q=${encodeURIComponent(query)}`, { signal: controller.signal })
-        .then((res) => res.json())
-        .then((data: unknown) => setModuleResults(parseModuleResults(data)))
-        .catch((err: unknown) => {
-          if (err instanceof DOMException && err.name === "AbortError") return;
-          // Surface network/parse failures as "no matches" rather than blanking
-          // the dialog or throwing past React's render loop.
-          setModuleResults([]);
-        });
-    }, DEBOUNCE_MS);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
+    fetch(`/api/search/modules?q=${encodeURIComponent(debouncedQuery)}`, {
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((data: unknown) => setModuleResults(parseModuleResults(data)))
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        // Surface network/parse failures as "no matches" rather than blanking
+        // the dialog or throwing past React's render loop.
+        setModuleResults([]);
+      });
+    return () => controller.abort();
+  }, [debouncedQuery]);
 
   const pageTitlesByUrl = useMemo(
     () => new Map(docs.pages.map((p) => [p.url, p.title])),

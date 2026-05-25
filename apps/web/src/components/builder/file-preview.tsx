@@ -3,11 +3,12 @@ import { FileTree, useFileTree, useFileTreeSelector } from "@pierre/trees/react"
 import { IconLoader2 } from "@tabler/icons-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { useGracePeriod } from "@/hooks/use-grace-period";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Preview } from "@/server/highlighter";
 
@@ -33,16 +34,16 @@ const TRUNCATE_FIX_CSS = `
   display: none !important;
 }`;
 
-// Prefer the root `package.json` — best at-a-glance summary of the stack.
-function defaultPathFor(filePaths: string[]): string | undefined {
-  return filePaths.includes("package.json") ? "package.json" : filePaths[0];
-}
-
 // Mirror TanStack Router's `defaultPendingMs` / `defaultPendingMinMs`: wait
 // before showing a pending indicator (skip the flash for fast loads), and once
 // shown, keep it visible at least this long (avoid flicker on near-misses).
 const OVERLAY_PENDING_MS = 300;
 const OVERLAY_MIN_MS = 250;
+
+// Prefer the root `package.json` — best at-a-glance summary of the stack.
+function defaultPathFor(filePaths: string[]): string | undefined {
+  return filePaths.includes("package.json") ? "package.json" : filePaths[0];
+}
 
 // "a/b/c.ts" → ["a", "a/b"].
 function directoryPaths(paths: readonly string[]): string[] {
@@ -57,30 +58,6 @@ function directoryPaths(paths: readonly string[]): string[] {
     }
   }
   return [...dirs];
-}
-
-// Defer the truthy edge by `delayMs`, then hold true for at least `minMs`.
-function useGracePeriod(active: boolean, delayMs: number, minMs: number): boolean {
-  const [visible, setVisible] = useState(false);
-  const shownAtRef = useRef(0);
-
-  useEffect(() => {
-    if (active && !visible) {
-      const t = setTimeout(() => {
-        shownAtRef.current = performance.now();
-        setVisible(true);
-      }, delayMs);
-      return () => clearTimeout(t);
-    }
-    if (!active && visible) {
-      const remaining = Math.max(0, minMs - (performance.now() - shownAtRef.current));
-      const t = setTimeout(() => setVisible(false), remaining);
-      return () => clearTimeout(t);
-    }
-    return undefined;
-  }, [active, visible, delayMs, minMs]);
-
-  return visible;
 }
 
 export function FilePreview({
@@ -113,46 +90,7 @@ export function FilePreview({
   const hashRef = useRef(hash);
   hashRef.current = hash;
   const navigate = useNavigate({ from: "/" });
-
-  // Re-seed the model when `filePaths` changes. `resetPaths` collapses
-  // everything and clears selection, so we replay both manually.
-  const prevPathsRef = useRef(filePaths);
-  useEffect(() => {
-    const expandedSet = new Set(
-      directoryPaths(prevPathsRef.current).filter((dir) => {
-        const item = model.getItem(dir);
-        return item != null && "isExpanded" in item && item.isExpanded();
-      }),
-    );
-    // Collapsing a directory leaves its descendants flagged expanded.
-    // `initialExpandedPaths` re-expands the full ancestor chain of every path
-    // given, so replaying such a descendant would re-open the just-collapsed
-    // parent. Keep only dirs whose entire ancestor chain is still expanded.
-    const expanded = [...expandedSet].filter((dir) => {
-      const segments = dir.split("/");
-      segments.pop();
-      let prefix = "";
-      for (const segment of segments) {
-        prefix = prefix ? `${prefix}/${segment}` : segment;
-        if (!expandedSet.has(prefix)) return false;
-      }
-      return true;
-    });
-    expanded.sort();
-    const previousSelection = model.getSelectedPaths()[0];
-    model.resetPaths(filePaths, { initialExpandedPaths: expanded });
-    // Prefer the hash (deep link / refresh), then the prior selection, then
-    // the default. The hash is read via ref so its changes don't reseed.
-    const initialHash = hashRef.current;
-    const next =
-      initialHash && filePaths.includes(initialHash)
-        ? initialHash
-        : previousSelection != null && filePaths.includes(previousSelection)
-          ? previousSelection
-          : defaultPathFor(filePaths);
-    if (next) model.getItem(next)?.select();
-    prevPathsRef.current = filePaths;
-  }, [model, filePaths]);
+  const defaultPath = useMemo(() => defaultPathFor(filePaths), [filePaths]);
 
   // Project to "current file selection (undefined for nothing/folder)". The
   // selector pattern lets the tree skip re-rendering us on unrelated state
@@ -171,8 +109,52 @@ export function FilePreview({
     lastFileRef.current = undefined;
   }
   if (fileSelection !== undefined) lastFileRef.current = fileSelection;
-  const activePath = lastFileRef.current ?? defaultPathFor(filePaths);
+  const activePath = lastFileRef.current ?? defaultPath;
   const preview = activePath ? previews[activePath] : undefined;
+
+  // Re-seed the model when `filePaths` changes. `resetPaths` collapses
+  // everything and clears selection, so we replay both manually.
+  const prevPathsRef = useRef(filePaths);
+  useEffect(() => {
+    const expandedSet = new Set(
+      directoryPaths(prevPathsRef.current).filter((dir) => {
+        const item = model.getItem(dir);
+        return item != null && "isExpanded" in item && item.isExpanded();
+      }),
+    );
+    // Collapsing a directory leaves its descendants flagged expanded.
+    // `initialExpandedPaths` re-expands the full ancestor chain of every path
+    // given, so replaying such a descendant would re-open the just-collapsed
+    // parent. Keep only dirs whose entire ancestor chain is still expanded.
+    const preservedExpansion = [...expandedSet].filter((dir) => {
+      const segments = dir.split("/");
+      segments.pop();
+      let prefix = "";
+      for (const segment of segments) {
+        prefix = prefix ? `${prefix}/${segment}` : segment;
+        if (!expandedSet.has(prefix)) return false;
+      }
+      return true;
+    });
+    // Prefer the hash (deep link / refresh), then the latched last file,
+    // then the default. Hash is read via ref so its changes don't reseed.
+    const initialHash = hashRef.current;
+    const previous = lastFileRef.current;
+    const next =
+      initialHash && filePaths.includes(initialHash)
+        ? initialHash
+        : previous && filePaths.includes(previous)
+          ? previous
+          : defaultPath;
+    // Reveal the selected file by expanding its ancestor chain — otherwise
+    // the tree selects a row that's collapsed out of view.
+    const expanded = [
+      ...new Set([...preservedExpansion, ...(next ? directoryPaths([next]) : [])]),
+    ].toSorted();
+    model.resetPaths(filePaths, { initialExpandedPaths: expanded });
+    if (next) model.getItem(next)?.select();
+    prevPathsRef.current = filePaths;
+  }, [model, filePaths, defaultPath]);
 
   // URL → tree: back/forward (and intra-app links) drop a new hash; reflect
   // it in the tree. Skipped on the initial reseed since that effect already
@@ -180,6 +162,11 @@ export function FilePreview({
   useEffect(() => {
     if (!hash || !filePaths.includes(hash)) return;
     if (model.getSelectedPaths()[0] === hash) return;
+    // Expand ancestors so the just-selected row is actually visible.
+    for (const dir of directoryPaths([hash])) {
+      const item = model.getItem(dir);
+      if (item && "expand" in item) item.expand();
+    }
     model.getItem(hash)?.select();
   }, [hash, filePaths, model]);
 
@@ -189,9 +176,7 @@ export function FilePreview({
   // cleared after the owning module is deselected).
   useEffect(() => {
     const nextHash =
-      activePath && filePaths.includes(activePath) && activePath !== defaultPathFor(filePaths)
-        ? activePath
-        : "";
+      activePath && filePaths.includes(activePath) && activePath !== defaultPath ? activePath : "";
     if (nextHash === hash) return;
     void navigate({
       search: (prev) => prev,
@@ -200,7 +185,7 @@ export function FilePreview({
       resetScroll: false,
       hashScrollIntoView: false,
     });
-  }, [activePath, hash, filePaths, navigate]);
+  }, [activePath, hash, filePaths, defaultPath, navigate]);
 
   // Drive the tree's palette from the app theme; otherwise it auto-detects via
   // `prefers-color-scheme` and mismatches when the user overrides the OS theme.
