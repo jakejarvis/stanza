@@ -15,6 +15,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { optimize } from "svgo";
+
 import { manifestJsonSchema } from "./manifest";
 import { CATEGORIES, type Logo, type Module, type RegistryIndex } from "./module";
 
@@ -46,7 +48,7 @@ async function main() {
     // no follow-up requests to retrieve template files. Local dev still works
     // because the runner falls back to disk when `content` is absent.
     const templatesDir = path.join(modulesDir, dir, "templates");
-    const logo = readLogo(path.join(modulesDir, dir));
+    const logo = readLogo(path.join(modulesDir, dir), dir);
     const readme = readReadme(path.join(modulesDir, dir));
     const inlined: Module = {
       ...mod,
@@ -102,19 +104,32 @@ async function main() {
  * theme-agnostic SVG) or `logo-light.svg` + `logo-dark.svg` (a theme pair)
  * in its directory. We read whichever is present and return the inlined
  * markup; if neither exists the module just renders without one.
+ *
+ * Each SVG is optimized + namespaced through SVGO. The `prefixIds` plugin
+ * scopes every `id` (and every `url(#…)` / `href="#…"` / `xlink:href="#…"`
+ * reference) by the module slug, so when many logos share the document
+ * (slot grids, search results), gradients and clip-paths from one logo
+ * never bleed into another via collisions like `id="a"`.
  */
-function readLogo(moduleDir: string): Logo | undefined {
+function readLogo(moduleDir: string, slug: string): Logo | undefined {
   const light = path.join(moduleDir, "logo-light.svg");
   const dark = path.join(moduleDir, "logo-dark.svg");
   if (fs.existsSync(light) && fs.existsSync(dark)) {
     return {
-      light: fs.readFileSync(light, "utf8"),
-      dark: fs.readFileSync(dark, "utf8"),
+      light: optimizeLogo(fs.readFileSync(light, "utf8"), `${slug}-light`),
+      dark: optimizeLogo(fs.readFileSync(dark, "utf8"), `${slug}-dark`),
     };
   }
   const single = path.join(moduleDir, "logo.svg");
-  if (fs.existsSync(single)) return fs.readFileSync(single, "utf8");
+  if (fs.existsSync(single)) return optimizeLogo(fs.readFileSync(single, "utf8"), slug);
   return undefined;
+}
+
+function optimizeLogo(svg: string, prefix: string): string {
+  return optimize(svg, {
+    multipass: true,
+    plugins: ["preset-default", { name: "prefixIds", params: { prefix, delim: "-" } }],
+  }).data;
 }
 
 /**

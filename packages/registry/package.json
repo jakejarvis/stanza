@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/validate-npm-package-name": "^4.0.2",
+    "svgo": "^4.0.1",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
