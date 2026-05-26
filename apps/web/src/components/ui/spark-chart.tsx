@@ -53,50 +53,57 @@ export function SparkAreaChart({ data, ariaLabel, height = 80, className }: Spar
   const last = points[points.length - 1];
 
   return (
-    <svg
-      role="img"
-      aria-label={ariaLabel}
-      viewBox={`0 0 ${VIEW_WIDTH} ${height}`}
-      preserveAspectRatio="none"
-      className={cn("w-full overflow-visible", className)}
-      style={{ height }}
-    >
-      <line
-        x1={0}
-        x2={VIEW_WIDTH}
-        y1={baselineY}
-        y2={baselineY}
-        stroke="var(--color-border)"
-        strokeWidth={1}
-        vectorEffect="non-scaling-stroke"
-      />
-      <path d={fillPath} fill="var(--color-chart-1)" fillOpacity={0.35} />
-      <path
-        d={linePath}
-        fill="none"
-        stroke="var(--color-chart-2)"
-        strokeWidth={1.5}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
-      />
-      {last ? (
-        <circle
-          cx={last.x}
-          cy={last.y}
-          r={3}
-          fill="var(--color-background)"
-          stroke="var(--color-foreground)"
-          strokeWidth={1.5}
+    <div className={cn("relative w-full", className)} style={{ height }}>
+      <svg
+        role="img"
+        aria-label={ariaLabel}
+        viewBox={`0 0 ${VIEW_WIDTH} ${height}`}
+        preserveAspectRatio="none"
+        className="block size-full overflow-visible"
+      >
+        <line
+          x1={0}
+          x2={VIEW_WIDTH}
+          y1={baselineY}
+          y2={baselineY}
+          stroke="var(--color-border)"
+          strokeWidth={1}
           vectorEffect="non-scaling-stroke"
         />
+        <path d={fillPath} fill="var(--color-chart-1)" fillOpacity={0.35} />
+        <path
+          d={linePath}
+          fill="none"
+          stroke="var(--color-chart-2)"
+          strokeWidth={1.5}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        {points.map(({ x, point }) => (
+          <rect key={point.label} x={x - 2} y={0} width={4} height={height} fill="transparent">
+            <title>{`${point.label}: ${point.value}`}</title>
+          </rect>
+        ))}
+      </svg>
+      {/*
+       * The chart SVG uses `preserveAspectRatio="none"` so the curve stretches
+       * to the container width. That stretches any inline <circle> into a
+       * horizontal oval, so the last-point dot lives in the DOM instead and
+       * stays perfectly round at any width.
+       */}
+      {last ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute size-[9px] rounded-full border-[1.5px] border-foreground bg-background"
+          style={{
+            right: 0,
+            top: `${(last.y / height) * 100}%`,
+            transform: "translate(50%, -50%)",
+          }}
+        />
       ) : null}
-      {points.map(({ x, point }) => (
-        <rect key={point.label} x={x - 2} y={0} width={4} height={height} fill="transparent">
-          <title>{`${point.label}: ${point.value}`}</title>
-        </rect>
-      ))}
-    </svg>
+    </div>
   );
 }
 

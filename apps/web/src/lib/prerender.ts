@@ -65,6 +65,7 @@ export function listPrerenderPages() {
     "/docs/llms.txt",
     "/docs/llms-full.txt",
     ...modules,
+    "/stats",
   ];
   return paths.map((path) => ({ path, prerender: { enabled: true } }));
 }

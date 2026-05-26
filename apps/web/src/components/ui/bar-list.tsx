@@ -1,8 +1,12 @@
+import type { ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 export type BarListEntry = {
   name: string;
   value: number;
+  /** Optional element rendered before the name (icon, logo, swatch, etc.). */
+  leading?: ReactNode;
   /** Optional label rendered on the right edge of the row (e.g. "62%"). */
   trailing?: string;
   /** Secondary trailing label rendered before `trailing` in a muted weight. */
@@ -46,16 +50,19 @@ export function BarList({ data, emptyMessage = "No data yet.", className }: BarL
               style={{ width: `${pct}%` }}
             />
             <div className="relative flex h-full items-center justify-between gap-3 px-2 text-xs">
-              {entry.href ? (
-                <a
-                  href={entry.href}
-                  className="truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
-                >
-                  {entry.name}
-                </a>
-              ) : (
-                <span className="truncate font-medium text-foreground">{entry.name}</span>
-              )}
+              <div className="flex min-w-0 items-center gap-2">
+                {entry.leading}
+                {entry.href ? (
+                  <a
+                    href={entry.href}
+                    className="truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                  >
+                    {entry.name}
+                  </a>
+                ) : (
+                  <span className="truncate font-medium text-foreground">{entry.name}</span>
+                )}
+              </div>
               {entry.trailing || entry.trailingSecondary ? (
                 <span className="shrink-0 font-mono text-xs tabular-nums">
                   {entry.trailingSecondary ? (

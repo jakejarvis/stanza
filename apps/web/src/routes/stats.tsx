@@ -2,6 +2,7 @@ import type { CategoryId, ModuleSummary } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
 
+import { ModuleLogo } from "@/components/module-logo";
 import { BarList } from "@/components/ui/bar-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SparkAreaChart } from "@/components/ui/spark-chart";
@@ -51,12 +52,8 @@ function StatsPage() {
   const stats = Route.useLoaderData();
   const { registry } = useLoaderData({ from: "__root__" });
 
-  const moduleLabel = (category: CategoryId, id: string): string => {
-    const found = registry.modules.find(
-      (m: ModuleSummary) => m.category === category && m.id === id,
-    );
-    return found?.label ?? id;
-  };
+  const findModule = (category: CategoryId, id: string): ModuleSummary | undefined =>
+    registry.modules.find((m: ModuleSummary) => m.category === category && m.id === id);
 
   const activitySum = stats.activity30d.reduce((acc, day) => acc + day.count, 0);
 
@@ -122,13 +119,18 @@ function StatsPage() {
                 </CardHeader>
                 <CardContent>
                   <BarList
-                    data={entries.map((entry) => ({
-                      name: moduleLabel(category, entry.id),
-                      value: entry.count,
-                      trailingSecondary: numberFormatter.format(entry.count),
-                      trailing: percentFormatter.format(entry.share),
-                      href: moduleHref(category, entry.id),
-                    }))}
+                    data={entries.map((entry) => {
+                      const summary = findModule(category, entry.id);
+                      const label = summary?.label ?? entry.id;
+                      return {
+                        name: label,
+                        value: entry.count,
+                        leading: <ModuleLogo logo={summary?.logo} label={label} size="sm" />,
+                        trailingSecondary: numberFormatter.format(entry.count),
+                        trailing: percentFormatter.format(entry.share),
+                        href: moduleHref(category, entry.id),
+                      };
+                    })}
                   />
                 </CardContent>
               </Card>
