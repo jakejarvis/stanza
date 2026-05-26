@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StatsRouteImport } from './routes/stats'
 import { Route as DocsDotmdRouteImport } from './routes/docs[.]md'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OgIndexRouteImport } from './routes/og.index'
@@ -23,6 +24,11 @@ import { Route as ApiSearchModulesRouteImport } from './routes/api.search.module
 import { Route as ApiSearchDocsRouteImport } from './routes/api.search.docs'
 import { Route as OgRegistryCategoryIdRouteImport } from './routes/og.registry.$category.$id'
 
+const StatsRoute = StatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocsDotmdRoute = DocsDotmdRouteImport.update({
   id: '/docs.md',
   path: '/docs.md',
@@ -92,6 +98,7 @@ const OgRegistryCategoryIdRoute = OgRegistryCategoryIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
+  '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
+  '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
+  '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/docs.md'
+    | '/stats'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/docs.md'
+    | '/stats'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/docs.md'
+    | '/stats'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
@@ -186,6 +198,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsDotmdRoute: typeof DocsDotmdRoute
+  StatsRoute: typeof StatsRoute
   ApiEventsRoute: typeof ApiEventsRoute
   DocsSplatRoute: typeof DocsSplatRoute
   DocsLlmsFullDottxtRoute: typeof DocsLlmsFullDottxtRoute
@@ -201,6 +214,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/stats': {
+      id: '/stats'
+      path: '/stats'
+      fullPath: '/stats'
+      preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs.md': {
       id: '/docs.md'
       path: '/docs.md'
@@ -298,6 +318,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsDotmdRoute: DocsDotmdRoute,
+  StatsRoute: StatsRoute,
   ApiEventsRoute: ApiEventsRoute,
   DocsSplatRoute: DocsSplatRoute,
   DocsLlmsFullDottxtRoute: DocsLlmsFullDottxtRoute,

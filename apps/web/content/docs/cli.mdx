@@ -87,6 +87,31 @@ These apply to the mutating verbs (`init`, `add`, `remove`):
 - `STANZA_NO_NPM_LOOKUP=1` — skip npm version lookups and write dependency ranges verbatim.
 - `STANZA_NPM_REGISTRY=<url>` — override the npm registry used for version lookups.
 - `STANZA_TELEMETRY=0` / `DO_NOT_TRACK=1` — disable telemetry persistently. Telemetry is also auto-skipped in CI.
+- `STANZA_TELEMETRY_URL=<url>` — point telemetry at a self-hosted ingest endpoint instead of `https://stanza.tools/api/events`.
+
+## Telemetry
+
+Stanza captures a small set of anonymous events to help us see which modules people actually pick. The aggregates are surfaced publicly on the [Stats page](/stats).
+
+**What's sent**
+
+- The command name (`init`, `add`, `remove`, `list`, `search`), its duration in milliseconds, and whether it succeeded.
+- CLI version, Node version, OS, and architecture.
+- For installs and removes: the module id and its category.
+- An ephemeral UUID generated per process so events from the same run can be grouped. It's regenerated next time and never persisted.
+
+**What's never sent**
+
+- File paths, project names, the contents of templates or env files, or anything else that could identify a project or person.
+- Your IP address — the CLI posts to a server-side proxy on `stanza.tools` that hands off to PostHog without forwarding the request IP.
+- Anything from CI environments. The CLI auto-detects `CI`, `GITHUB_ACTIONS`, `GITLAB_CI`, `CIRCLECI`, and `BUILD_NUMBER`.
+
+**Opting out**
+
+- One invocation: `--no-telemetry`.
+- Persistently: `STANZA_TELEMETRY=0` or `DO_NOT_TRACK=1` in your shell.
+
+The implementation is a single file: [`apps/cli/src/lib/telemetry.ts`](https://github.com/jakejarvis/stanza/blob/main/apps/cli/src/lib/telemetry.ts).
 
 ## Dependency versioning
 
