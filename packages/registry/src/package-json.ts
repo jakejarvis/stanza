@@ -9,6 +9,7 @@ import {
   PACKAGE_DIRS,
 } from "./module";
 import { categoryOrder } from "./resolver";
+import { pmRecursive } from "./template";
 
 export type PackageManager = "pnpm" | "bun" | "npm";
 
@@ -116,6 +117,11 @@ export const PM_FLOOR_VERSION: Record<PackageManager, string> = {
  * Root `package.json`. pnpm reads its workspace globs from `pnpm-workspace.yaml`,
  * so the `workspaces` field is emitted only for bun/npm.
  *
+ * Default `dev`/`build`/`test`/`lint` scripts use the pm's native workspace
+ * fan-out via {@link pmRecursive}. Installing a `monorepo` module (e.g.
+ * `monorepo-turbo`) overwrites these with the orchestrator's invocation —
+ * which is why each script has a region claim of its own on the runner side.
+ *
  * `packageManagerVersion` overrides the floor — pass a resolver result (e.g.
  * from `resolveExactVersion`) to pin to the latest matching release. Corepack
  * requires an exact version, so this value must not carry a `^`/`~` prefix.
@@ -133,9 +139,10 @@ export function rootPackageJson(opts: {
     version: "0.1.0",
     packageManager: `${packageManager}@${pmVersion}`,
     scripts: {
-      dev: `${packageManager} -r run dev`,
-      build: `${packageManager} -r run build`,
-      test: `${packageManager} -r run test`,
+      dev: pmRecursive(packageManager, "dev"),
+      build: pmRecursive(packageManager, "build"),
+      test: pmRecursive(packageManager, "test"),
+      lint: pmRecursive(packageManager, "lint"),
     },
   };
   if (packageManager !== "pnpm") pkg.workspaces = ["apps/*", "packages/*"];
@@ -210,8 +217,11 @@ function applyFields(pkg: PackageJson, fields: MergedInstallFields): void {
   for (const [name, range] of Object.entries(fields.devDependencies))
     addDep(pkg, name, range, true);
   for (const [name, command] of Object.entries(fields.scripts)) {
-    const scripts = (pkg.scripts ??= {});
-    if (scripts[name] === undefined) scripts[name] = command;
+    // Overwrite, matching the CLI's `addPackageScript` (setJsonPath) semantics.
+    // Region tracking is the inter-module conflict guard; a module-declared
+    // script intentionally wins over `rootPackageJson`-seeded defaults (e.g.
+    // turbo's `dev: "turbo run dev"` replacing the seeded `pnpm -r run dev`).
+    (pkg.scripts ??= {})[name] = command;
   }
 }
 
@@ -285,8 +295,7 @@ export function synthesizePackageJsons(
       for (const [n, r] of Object.entries(fields.app.dependencies)) addDep(appPkg, n, r);
       for (const [n, r] of Object.entries(fields.app.devDependencies)) addDep(appPkg, n, r, true);
       for (const [n, c] of Object.entries(fields.app.scripts)) {
-        const scripts = (appPkg.scripts ??= {});
-        if (scripts[n] === undefined) scripts[n] = c;
+        (appPkg.scripts ??= {})[n] = c;
       }
     }
   };

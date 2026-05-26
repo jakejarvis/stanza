@@ -47,6 +47,24 @@ export function pmRun(pm: PackageManager, script: string): string {
   return pm === "npm" ? `npm run ${script}` : `${pm} ${script}`;
 }
 
+/**
+ * Workspace fan-out invocation — runs `script` in every workspace package
+ * that defines it. Each pm spells this differently:
+ *   - pnpm: `pnpm -r run <script>`
+ *   - bun:  `bun run --filter '*' <script>`        (Bun's workspace selector)
+ *   - npm:  `npm run <script> --workspaces --if-present`  (--if-present so
+ *           workspaces missing the script don't fail the whole invocation)
+ *
+ * Used by the `monorepo-workspaces` module via the `{{runAll}}` helper, so a
+ * single module manifest produces the right root scripts for whichever pm the
+ * user picked.
+ */
+export function pmRecursive(pm: PackageManager, script: string): string {
+  if (pm === "pnpm") return `pnpm -r run ${script}`;
+  if (pm === "bun") return `bun run --filter '*' ${script}`;
+  return `npm run ${script} --workspaces --if-present`;
+}
+
 // Module-singleton instance so registered helpers don't leak into other
 // Handlebars consumers (the global is shared otherwise).
 const hb = Handlebars.create();

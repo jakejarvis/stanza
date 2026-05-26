@@ -23,7 +23,7 @@ A category has two independent properties: its **cardinality** — `one` (single
 | `tooling`   | one         | repo    | Lint/format toolchain                                       |
 | `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                             |
 | `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)                      |
-| `monorepo`  | many        | repo    | Monorepo task runner (Turborepo)                            |
+| `monorepo`  | one         | repo    | Monorepo task runner (Turborepo)                            |
 
 Single-choice categories with `home: "app"` (currently `framework`) are enforced **per app** — a multi-app project can pick `next` for the web app and `expo` for a native app side by side. See [Concepts → Apps](/docs/concepts#apps).
 
@@ -153,7 +153,7 @@ Coexisting, repo-scoped. Currently hardcoded as Turborepo; becomes a real config
 
 | Module      | Status            | Notes                                                              |
 | ----------- | ----------------- | ------------------------------------------------------------------ |
-| `turborepo` | 🟢&nbsp;Available | Turbo 2.x (current default; not yet exposed as configurable).      |
+| `turborepo` | 🟢&nbsp;Available | Turbo 2.x                                                          |
 | `vite-plus` | 🟨&nbsp;Planned   | Locked to Vite-compatible frameworks (TanStack, etc.) and modules. |
 
 ## Package manager

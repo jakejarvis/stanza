@@ -111,8 +111,8 @@ export const CATEGORIES = [
   {
     id: "monorepo",
     label: "Monorepo",
-    description: "Monorepo build tooling.",
-    cardinality: "many",
+    description: "Workspace task orchestrator.",
+    cardinality: "one",
     home: { kind: "repo" },
   },
   // Inline shape (not `Category`) so `CategoryId` derives without a cycle.

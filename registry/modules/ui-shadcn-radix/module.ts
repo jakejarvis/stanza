@@ -3,7 +3,7 @@ import { defineModule } from "@stanza/registry";
 export default defineModule({
   id: "shadcn-radix",
   category: "ui",
-  label: "shadcn/ui (Radix)",
+  label: "shadcn (Radix)",
   description: "shadcn/ui with Tailwind + Radix primitives.",
   version: "0.1.0",
   peers: { framework: ["next", "tanstack-start"] },

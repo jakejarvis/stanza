@@ -231,7 +231,7 @@ async function bootstrapShell(
 
   fs.writeFileSync(
     path.join(projectRoot, ".gitignore"),
-    "node_modules/\ndist/\n.output/\n.vercel/\n.turbo/\n.env\n.env.local\n.env.*.local\n*.log\n",
+    "node_modules/\ndist/\n.output/\n.vercel/\n.env\n.env.local\n.env.*.local\n*.log\n",
   );
 
   fs.writeFileSync(path.join(projectRoot, ".env.example"), ENV_EXAMPLE_HEADER);

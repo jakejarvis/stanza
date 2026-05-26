@@ -4,6 +4,7 @@ import { defineModule, type Module, ModuleSchema } from "./module";
 import {
   mergeInstallFields,
   type Resolved,
+  rootPackageJson,
   type SynthesizeEntry,
   synthesizePackageJsons,
 } from "./package-json";
@@ -153,6 +154,61 @@ describe("synthesizePackageJsons with `app` overlay", () => {
     // Workspace dep is still present (the package is non-empty), but no
     // unexpected app-level extras.
     expect(Object.keys(out["apps/web/package.json"]?.dependencies ?? {})).toEqual(["@acme/ui"]);
+  });
+});
+
+describe("rootPackageJson default scripts", () => {
+  it("uses pnpm's recursive runner for pnpm projects", () => {
+    const pkg = rootPackageJson({ name: "acme", packageManager: "pnpm" });
+    expect(pkg.scripts).toEqual({
+      dev: "pnpm -r run dev",
+      build: "pnpm -r run build",
+      test: "pnpm -r run test",
+      lint: "pnpm -r run lint",
+    });
+  });
+
+  it("uses bun's --filter selector for bun projects", () => {
+    const pkg = rootPackageJson({ name: "acme", packageManager: "bun" });
+    expect(pkg.scripts?.dev).toBe("bun run --filter '*' dev");
+    expect(pkg.scripts?.build).toBe("bun run --filter '*' build");
+  });
+
+  it("uses npm's --workspaces flag for npm projects", () => {
+    const pkg = rootPackageJson({ name: "acme", packageManager: "npm" });
+    expect(pkg.scripts?.dev).toBe("npm run dev --workspaces --if-present");
+    expect(pkg.scripts?.test).toBe("npm run test --workspaces --if-present");
+  });
+});
+
+describe("synthesizePackageJsons monorepo overrides", () => {
+  it("lets a monorepo module overwrite rootPackageJson's seeded scripts", () => {
+    const turbo: Module = defineModule({
+      id: "turbo",
+      category: "monorepo",
+      label: "Turborepo",
+      description: "",
+      version: "0.1.0",
+      scripts: {
+        dev: "turbo run dev",
+        build: "turbo run build",
+      },
+      adapters: [baseAdapter()],
+    });
+    const resolved: Resolved = {
+      monorepo: [{ module: turbo, adapter: turbo.adapters[0]! }],
+    };
+    const out = synthesizePackageJsons(resolved, {
+      name: "acme",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      packageManager: "pnpm",
+    });
+    // turbo replaces the pmRecursive-seeded defaults rather than colliding.
+    expect(out["package.json"]?.scripts?.dev).toBe("turbo run dev");
+    expect(out["package.json"]?.scripts?.build).toBe("turbo run build");
+    // Unclaimed defaults stay (test/lint not declared by the module).
+    expect(out["package.json"]?.scripts?.test).toBe("pnpm -r run test");
+    expect(out["package.json"]?.scripts?.lint).toBe("pnpm -r run lint");
   });
 });
 

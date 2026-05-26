@@ -4,7 +4,7 @@ export default defineModule({
   id: "tailwind",
   category: "ui",
   label: "Tailwind CSS",
-  description: "Utility-first CSS framework. Pairs with any web framework.",
+  description: "Utility-first CSS framework, no primitives included.",
   version: "0.2.0",
   peers: { framework: ["next", "tanstack-start"] },
   homepage: "https://tailwindcss.com",
