@@ -1,0 +1,1 @@
+Set `OPENAI_API_KEY` in `.env` and POST to `/api/chat` with an `{ messages }` body to stream a response over Server-Sent Events. The configured adapter is exported from `{{package.name}}` — edit `src/adapter.ts` to swap providers (`@tanstack/ai-anthropic`, `@tanstack/ai-google`, …) or models.

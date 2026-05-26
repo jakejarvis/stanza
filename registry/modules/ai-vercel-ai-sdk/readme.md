@@ -1,0 +1,1 @@
+Set `OPENAI_API_KEY` in `.env` and POST to `/api/chat` with an `{ messages }` body to stream a response. The configured model is exported from `{{package.name}}` — edit `src/model.ts` to swap providers or models.

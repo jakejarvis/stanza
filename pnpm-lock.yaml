@@ -310,6 +310,24 @@ importers:
         specifier: npm:@voidzero-dev/vite-plus-test@^0.1.22
         version: '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1(@noble/hashes@1.8.0))(typescript@6.0.3)(vite@8.0.14(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0))'
 
+  registry/modules/ai-tanstack-ai:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
+  registry/modules/ai-vercel-ai-sdk:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
   registry/modules/auth-better-auth:
     dependencies:
       '@stanza/codemods':
@@ -374,6 +392,15 @@ importers:
         specifier: workspace:*
         version: link:../../../packages/registry
 
+  registry/modules/monorepo-turbo:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
   registry/modules/orm-drizzle:
     dependencies:
       '@stanza/codemods':
@@ -400,6 +427,51 @@ importers:
 
   registry/modules/payments-stripe:
     dependencies:
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
+  registry/modules/testing-playwright:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
+  registry/modules/testing-vitest:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
+  registry/modules/tooling-biome:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
+  registry/modules/tooling-eslint-prettier:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
+      '@stanza/registry':
+        specifier: workspace:*
+        version: link:../../../packages/registry
+
+  registry/modules/tooling-oxlint-oxfmt:
+    dependencies:
+      '@stanza/codemods':
+        specifier: workspace:*
+        version: link:../../../packages/codemods
       '@stanza/registry':
         specifier: workspace:*
         version: link:../../../packages/registry

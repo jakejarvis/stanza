@@ -88,6 +88,13 @@ export const CATEGORIES = [
     home: { kind: "package", dir: "email" },
   },
   {
+    id: "ai",
+    label: "AI",
+    description: "AI SDK + provider wiring.",
+    cardinality: "one",
+    home: { kind: "package", dir: "ai" },
+  },
+  {
     id: "tooling",
     label: "Tooling",
     description: "Linter + formatter toolchain.",
