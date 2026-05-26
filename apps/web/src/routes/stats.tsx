@@ -62,17 +62,42 @@ function StatsPage() {
       <header className="mb-10 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight">Stats</h1>
         <p className="mt-2 text-pretty text-muted-foreground">
-          What modules people actually pick. Aggregated from anonymous CLI telemetry —{" "}
+          What modules people actually pick, aggregated from anonymous CLI telemetry —{" "}
           <a href="#telemetry" className="text-primary underline underline-offset-4">
             see exactly what&rsquo;s collected
           </a>
           .
         </p>
+        <p className="mt-4 font-mono text-xs text-muted-foreground/70 tabular-nums">
+          Last refreshed {formatGeneratedAt(stats.generatedAt)} UTC
+        </p>
       </header>
 
       <section className="mb-8 grid gap-4 sm:grid-cols-2">
-        <HeroStat label="Projects scaffolded" value={stats.projectsScaffolded} />
-        <HeroStat label="Modules installed" value={stats.modulesInstalled} />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              Projects scaffolded
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              {formatCount(stats.projectsScaffolded)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              Modules installed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              {formatCount(stats.modulesInstalled)}
+            </p>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="mb-8">
@@ -139,86 +164,60 @@ function StatsPage() {
         </div>
       </section>
 
-      <TelemetrySection generatedAt={stats.generatedAt} />
-    </div>
-  );
-}
-
-function HeroStat({ label, value }: { label: string; value: number }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-          {formatCount(value)}
+      <section id="telemetry" className="scroll-mt-20">
+        <h2 className="mb-4 text-lg font-semibold tracking-tight">Telemetry policy</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                What we save
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+                <li>
+                  Which command you ran (init, add, remove, list, search), how long it took, and
+                  whether it succeeded.
+                </li>
+                <li>CLI version, Node version, OS, and architecture.</li>
+                <li>For installs/removes: the module id and its category.</li>
+                <li>An ephemeral UUID generated per process to deduplicate events.</li>
+              </ul>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                What we don&rsquo;t
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+                <li>File paths, project names, environment variables, or template contents.</li>
+                <li>Your IP address (PostHog ingest is server-proxied through this site).</li>
+                <li>Any persistent identifier — the process UUID is discarded on exit.</li>
+                <li>
+                  Anything from CI runs (telemetry auto-skips when <code>CI</code> is set).
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+          <strong className="font-medium text-foreground">Opt out</strong> per-invocation with{" "}
+          <code>--no-telemetry</code>, persistently with <code>STANZA_TELEMETRY=0</code> or{" "}
+          <code>DO_NOT_TRACK=1</code>. More in the{" "}
+          <Link
+            to="/docs/$"
+            params={{ _splat: "cli" }}
+            hash="telemetry"
+            className="text-primary underline underline-offset-4"
+          >
+            CLI docs
+          </Link>
+          .
         </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function TelemetrySection({ generatedAt }: { generatedAt: string }) {
-  return (
-    <section id="telemetry" className="scroll-mt-20">
-      <h2 className="mb-4 text-lg font-semibold tracking-tight">Telemetry policy</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              What we save
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
-              <li>
-                Which command you ran (init, add, remove, list, search), how long it took, and
-                whether it succeeded.
-              </li>
-              <li>CLI version, Node version, OS, and architecture.</li>
-              <li>For installs/removes: the module id and its category.</li>
-              <li>An ephemeral UUID generated per process to deduplicate events.</li>
-            </ul>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-              What we don&rsquo;t
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
-              <li>File paths, project names, environment variables, or template contents.</li>
-              <li>Your IP address (PostHog ingest is server-proxied through this site).</li>
-              <li>Any persistent identifier — the process UUID is discarded on exit.</li>
-              <li>
-                Anything from CI runs (telemetry auto-skips when <code>CI</code> is set).
-              </li>
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
-      <p className="mt-4 text-xs text-muted-foreground">
-        <strong className="font-medium text-foreground">Opt out</strong> per-invocation with{" "}
-        <code>--no-telemetry</code>, persistently with <code>STANZA_TELEMETRY=0</code> or{" "}
-        <code>DO_NOT_TRACK=1</code>. More in the{" "}
-        <Link
-          to="/docs/$"
-          params={{ _splat: "cli" }}
-          hash="telemetry"
-          className="text-primary underline underline-offset-4"
-        >
-          CLI docs
-        </Link>
-        .
-      </p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Last refreshed {formatGeneratedAt(generatedAt)} UTC.
-      </p>
-    </section>
+      </section>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { CategoryId } from "@stanza/registry";
 import { KNOWN_CATEGORIES } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
-import { getCache } from "@vercel/functions";
+import { getCache, waitUntil } from "@vercel/functions";
 
 import { getQueryConfig, runQuery } from "@/server/posthog-query.server";
 
@@ -18,7 +18,8 @@ export type Stats = {
 };
 
 const CACHE_KEY = "stats:v1";
-const CACHE_TTL = 3600; // 1 hour
+const SOFT_TTL_MS = 60 * 60 * 1000; // 1 hour
+const HARD_TTL_SEC = 24 * 60 * 60; // 24 hours
 
 /**
  * Empty shell returned when no PostHog read key is configured (local dev,
@@ -172,21 +173,49 @@ function isKnownCategory(value: string): value is CategoryId {
 }
 
 /**
+ * Refetch from PostHog and write to the cache on success. Only successful
+ * fetches are cached; a failed query returns the zero-shape without polluting
+ * the cache so a transient PostHog outage doesn't pin em-dashes for an hour.
+ */
+async function refreshAndCache(cache: ReturnType<typeof getCache>): Promise<Stats> {
+  const { stats, ok } = await fetchStats();
+  if (ok) {
+    await cache.set(CACHE_KEY, stats, { ttl: HARD_TTL_SEC, tags: ["stats"] }).catch(() => {});
+  }
+  return stats;
+}
+
+/**
  * Server function powering `/stats`. Wraps the PostHog HogQL queries in
- * Vercel's Runtime Cache (per-region, 1h TTL, tag `stats`). First request per
- * region per hour pays the query round-trip; everything else is instant.
+ * Vercel's Runtime Cache (per-region) with stale-while-revalidate semantics:
+ *
+ *   - Cache hit, age < 1h         → return immediately, no work
+ *   - Cache hit, 1h ≤ age < 24h   → return STALE immediately, refresh in
+ *                                    background via `waitUntil` so the next
+ *                                    request sees fresh data
+ *   - Cache miss or age ≥ 24h     → block on a fresh fetch (the only path
+ *                                    that pays the ~1-3s PostHog latency)
+ *
+ * Once warm, every visitor sees ~10ms reads — including the unlucky one whose
+ * request happens to land just after the soft TTL expires.
  */
 export const getStats = createServerFn({ method: "GET" }).handler(async (): Promise<Stats> => {
   const cache = getCache();
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const cached = (await cache.get(CACHE_KEY).catch(() => null)) as Stats | null;
-  if (cached) return cached;
 
-  const { stats, ok } = await fetchStats();
-  // Only cache successful fetches — caching a zero-shape from a failed query
-  // would pin em-dashes for an hour even after PostHog recovers.
-  if (ok) {
-    await cache.set(CACHE_KEY, stats, { ttl: CACHE_TTL, tags: ["stats"] }).catch(() => {});
+  if (cached) {
+    const age = Date.now() - new Date(cached.generatedAt).getTime();
+    if (age < SOFT_TTL_MS) {
+      // Fresh — nothing to do.
+      return cached;
+    }
+    // Stale-but-usable: serve it, refresh in the background so we don't
+    // block the response on the PostHog round-trip.
+    waitUntil(refreshAndCache(cache).catch(() => {}));
+    return cached;
   }
-  return stats;
+
+  // Truly cold: block and fetch. Only happens once per region per HARD_TTL.
+  return refreshAndCache(cache);
 });
