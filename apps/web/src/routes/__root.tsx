@@ -9,6 +9,7 @@ import { PostHogProvider } from "@/components/posthog-provider";
 import { RouteErrorBoundary, RouteNotFoundBoundary } from "@/components/route-boundaries";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { getDocsIndex } from "@/server/docs-index.functions";
 import { getRegistryIndex } from "@/server/registry-index.functions";
 
@@ -45,21 +46,23 @@ function RootComponent() {
       <body className="min-h-svh bg-background font-sans text-foreground tabular-nums antialiased">
         <PostHogProvider>
           <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
-            <a
-              href="#main"
-              className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:rounded-none focus-visible:border focus-visible:border-border focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Skip to content
-            </a>
-            <NavigationProgress />
-            <div className="flex min-h-svh flex-col">
-              <Header />
-              <main id="main" className="flex-1">
-                <Outlet />
-              </main>
-              <Footer />
-            </div>
-            <Toaster />
+            <TooltipProvider>
+              <a
+                href="#main"
+                className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:rounded-none focus-visible:border focus-visible:border-border focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Skip to content
+              </a>
+              <NavigationProgress />
+              <div className="flex min-h-svh flex-col">
+                <Header />
+                <main id="main" className="flex-1">
+                  <Outlet />
+                </main>
+                <Footer />
+              </div>
+              <Toaster />
+            </TooltipProvider>
           </ThemeProvider>
         </PostHogProvider>
         <TanStackDevtools

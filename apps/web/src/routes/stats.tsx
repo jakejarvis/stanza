@@ -1,19 +1,17 @@
 import type { CategoryId, ModuleSummary } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
 import { BarList } from "@/components/ui/bar-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SparkAreaChart } from "@/components/ui/spark-chart";
 import { buildHead } from "@/lib/seo";
-import { getStats } from "@/server/stats.functions";
+import { getStats, type Stats } from "@/server/stats.functions";
+
+const ActivityChart = lazy(() => import("@/components/stats/activity-chart"));
 
 export const Route = createFileRoute("/stats")({
-  loader: () => getStats(),
-  // Stats are revalidated server-side by the cache TTL; client doesn't need
-  // to refetch on every navigation.
-  staleTime: 60_000,
   head: () =>
     buildHead({
       title: "Stats",
@@ -49,13 +47,33 @@ function moduleHref(category: CategoryId, id: string): string {
 }
 
 function StatsPage() {
-  const stats = Route.useLoaderData();
+  const [stats, setStats] = useState<Stats | null>(null);
   const { registry } = useLoaderData({ from: "__root__" });
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const result = await getStats();
+        if (!cancelled) setStats(result);
+      } catch {
+        // Swallow: the shell already shows the em-dash / "no data yet"
+        // empty state, which is the right UX for a public dashboard that
+        // happens to hit a transient PostHog blip.
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isLoading = stats === null;
 
   const findModule = (category: CategoryId, id: string): ModuleSummary | undefined =>
     registry.modules.find((m: ModuleSummary) => m.category === category && m.id === id);
 
-  const activitySum = stats.activity30d.reduce((acc, day) => acc + day.count, 0);
+  const activitySum = stats?.activity30d.reduce((acc, day) => acc + day.count, 0) ?? 0;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
@@ -68,9 +86,11 @@ function StatsPage() {
           </a>
           .
         </p>
-        <p className="mt-4 font-mono text-xs text-muted-foreground/70 tabular-nums">
-          Last refreshed {formatGeneratedAt(stats.generatedAt)} UTC
-        </p>
+        {stats ? (
+          <p className="mt-4 font-mono text-xs text-muted-foreground/70 tabular-nums">
+            Last refreshed {formatGeneratedAt(stats.generatedAt)} UTC
+          </p>
+        ) : null}
       </header>
 
       <section className="mb-4 grid gap-4 sm:grid-cols-2">
@@ -82,7 +102,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent>
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {formatCount(stats.projectsScaffolded)}
+              {formatCount(stats?.projectsScaffolded ?? 0)}
             </p>
           </CardContent>
         </Card>
@@ -94,7 +114,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent>
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {formatCount(stats.modulesInstalled)}
+              {formatCount(stats?.modulesInstalled ?? 0)}
             </p>
           </CardContent>
         </Card>
@@ -107,17 +127,17 @@ function StatsPage() {
               <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 CLI runs &middot; last 30 days
               </CardTitle>
-              <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                {activitySum > 0 ? `${numberFormatter.format(activitySum)} total` : "no runs yet"}
-              </span>
+              {!isLoading ? (
+                <span className="font-mono text-xs text-muted-foreground tabular-nums">
+                  {activitySum > 0 ? `${numberFormatter.format(activitySum)} total` : "no runs yet"}
+                </span>
+              ) : null}
             </div>
           </CardHeader>
           <CardContent className="pb-1">
-            <SparkAreaChart
-              data={stats.activity30d.map((day) => ({ label: day.date, value: day.count }))}
-              ariaLabel="CLI runs per day over the last 30 days"
-              height={96}
-            />
+            <Suspense fallback={<div aria-hidden className="h-24 w-full" />}>
+              <ActivityChart activity30d={stats?.activity30d ?? []} isLoading={isLoading} />
+            </Suspense>
           </CardContent>
         </Card>
       </section>
@@ -126,7 +146,7 @@ function StatsPage() {
         <h2 className="mb-4 text-lg font-semibold tracking-tight">Popular modules by category</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {KNOWN_CATEGORIES.map((category) => {
-            const entries = stats.perCategory[category] ?? [];
+            const entries = stats?.perCategory[category] ?? [];
             const totalInCategory = entries.reduce((acc, entry) => acc + entry.count, 0);
             return (
               <Card key={category}>
@@ -144,6 +164,7 @@ function StatsPage() {
                 </CardHeader>
                 <CardContent>
                   <BarList
+                    emptyMessage={isLoading ? "Loading…" : "No data yet."}
                     data={entries.map((entry) => {
                       const summary = findModule(category, entry.id);
                       const label = summary?.label ?? entry.id;

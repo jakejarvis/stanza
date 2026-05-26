@@ -13,20 +13,26 @@ type TooltipContextValue = {
 
 const TooltipContext = React.createContext<TooltipContextValue | null>(null);
 
-function Tooltip({ ...props }: PopoverPrimitive.Root.Props & TooltipPrimitive.Root.Props) {
+function TooltipProvider({ delay = 0, children, ...props }: TooltipPrimitive.Provider.Props) {
   const { isTouchDevice } = usePointerCapability();
   const contextValue = React.useMemo(() => ({ isTouchDevice }), [isTouchDevice]);
 
   return (
     <TooltipContext.Provider value={contextValue}>
-      {isTouchDevice ? (
-        <PopoverPrimitive.Root data-slot="tooltip" {...props} />
-      ) : (
-        <TooltipPrimitive.Provider delay={0}>
-          <TooltipPrimitive.Root data-slot="tooltip" {...props} />
-        </TooltipPrimitive.Provider>
-      )}
+      <TooltipPrimitive.Provider delay={delay} {...props}>
+        {children}
+      </TooltipPrimitive.Provider>
     </TooltipContext.Provider>
+  );
+}
+
+function Tooltip({ ...props }: PopoverPrimitive.Root.Props & TooltipPrimitive.Root.Props) {
+  const { isTouchDevice } = useTooltipContext("Tooltip");
+
+  return isTouchDevice ? (
+    <PopoverPrimitive.Root data-slot="tooltip" {...props} />
+  ) : (
+    <TooltipPrimitive.Root data-slot="tooltip" {...props} />
   );
 }
 
@@ -95,10 +101,10 @@ function useTooltipContext(componentName: string) {
   const ctx = React.use(TooltipContext);
 
   if (!ctx) {
-    throw new Error(`${componentName} must be used within <Tooltip>.`);
+    throw new Error(`${componentName} must be used within <TooltipProvider>.`);
   }
 
   return ctx;
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent };
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };

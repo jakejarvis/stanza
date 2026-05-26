@@ -66,6 +66,7 @@ export default defineConfig({
       "@base-ui/react/tooltip",
       "@base-ui/react/merge-props",
       "@base-ui/react/use-render",
+      "recharts",
     ],
   },
 });

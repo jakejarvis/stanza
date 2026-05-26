@@ -6,6 +6,7 @@ dist/
 *.tsbuildinfo
 .tanstack/
 .source/
+.vercel
 
 # IDE
 .vscode/*
@@ -22,10 +23,9 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Env
-.env
-.env.local
-.env.*.local
+# Secrets
+.env*
+!.env.example
 
 # Test artifacts
 coverage/

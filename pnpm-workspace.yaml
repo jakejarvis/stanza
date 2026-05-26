@@ -15,6 +15,7 @@ onlyBuiltDependencies:
   - msw
   - protobufjs
 overrides:
+  es-toolkit: 1.46.1
   vite: "catalog:"
   vitest: "catalog:"
 peerDependencyRules:
