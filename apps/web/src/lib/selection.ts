@@ -1,14 +1,5 @@
-import type {
-  AppSpec,
-  CategoryId,
-  InstallHome,
-  Module,
-  Resolved,
-  ResolvedEntry,
-  TemplateRef,
-} from "@stanza/registry";
+import type { AppSpec, CategoryId, Module, Resolved, ResolvedEntry } from "@stanza/registry";
 import {
-  categoryHome,
   categoryOrder,
   defaultWebApp,
   emptyManifest,
@@ -46,10 +37,10 @@ export function parseSelections(search: BuilderSearch): {
   for (const category of KNOWN_CATEGORIES) {
     const value = search[category];
     if (typeof value === "string" && value.length > 0) {
-      const ids = value
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const ids = value.split(",").flatMap((s) => {
+        const trimmed = s.trim();
+        return trimmed ? [trimmed] : [];
+      });
       if (ids.length > 0) selections[category] = ids;
     }
   }
@@ -160,64 +151,11 @@ export function pruneUnresolved(
   }
 }
 
-export type SelectedFile = {
-  path: string;
-  template: TemplateRef;
-  owner: { category: CategoryId; module: string };
-};
-
 /**
  * Default app list for the web builder. Single-app today (matches what
  * `stanza init` produces); multi-app builder UX is a planned follow-up.
  */
 export const DEFAULT_BUILDER_APPS: readonly AppSpec[] = [defaultWebApp()];
-
-/**
- * Derive the full file list stanza will write for the current selection.
- * Mirrors codemod-runner's resolution via `categoryHome`:
- *  - repo → repo root · app → each app's dir · package → `packages/<dir>/`.
- * Categories are emitted in `categoryOrder`. Each `scope: "app"` template
- * emits once per app in `apps` (the builder defaults to a single web app).
- */
-export function selectedFiles(
-  resolved: Resolved,
-  apps: readonly AppSpec[] = DEFAULT_BUILDER_APPS,
-): SelectedFile[] {
-  const out: SelectedFile[] = [];
-  for (const category of categoryOrder) {
-    const home = categoryHome(category);
-    for (const entry of resolved[category] ?? []) {
-      for (const tpl of entry.adapter.templates ?? []) {
-        if (tpl.scope === "app") {
-          for (const app of apps) {
-            out.push({
-              path: resolveTemplatePath(tpl, home, app),
-              template: tpl,
-              owner: { category, module: entry.module.id },
-            });
-          }
-          continue;
-        }
-        out.push({
-          path: resolveTemplatePath(tpl, home, apps[0]!),
-          template: tpl,
-          owner: { category, module: entry.module.id },
-        });
-      }
-    }
-  }
-  return out;
-}
-
-function resolveTemplatePath(tpl: TemplateRef, home: InstallHome, app: AppSpec): string {
-  if (tpl.scope === "repo") return tpl.dest;
-  if (tpl.scope === "package") {
-    // Defensive: if a module declares `scope: "package"` for a non-package home,
-    // the CLI runner would error; the preview just falls back to repo root.
-    return home.kind === "package" ? `packages/${home.dir}/${tpl.dest}` : tpl.dest;
-  }
-  return `${app.dir.replace(/\/$/, "")}/${tpl.dest}`;
-}
 
 /**
  * Build the `<pm> create stanza` command from the current state. npm needs a

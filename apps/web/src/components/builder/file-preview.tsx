@@ -1,9 +1,9 @@
 import { themeToTreeStyles } from "@pierre/trees";
-import { FileTree, useFileTree, useFileTreeSelector } from "@pierre/trees/react";
+import { FileTree, useFileTree } from "@pierre/trees/react";
 import { IconLoader2 } from "@tabler/icons-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
@@ -73,47 +73,64 @@ export function FilePreview({
   /** Rendered into the pane's header bar (the install command row). */
   header: ReactNode;
 }) {
+  // URL hash mirrors the open file ("apps/web/src/index.tsx" etc.) so refreshes
+  // and shared links land on the same selection. Slashes are valid in a URL
+  // fragment, so paths go in raw — no encoding needed.
+  const hash = useLocation({ select: (l) => l.hash });
+  const navigate = useNavigate({ from: "/" });
+  const defaultPath = useMemo(() => defaultPathFor(filePaths), [filePaths]);
+
+  // The URL hash is the source of truth for "currently open file": folder
+  // clicks don't change it (handled in `onSelectionChange` below), so the
+  // preview pane keeps the last user-selected file even while a folder is
+  // visually selected in the tree.
+  const activePath = hash && filePaths.includes(hash) ? hash : defaultPath;
+  const preview = activePath ? previews[activePath] : undefined;
+
+  // `useFileTree` is lazy-init and reads its options once, so the selection
+  // handler bound at init must read latest navigate/hash/defaultPath via refs.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const hashRef = useRef(hash);
+  hashRef.current = hash;
+  const defaultPathRef = useRef(defaultPath);
+  defaultPathRef.current = defaultPath;
+  const modelRef = useRef<ReturnType<typeof useFileTree>["model"] | null>(null);
+
+  // Tree → URL: fired by `@pierre/trees` on every selection change (user clicks
+  // OR programmatic `select()` from our reseed/hash-sync effects below). Skip
+  // folder selections so latching survives folder expansion, and skip no-op
+  // pushes so programmatic selects don't bounce back.
+  const onSelectionChange = useCallback((selectedPaths: readonly string[]) => {
+    const sel = selectedPaths[0];
+    if (!sel) return;
+    const item = modelRef.current?.getItem(sel);
+    if (!item || item.isDirectory()) return;
+
+    const nextHash = sel !== defaultPathRef.current ? sel : "";
+    if (nextHash === hashRef.current) return;
+    void navigateRef.current({
+      search: (prev) => prev,
+      hash: nextHash,
+      replace: true,
+      resetScroll: false,
+      hashScrollIntoView: false,
+    });
+  }, []);
+
   // `useFileTree` builds the model once (lazy init) and doesn't react to later
   // `paths` changes — we re-seed manually in the effect below.
   const { model } = useFileTree({
     paths: filePaths,
     search: false,
     unsafeCSS: TRUNCATE_FIX_CSS,
+    onSelectionChange,
   });
-
-  // URL hash mirrors the open file ("apps/web/src/index.tsx" etc.) so refreshes
-  // and shared links land on the same selection. Slashes are valid in a URL
-  // fragment, so paths go in raw — no encoding needed.
-  const hash = useLocation({ select: (l) => l.hash });
-  // Read inside the reseed effect without making it a dep — otherwise every
-  // back/forward would collapse + re-expand the whole tree.
-  const hashRef = useRef(hash);
-  hashRef.current = hash;
-  const navigate = useNavigate({ from: "/" });
-  const defaultPath = useMemo(() => defaultPathFor(filePaths), [filePaths]);
-
-  // Project to "current file selection (undefined for nothing/folder)". The
-  // selector pattern lets the tree skip re-rendering us on unrelated state
-  // changes, and `isDirectory()` is the canonical file/folder discriminator.
-  const fileSelection = useFileTreeSelector(model, (m) => {
-    const sel = m.getSelectedPaths()[0];
-    if (!sel) return undefined;
-    return m.getItem(sel)?.isDirectory() === false ? sel : undefined;
-  });
-  // Folder clicks in @pierre/trees both expand AND select, dropping the file
-  // selection. Latch the last file so folder expansion leaves the preview
-  // and the URL hash on the user's chosen file. Invalidate when the latched
-  // file disappears from filePaths (e.g. its owning module was deselected).
-  const lastFileRef = useRef<string | undefined>(undefined);
-  if (lastFileRef.current && !filePaths.includes(lastFileRef.current)) {
-    lastFileRef.current = undefined;
-  }
-  if (fileSelection !== undefined) lastFileRef.current = fileSelection;
-  const activePath = lastFileRef.current ?? defaultPath;
-  const preview = activePath ? previews[activePath] : undefined;
+  modelRef.current = model;
 
   // Re-seed the model when `filePaths` changes. `resetPaths` collapses
-  // everything and clears selection, so we replay both manually.
+  // everything and clears selection, so we replay both manually. Tree → URL
+  // sync happens automatically via `onSelectionChange` when we call `select()`.
   const prevPathsRef = useRef(filePaths);
   useEffect(() => {
     const expandedSet = new Set(
@@ -136,16 +153,10 @@ export function FilePreview({
       }
       return true;
     });
-    // Prefer the hash (deep link / refresh), then the latched last file,
-    // then the default. Hash is read via ref so its changes don't reseed.
+    // Prefer the hash (deep link / refresh), else the default. Hash is read
+    // via ref so its changes don't reseed.
     const initialHash = hashRef.current;
-    const previous = lastFileRef.current;
-    const next =
-      initialHash && filePaths.includes(initialHash)
-        ? initialHash
-        : previous && filePaths.includes(previous)
-          ? previous
-          : defaultPath;
+    const next = initialHash && filePaths.includes(initialHash) ? initialHash : defaultPath;
     // Reveal the selected file by expanding its ancestor chain — otherwise
     // the tree selects a row that's collapsed out of view.
     const expanded = [
@@ -157,8 +168,8 @@ export function FilePreview({
   }, [model, filePaths, defaultPath]);
 
   // URL → tree: back/forward (and intra-app links) drop a new hash; reflect
-  // it in the tree. Skipped on the initial reseed since that effect already
-  // honors the hash via `hashRef`.
+  // it in the tree. The resulting programmatic `select()` fires
+  // `onSelectionChange`, which short-circuits on the matching hash.
   useEffect(() => {
     if (!hash || !filePaths.includes(hash)) return;
     if (model.getSelectedPaths()[0] === hash) return;
@@ -169,23 +180,6 @@ export function FilePreview({
     }
     model.getItem(hash)?.select();
   }, [hash, filePaths, model]);
-
-  // Tree → URL: keep the hash in sync with the open file. The hash is empty
-  // when the active file is the implicit default (so shareable URLs stay
-  // clean) or when there's no valid file at all (so a stale hash gets
-  // cleared after the owning module is deselected).
-  useEffect(() => {
-    const nextHash =
-      activePath && filePaths.includes(activePath) && activePath !== defaultPath ? activePath : "";
-    if (nextHash === hash) return;
-    void navigate({
-      search: (prev) => prev,
-      hash: nextHash,
-      replace: true,
-      resetScroll: false,
-      hashScrollIntoView: false,
-    });
-  }, [activePath, hash, filePaths, defaultPath, navigate]);
 
   // Drive the tree's palette from the app theme; otherwise it auto-detects via
   // `prefers-color-scheme` and mismatches when the user overrides the OS theme.

@@ -203,7 +203,7 @@ function StatsPage() {
             </CardContent>
           </Card>
         </div>
-        <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+        <p className="mt-4 text-xs leading-7 text-muted-foreground">
           <strong className="font-medium text-foreground">Opt out</strong> per-invocation with{" "}
           <code>--no-telemetry</code>, persistently with <code>STANZA_TELEMETRY=0</code> or{" "}
           <code>DO_NOT_TRACK=1</code>. More in the{" "}

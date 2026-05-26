@@ -92,7 +92,7 @@ function TooltipContent({
 }
 
 function useTooltipContext(componentName: string) {
-  const ctx = React.useContext(TooltipContext);
+  const ctx = React.use(TooltipContext);
 
   if (!ctx) {
     throw new Error(`${componentName} must be used within <Tooltip>.`);

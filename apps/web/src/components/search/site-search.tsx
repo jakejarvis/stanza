@@ -4,11 +4,11 @@ import type { ModuleSummary, RegistryIndex } from "@stanza/registry";
 import { categoryLabel } from "@stanza/registry";
 import { IconBookmark, IconSearch } from "@tabler/icons-react";
 import { formatForDisplay, useHotkey } from "@tanstack/react-hotkeys";
-import { useDebouncedValue } from "@tanstack/react-pacer";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useNavigate } from "@tanstack/react-router";
 import type { SortedResult } from "fumadocs-core/search";
 import { useDocsSearch } from "fumadocs-core/search/client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,13 @@ import type { DocsIndex } from "@/server/docs-index.functions";
 
 const HOTKEY = "Mod+K";
 const DEBOUNCE_MS = 150;
+
+// Platform is fixed for the page's lifetime, so the subscribe callback is a
+// no-op. Server snapshot hard-codes mac for SSR; the client snapshot reads
+// navigator on hydration.
+const subscribeNoop = () => () => {};
+const getHotkeyLabel = () => formatForDisplay(HOTKEY);
+const getServerHotkeyLabel = () => formatForDisplay(HOTKEY, { platform: "mac" });
 
 /**
  * One row's worth of docs result. Unified for empty-state pages (which carry
@@ -62,10 +69,7 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
   const { isTouchDevice } = usePointerCapability();
 
   useHotkey(HOTKEY, () => setOpen((o) => !o));
-  const [hotkeyLabel, setHotkeyLabel] = useState(() =>
-    formatForDisplay(HOTKEY, { platform: "mac" }),
-  );
-  useEffect(() => setHotkeyLabel(formatForDisplay(HOTKEY)), []);
+  const hotkeyLabel = useSyncExternalStore(subscribeNoop, getHotkeyLabel, getServerHotkeyLabel);
 
   // Docs: Fumadocs' hook handles debounce + abort + caching internally.
   const docsSearch = useDocsSearch({
@@ -73,33 +77,32 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
     api: "/api/search/docs",
     delayMs: DEBOUNCE_MS,
   });
-  useEffect(() => {
-    docsSearch.setSearch(query);
-  }, [query, docsSearch]);
 
   // Modules: debounce the query, then fetch with an abort signal for any
   // request that's still in-flight when the debounced value changes again.
   const [moduleResults, setModuleResults] = useState<ModuleSummary[] | null>(null);
-  const [debouncedQuery] = useDebouncedValue(query, { wait: DEBOUNCE_MS });
-  useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      setModuleResults(null);
-      return () => {};
-    }
-    const controller = new AbortController();
-    fetch(`/api/search/modules?q=${encodeURIComponent(debouncedQuery)}`, {
-      signal: controller.signal,
-    })
-      .then((res) => res.json())
-      .then((data: unknown) => setModuleResults(parseModuleResults(data)))
-      .catch((err: unknown) => {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        // Surface network/parse failures as "no matches" rather than blanking
-        // the dialog or throwing past React's render loop.
-        setModuleResults([]);
-      });
-    return () => controller.abort();
-  }, [debouncedQuery]);
+  const moduleFetchRef = useRef<AbortController | null>(null);
+  const fetchModules = useDebouncedCallback(
+    (q: string) => {
+      moduleFetchRef.current?.abort();
+      if (!q.trim()) {
+        setModuleResults(null);
+        return;
+      }
+      const controller = new AbortController();
+      moduleFetchRef.current = controller;
+      fetch(`/api/search/modules?q=${encodeURIComponent(q)}`, { signal: controller.signal })
+        .then((res) => res.json())
+        .then((data: unknown) => setModuleResults(parseModuleResults(data)))
+        .catch((err: unknown) => {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // Surface network/parse failures as "no matches" rather than blanking
+          // the dialog or throwing past React's render loop.
+          setModuleResults([]);
+        });
+    },
+    { wait: DEBOUNCE_MS },
+  );
 
   const pageTitlesByUrl = useMemo(
     () => new Map(docs.pages.map((p) => [p.url, p.title])),
@@ -146,7 +149,12 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
 
   const flat: Hit[] = useMemo(() => groups.flatMap((g) => g.hits), [groups]);
 
-  useEffect(() => setActiveIndex(0), [query]);
+  const onQueryChange = (value: string) => {
+    setQuery(value);
+    setActiveIndex(0);
+    docsSearch.setSearch(value);
+    fetchModules(value);
+  };
 
   const select = useCallback(
     (hit: Hit) => {
@@ -163,13 +171,19 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
     [navigate],
   );
 
-  const onOpenChange = useCallback((next: boolean) => {
-    setOpen(next);
-    if (next) {
-      setQuery("");
-      setActiveIndex(0);
-    }
-  }, []);
+  const onOpenChange = useCallback(
+    (next: boolean) => {
+      setOpen(next);
+      if (next) {
+        setQuery("");
+        setActiveIndex(0);
+        docsSearch.setSearch("");
+        moduleFetchRef.current?.abort();
+        setModuleResults(null);
+      }
+    },
+    [docsSearch],
+  );
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -221,7 +235,7 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
               autoFocus={!isTouchDevice}
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onQueryChange(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Search docs and modules…"
               aria-label="Search docs and modules"
@@ -333,7 +347,7 @@ function SearchRow({
       data-selected={active || undefined}
       onClick={handleSelect}
       onPointerMove={handlePointerMove}
-      className="flex w-full cursor-pointer items-center gap-2 rounded-none px-2 py-2 text-left text-xs outline-hidden data-[selected]:bg-muted data-[selected]:text-foreground"
+      className="flex w-full cursor-pointer items-center gap-2 rounded-none p-2 text-left text-xs outline-hidden data-[selected]:bg-muted data-[selected]:text-foreground"
     >
       <RowContent hit={hit} />
     </button>

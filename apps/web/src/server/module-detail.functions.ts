@@ -114,7 +114,11 @@ function computePeerOptions(
       out[category] = constraint;
     } else {
       // "any" or undefined — list every module that lives in this category.
-      out[category] = index.modules.filter((m) => m.category === category).map((m) => m.id);
+      const ids: string[] = [];
+      for (const m of index.modules) {
+        if (m.category === category) ids.push(m.id);
+      }
+      out[category] = ids;
     }
     // De-dup and keep declaration order. Also union in any ids referenced by
     // adapters that weren't in the declared list — defensive against authors
@@ -203,7 +207,7 @@ function pickAdapter(module: Module, peers: Partial<Record<CategoryId, string>>)
  *  - `dependencies` / `devDependencies` / `scripts` merge per-key
  *  - `env` merges by `name` (adapter overrides module)
  */
-export function mergeInstallFields(module: Module, adapter: ModuleAdapter): EffectiveInstallFields {
+function mergeInstallFields(module: Module, adapter: ModuleAdapter): EffectiveInstallFields {
   const dependencies: Record<string, string> = {
     ...module.dependencies,
     ...adapter.dependencies,

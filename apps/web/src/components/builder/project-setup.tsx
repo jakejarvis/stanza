@@ -1,8 +1,8 @@
 import { validateProjectName } from "@stanza/registry";
 import { IconAlertCircle } from "@tabler/icons-react";
-import { useDebouncedValue } from "@tanstack/react-pacer";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 import type { ChangeEvent } from "react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useId, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { Field, FieldError } from "@/components/ui/field";
@@ -18,39 +18,33 @@ export function ProjectSetup({
   defaultName: string;
   onNameChange: (name: string) => void;
 }) {
-  // `lastSyncedRef` ignores the echo of our own pushes — otherwise
-  // `setDraft(name)` would clobber characters the user typed between the
-  // debounce firing and the new `name` prop arriving.
-  const [draft, setDraft] = useState(name);
-  const lastSyncedRef = useRef(name);
+  // `draft` is null until the user types; the input then renders draft instead
+  // of the URL-backed prop so each keystroke is visible immediately while the
+  // debounced commit lags behind. We never echo the prop back into draft — no
+  // sync effect needed.
+  const [draft, setDraft] = useState<string | null>(null);
+  const display = draft ?? name;
 
   const inputId = useId();
   const errorId = `${inputId}-error`;
 
-  useEffect(() => {
-    if (name === lastSyncedRef.current) return;
-    lastSyncedRef.current = name;
-    setDraft(name);
-  }, [name]);
-
-  const validation = useMemo(() => validateProjectName(draft), [draft]);
+  const validation = validateProjectName(display);
   // The placeholder telegraphs the `defaultName` fallback, so an empty field
   // shouldn't render a "required" error.
-  const showError = !validation.ok && draft.trim().length > 0;
+  const showError = !validation.ok && display.trim().length > 0;
 
-  const [debouncedDraft] = useDebouncedValue(draft, { wait: 300 });
-
-  useEffect(() => {
-    if (debouncedDraft === lastSyncedRef.current) return;
-    if (!validateProjectName(debouncedDraft).ok) return;
-    lastSyncedRef.current = debouncedDraft;
-    onNameChange(debouncedDraft);
-  }, [debouncedDraft, onNameChange]);
-
-  const onDraftChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value),
-    [],
+  const commit = useDebouncedCallback(
+    (value: string) => {
+      if (validateProjectName(value).ok) onNameChange(value);
+    },
+    { wait: 300 },
   );
+
+  const onDraftChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setDraft(value);
+    commit(value);
+  };
 
   return (
     <Card className="gap-0 px-3 py-3.5">
@@ -61,7 +55,7 @@ export function ProjectSetup({
         <Input
           id={inputId}
           name="project-name"
-          value={draft}
+          value={display}
           placeholder={defaultName}
           onChange={onDraftChange}
           autoComplete="off"

@@ -33,46 +33,56 @@ async function buildIndex(): Promise<ModuleIndex> {
   const db = create({ schema: moduleSchema });
   const summaries = new Map<string, ModuleSummary>();
 
-  for (const summary of index.modules) {
-    let mod: Module | null = null;
-    try {
-      mod = await loadRegistryFile<Module>(`modules/${summary.category}-${summary.id}.json`);
-    } catch {
-      // Per-module file missing (shouldn't happen for first-party modules, but
-      // be tolerant): fall back to summary-only indexing.
-    }
-
-    const deps = new Set<string>();
-    const envNames = new Set<string>();
-    const envDescriptions: string[] = [];
-    if (mod) {
-      for (const k of Object.keys(mod.dependencies ?? {})) deps.add(k);
-      for (const k of Object.keys(mod.devDependencies ?? {})) deps.add(k);
-      for (const e of mod.env ?? []) {
-        envNames.add(e.name);
-        if (e.description) envDescriptions.push(e.description);
+  // Per-module file missing (shouldn't happen for first-party modules, but
+  // be tolerant): fall back to summary-only indexing via `mod: null`.
+  const loaded = await Promise.all(
+    index.modules.map(async (summary) => {
+      try {
+        const mod = await loadRegistryFile<Module>(
+          `modules/${summary.category}-${summary.id}.json`,
+        );
+        return { summary, mod };
+      } catch {
+        return { summary, mod: null as Module | null };
       }
-      for (const adapter of mod.adapters) {
-        for (const k of Object.keys(adapter.dependencies ?? {})) deps.add(k);
-        for (const k of Object.keys(adapter.devDependencies ?? {})) deps.add(k);
-        for (const e of adapter.env ?? []) {
+    }),
+  );
+
+  const inserted = await Promise.all(
+    loaded.map(async ({ summary, mod }) => {
+      const deps = new Set<string>();
+      const envNames = new Set<string>();
+      const envDescriptions: string[] = [];
+      if (mod) {
+        for (const k of Object.keys(mod.dependencies ?? {})) deps.add(k);
+        for (const k of Object.keys(mod.devDependencies ?? {})) deps.add(k);
+        for (const e of mod.env ?? []) {
           envNames.add(e.name);
           if (e.description) envDescriptions.push(e.description);
         }
+        for (const adapter of mod.adapters) {
+          for (const k of Object.keys(adapter.dependencies ?? {})) deps.add(k);
+          for (const k of Object.keys(adapter.devDependencies ?? {})) deps.add(k);
+          for (const e of adapter.env ?? []) {
+            envNames.add(e.name);
+            if (e.description) envDescriptions.push(e.description);
+          }
+        }
       }
-    }
 
-    const id = await insert(db, {
-      category: summary.category,
-      moduleId: summary.id,
-      label: summary.label,
-      description: summary.description,
-      deps: [...deps].join(" "),
-      envNames: [...envNames].join(" "),
-      envDescriptions: envDescriptions.join(" "),
-    });
-    summaries.set(id, summary);
-  }
+      const id = await insert(db, {
+        category: summary.category,
+        moduleId: summary.id,
+        label: summary.label,
+        description: summary.description,
+        deps: [...deps].join(" "),
+        envNames: [...envNames].join(" "),
+        envDescriptions: envDescriptions.join(" "),
+      });
+      return { id, summary };
+    }),
+  );
+  for (const { id, summary } of inserted) summaries.set(id, summary);
 
   return { db, summaries };
 }

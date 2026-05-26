@@ -2,6 +2,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { renderServerComponent } from "@tanstack/react-start/rsc";
 import { DocsBody } from "fumadocs-ui/layouts/docs/page";
+import { createRelativeLink } from "fumadocs-ui/mdx";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
 
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
@@ -37,7 +38,11 @@ const getDocLayout = createServerFn({ method: "GET" })
                     </p>
                   )}
                   <DocsBody className="mt-8">
-                    <MDX components={getMDXComponents()} />
+                    <MDX
+                      components={getMDXComponents({
+                        a: createRelativeLink(source, page),
+                      })}
+                    />
                   </DocsBody>
                 </article>
                 <DocsToc toc={page.data.toc} />

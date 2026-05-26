@@ -81,11 +81,3 @@ export function AdapterSwitcher({
     </div>
   );
 }
-
-export function summaryFor(
-  index: RegistryIndex,
-  slot: CategoryId,
-  id: string,
-): ModuleSummary | undefined {
-  return index.modules.find((m) => m.category === slot && m.id === id);
-}

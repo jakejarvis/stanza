@@ -126,7 +126,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           onToggle={toggle}
         />
       </section>
-      <section className="min-w-0 space-y-6 lg:sticky lg:top-20 lg:flex lg:h-[calc(100vh-6rem)] lg:flex-col lg:gap-6 lg:space-y-0 lg:self-start">
+      <section className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:self-start">
         <div className="hidden lg:block">{commandBar}</div>
         <FilePreview
           filePaths={state.filePaths}
