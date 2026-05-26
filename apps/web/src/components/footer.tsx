@@ -1,3 +1,4 @@
+import { IconExternalLink } from "@tabler/icons-react";
 import { Link } from "@tanstack/react-router";
 
 export function Footer() {
@@ -9,8 +10,8 @@ export function Footer() {
           <a
             href="https://github.com/jakejarvis"
             target="_blank"
-            rel="noreferrer"
-            className="underline underline-offset-4 hover:text-foreground"
+            rel="noopener noreferrer"
+            className="underline underline-offset-1 hover:text-foreground"
           >
             @jakejarvis
           </a>
@@ -18,17 +19,20 @@ export function Footer() {
         </p>
         <nav className="flex items-center gap-5">
           <span>v{__APP_VERSION__ ?? "0.0.0"}</span>
-          <Link to="/docs/$" params={{ _splat: "" }}>
+          <Link to="/docs/$" params={{ _splat: "" }} className="hover:text-foreground">
             Docs
           </Link>
-          <Link to="/stats">Stats</Link>
+          <Link to="/stats" className="hover:text-foreground">
+            Stats
+          </Link>
           <a
             href="https://github.com/jakejarvis/stanza"
-            className="hover:text-foreground"
+            className="inline-flex items-center gap-1 hover:text-foreground"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             GitHub
+            <IconExternalLink className="size-3" aria-hidden />
           </a>
         </nav>
       </div>

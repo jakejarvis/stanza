@@ -7,7 +7,7 @@ import {
   PEER_CATEGORIES,
   resolveAdapter,
 } from "@stanza/registry";
-import { IconCheck, IconHome, IconInfoCircle } from "@tabler/icons-react";
+import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
 import { Link } from "@tanstack/react-router";
 import { memo, useCallback, useMemo } from "react";
 
@@ -187,45 +187,23 @@ const ModuleCard = memo(function ModuleCard({
           <div className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <h3 className="truncate text-sm leading-tight font-medium">{m.label}</h3>
-              <span className="flex shrink-0 items-center gap-1.5">
-                {m.homepage && (
-                  <Tooltip>
-                    <TooltipTrigger
-                      nativeButton={false}
-                      render={
-                        <a
-                          href={m.homepage}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`${m.label} website`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex shrink-0 translate-y-[-2px] items-center justify-center text-foreground/60 transition-colors hover:text-foreground"
-                        />
-                      }
-                    >
-                      <IconHome className="size-3.5" aria-hidden />
-                    </TooltipTrigger>
-                    <TooltipContent sideOffset={8}>Open website</TooltipContent>
-                  </Tooltip>
-                )}
-                <Tooltip>
-                  <TooltipTrigger
-                    nativeButton={false}
-                    render={
-                      <Link
-                        to="/registry/$category/$id"
-                        params={{ category: m.category, id: m.id }}
-                        aria-label={`${m.label} details`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex shrink-0 translate-y-[-2px] items-center justify-center text-foreground/60 transition-colors hover:text-foreground"
-                      />
-                    }
-                  >
-                    <IconInfoCircle className="size-3.5" aria-hidden />
-                  </TooltipTrigger>
-                  <TooltipContent sideOffset={8}>View details</TooltipContent>
-                </Tooltip>
-              </span>
+              <Tooltip>
+                <TooltipTrigger
+                  nativeButton={false}
+                  render={
+                    <Link
+                      to="/registry/$category/$id"
+                      params={{ category: m.category, id: m.id }}
+                      aria-label={`${m.label} details`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex shrink-0 translate-y-[-2px] items-center justify-center text-foreground/40 transition-colors hover:text-foreground"
+                    />
+                  }
+                >
+                  <IconInfoCircle className="size-3.5" aria-hidden />
+                </TooltipTrigger>
+                <TooltipContent sideOffset={8}>View details</TooltipContent>
+              </Tooltip>
             </div>
             {selected && <IconCheck className="size-4 shrink-0 text-foreground" aria-hidden />}
           </div>
@@ -255,9 +233,9 @@ function describeError(error: ResolveError): string {
     case "missing-peer":
       return `Pick a ${categoryLabel(error.category)} module first.`;
     case "incompatible-peer":
-      return `Doesn't pair with ${error.peer} (your ${categoryLabel(error.category)} pick).`;
+      return `Not compatible with ${error.peer} (${categoryLabel(error.category)}).`;
     case "no-adapter":
-      return "No adapter matches your current stack.";
+      return "Not compatible with your current stack.";
     default:
       error satisfies never;
       throw new Error(`Unknown resolve error: ${String(error)}`);

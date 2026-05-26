@@ -80,8 +80,8 @@ function StatsPage() {
       <header className="mb-8 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight">Stats</h1>
         <p className="mt-2 text-pretty text-muted-foreground">
-          What modules people actually pick, aggregated from anonymous CLI telemetry —{" "}
-          <a href="#telemetry" className="text-primary underline underline-offset-4">
+          What modules developers actually pick, aggregated from anonymous CLI telemetry —{" "}
+          <a href="#telemetry" className="text-primary underline underline-offset-3">
             see exactly what&rsquo;s collected
           </a>
           .
@@ -129,7 +129,9 @@ function StatsPage() {
               </CardTitle>
               {!isLoading ? (
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                  {activitySum > 0 ? `${numberFormatter.format(activitySum)} total` : "no runs yet"}
+                  {activitySum > 0
+                    ? `${numberFormatter.format(activitySum)} total`
+                    : "No runs yet."}
                 </span>
               ) : null}
             </div>
@@ -196,13 +198,10 @@ function StatsPage() {
             </CardHeader>
             <CardContent>
               <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
-                <li>
-                  Which command you ran (init, add, remove, list, search), how long it took, and
-                  whether it succeeded.
-                </li>
+                <li>Which command you ran, how long it took, and whether it succeeded.</li>
                 <li>CLI version, Node version, OS, and architecture.</li>
-                <li>For installs/removes: the module id and its category.</li>
-                <li>An ephemeral UUID generated per process to deduplicate events.</li>
+                <li>For installs/removes, the module ID and its category.</li>
+                <li>An ephemeral UUID generated per-process to deduplicate events.</li>
               </ul>
             </CardContent>
           </Card>
@@ -215,7 +214,7 @@ function StatsPage() {
             <CardContent>
               <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
                 <li>File paths, project names, environment variables, or template contents.</li>
-                <li>Your IP address (PostHog ingest is server-proxied through this site).</li>
+                <li>Your IP address (PostHog ingest is server-proxied).</li>
                 <li>Any persistent identifier — the process UUID is discarded on exit.</li>
                 <li>
                   Anything from CI runs (telemetry auto-skips when <code>CI</code> is set).
@@ -226,17 +225,26 @@ function StatsPage() {
         </div>
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           <strong className="font-medium text-foreground">Opt out</strong> per-invocation with{" "}
-          <code>--no-telemetry</code>, persistently with <code>STANZA_TELEMETRY=0</code> or{" "}
-          <code>DO_NOT_TRACK=1</code>. More in the{" "}
+          <code>--no-telemetry</code>, or permanently with <code>STANZA_TELEMETRY=0</code> or{" "}
+          <code>DO_NOT_TRACK=1</code>. Learn more in the{" "}
           <Link
             to="/docs/$"
             params={{ _splat: "cli" }}
             hash="telemetry"
-            className="text-primary underline underline-offset-4"
+            className="text-primary underline underline-offset-1"
           >
             CLI docs
-          </Link>
-          .
+          </Link>{" "}
+          or{" "}
+          <a
+            href="https://github.com/jakejarvis/stanza/blob/main/apps/cli/src/lib/telemetry.ts"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline underline-offset-1"
+          >
+            audit the code
+          </a>{" "}
+          yourself.
         </p>
       </section>
     </div>

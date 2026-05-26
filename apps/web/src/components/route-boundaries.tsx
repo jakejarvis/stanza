@@ -42,7 +42,7 @@ function CenteredMessage({
 }
 
 const GENERIC_ERROR_MESSAGE =
-  "An unexpected error occurred while rendering this page. Try again, or head back to the builder.";
+  "Something broke while loading this page. Try again, or head back to the builder.";
 
 /**
  * Default error component for the router. Re-runs the loader on Try again via
@@ -97,7 +97,7 @@ export function RouteNotFoundBoundary() {
   return (
     <CenteredMessage
       title="Page not found"
-      description="That page doesn’t exist. It may have moved, or the URL might be wrong."
+      description="We couldn’t find that page. It may have moved, or the URL might be wrong."
     >
       <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
         <IconHome data-icon="inline-start" />

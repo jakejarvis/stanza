@@ -40,7 +40,7 @@ export function Header() {
               <a
                 href="https://github.com/jakejarvis/stanza"
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 aria-label="GitHub"
               />
             }

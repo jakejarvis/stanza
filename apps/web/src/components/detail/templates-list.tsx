@@ -64,7 +64,7 @@ function PreviewBlock({ preview }: { preview: Preview }) {
   );
   return (
     <div
-      className="mt-4 overflow-auto border-t border-border text-xs leading-relaxed [&_pre]:bg-transparent! [&_pre]:p-0!"
+      className="overflow-auto border-t border-border pt-4 text-xs leading-relaxed [&_pre]:bg-transparent! [&_pre]:p-0!"
       dangerouslySetInnerHTML={inner}
     />
   );

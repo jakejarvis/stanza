@@ -25,9 +25,6 @@ importers:
       '@changesets/cli':
         specifier: ^2.31.0
         version: 2.31.0(@types/node@25.9.1)
-      '@stanza/registry':
-        specifier: workspace:*
-        version: link:packages/registry
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
@@ -132,8 +129,8 @@ importers:
         specifier: ^1.167.0
         version: 1.167.0(@tanstack/react-router@1.170.8(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@tanstack/router-core@1.171.6)(csstype@3.2.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start':
-        specifier: ^1.168.13
-        version: 1.168.13(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: ^1.168.14
+        version: 1.168.14(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@vercel/functions':
         specifier: ^3.6.0
         version: 3.6.0
@@ -180,8 +177,8 @@ importers:
         specifier: ^3.8.1
         version: 3.8.1(@types/react@19.2.15)(react-dom@19.2.6(react@19.2.6))(react-is@17.0.2)(react@19.2.6)(redux@5.0.1)
       shadcn:
-        specifier: ^4.8.0
-        version: 4.8.0(@types/node@25.9.1)(typescript@6.0.3)
+        specifier: ^4.8.1
+        version: 4.8.1(@types/node@25.9.1)(typescript@6.0.3)
       shiki:
         specifier: ^4.1.0
         version: 4.1.0
@@ -2099,8 +2096,8 @@ packages:
       react: '>=18.0.0 || >=19.0.0'
       react-dom: '>=18.0.0 || >=19.0.0'
 
-  '@tanstack/react-start-client@1.168.4':
-    resolution: {integrity: sha512-PDJ7xEuUKrlBiQz2PrVN9pD2ErmWeFpckYW1WUE8JCAeVi8U7C6rQNTQe4hQxBhycRfRdD53M6UfdWdQODIxyg==}
+  '@tanstack/react-start-client@1.168.5':
+    resolution: {integrity: sha512-xRAGDhb81kvJa9lkr5CLt66HVMJWGh1iPZL/AYO8/wnPdbwFbRKSv5Yzx5SI+YQbB0qTgcYCyOPi4jrscAppag==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       react: '>=18.0.0 || >=19.0.0'
@@ -2130,8 +2127,8 @@ packages:
       react: '>=18.0.0 || >=19.0.0'
       react-dom: '>=18.0.0 || >=19.0.0'
 
-  '@tanstack/react-start@1.168.13':
-    resolution: {integrity: sha512-E2pHQ92NiND1/HiD5Ax71xFXxiRZ2reOfU5W4BqxUL5plap3p8xSw1c6L8Np1E60vsxknuPCYRZESKkRy/LkOA==}
+  '@tanstack/react-start@1.168.14':
+    resolution: {integrity: sha512-Y/CXqtufmZkUL6OCcxxDoGxDDnz/hqrYqCJQeiBHx4MUbn9mx3sZviFVDkFrsyi/8J+IKjXdV5LlNATAxHQzAQ==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@rsbuild/core': ^2.0.0
@@ -4764,8 +4761,8 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shadcn@4.8.0:
-    resolution: {integrity: sha512-LAm3I/1FdoU/zu5GVG8Hbna4X9zlzEG5TeeCPXqsopkjvGk8QUF9OFhqeRN8oM6Oh/ynUI/yQHZxQAO3Ymcqsg==}
+  shadcn@4.8.1:
+    resolution: {integrity: sha512-B2J63uYwqfLJPNzZk2AAlonXG1aJhwv8xmXlUag8OZdV61CQB6570nkXLjU1u9XN1qXm0LpJhSFQ0ZhlOruA4Q==}
     hasBin: true
 
   shebang-command@2.0.0:
@@ -6914,7 +6911,7 @@ snapshots:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
 
-  '@tanstack/react-start-client@1.168.4(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@tanstack/react-start-client@1.168.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@tanstack/react-router': 1.170.8(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/router-core': 1.171.6
@@ -6958,10 +6955,10 @@ snapshots:
     transitivePeerDependencies:
       - crossws
 
-  '@tanstack/react-start@1.168.13(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@tanstack/react-start@1.168.14(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@tanstack/react-router': 1.170.8(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@tanstack/react-start-client': 1.168.4(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@tanstack/react-start-client': 1.168.5(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start-rsc': 0.1.13(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.22(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start-server': 1.167.9(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/router-utils': 1.162.1
@@ -9928,7 +9925,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shadcn@4.8.0(@types/node@25.9.1)(typescript@6.0.3):
+  shadcn@4.8.1(@types/node@25.9.1)(typescript@6.0.3):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/parser': 7.29.7

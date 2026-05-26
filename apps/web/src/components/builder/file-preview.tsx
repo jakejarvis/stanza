@@ -236,7 +236,7 @@ export function FilePreview({
 function EmptyState() {
   return (
     <div className="flex min-h-[280px] items-center justify-center px-6 py-10 text-center text-sm text-muted-foreground lg:min-h-0 lg:flex-1">
-      The file tree will populate as you pick modules.
+      Files appear here as you add modules.
     </div>
   );
 }
@@ -257,7 +257,7 @@ function PreviewPane({
   if (!preview || !path) {
     return (
       <div className="flex h-full items-center justify-center px-6 py-10 text-sm text-muted-foreground">
-        Select a file
+        Pick a file to preview
       </div>
     );
   }

@@ -124,7 +124,7 @@ function ModuleDetailPage() {
               <a
                 href={module.homepage}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Website
