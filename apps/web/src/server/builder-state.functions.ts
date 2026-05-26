@@ -13,8 +13,8 @@ import {
   parseSelections,
   resolveSelected,
   selectedPeerIds,
+  validateBuilderSearch,
 } from "@/lib/selection";
-import type { BuilderSearch } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
@@ -36,7 +36,9 @@ export type BuilderState = {
  * list, and pre-renders Shiki HTML for each — keeping shiki off the client.
  */
 export const getBuilderState = createServerFn({ method: "GET" })
-  .inputValidator((data: BuilderSearch) => data)
+  // Server functions are HTTP-reachable; share the route's allow-list so a
+  // direct POST can't bypass it.
+  .inputValidator(validateBuilderSearch)
   .handler(async ({ data }): Promise<BuilderState> => {
     // Warm the Shiki singleton during the initial empty-state load (which
     // renders zero previews and so would otherwise never touch the
@@ -45,11 +47,12 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // warm highlighter instead of paying ~hundreds of ms of cold-start.
     void getHighlighter();
 
-    const index = await loadRegistryFile<RegistryIndex>("index.json");
-
-    // Module catalog is cached per-process — registry data is immutable per
-    // deployment, so toggles pay this cost exactly once per server instance.
-    const modules = await getAllModules(index);
+    // Module catalog is cached per-process; `getAllModules` reads `index.json`
+    // internally, we still load it here for the BuilderState response.
+    const [index, modules] = await Promise.all([
+      loadRegistryFile<RegistryIndex>("index.json"),
+      getAllModules(),
+    ]);
 
     const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);

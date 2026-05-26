@@ -137,8 +137,14 @@ export async function applyModule(args: {
       packageName,
       peers: activePeerIds(manifest, app.id),
       envNames: declaredEnvNames(manifest),
+      consumesPackages: module.consumesPackages,
     });
   const seedApp = targetApps[0]!;
+
+  // Manifest writes lead disk writes: claims are staged in-memory, persisted,
+  // then flushed. A mid-flush crash leaves orphan files the manifest already
+  // knows how to sweep — the old single-pass ordering didn't.
+  const deferredWrites: Array<() => void> = [];
 
   // 1. Templates (claim regions per-template-file). App-scoped templates loop
   //    over `targetApps`; package/repo-scoped templates emit once.
@@ -151,8 +157,10 @@ export async function applyModule(args: {
         if (!dryRun) {
           const source = readTemplateSource(tpl, moduleDir);
           const rendered = tpl.template ? renderTemplate(source, renderContextFor(app)) : source;
-          fs.mkdirSync(path.dirname(dest), { recursive: true });
-          fs.writeFileSync(dest, rendered, "utf8");
+          deferredWrites.push(() => {
+            fs.mkdirSync(path.dirname(dest), { recursive: true });
+            fs.writeFileSync(dest, rendered, "utf8");
+          });
         }
         touchedFiles.add(rel);
       }
@@ -170,8 +178,10 @@ export async function applyModule(args: {
     if (!dryRun) {
       const source = readTemplateSource(tpl, moduleDir);
       const rendered = tpl.template ? renderTemplate(source, renderContextFor(seedApp)) : source;
-      fs.mkdirSync(path.dirname(dest), { recursive: true });
-      fs.writeFileSync(dest, rendered, "utf8");
+      deferredWrites.push(() => {
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, rendered, "utf8");
+      });
     }
     touchedFiles.add(rel);
   }
@@ -211,15 +221,16 @@ export async function applyModule(args: {
       const pkgJsonPath = path.join(projectRoot, target);
       for (const [name, range] of Object.entries(deps)) {
         manifest = claim(manifest, target, `dependencies.${name}`, owner);
-        if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
+        if (!dryRun) deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range));
       }
       for (const [name, range] of Object.entries(devDeps)) {
         manifest = claim(manifest, target, `devDependencies.${name}`, owner);
-        if (!dryRun) addPackageDependency(pkgJsonPath, name, range, { dev: true });
+        if (!dryRun)
+          deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range, { dev: true }));
       }
       for (const [name, command] of Object.entries(installFields.scripts)) {
         manifest = claim(manifest, target, `scripts.${name}`, owner);
-        if (!dryRun) addPackageScript(pkgJsonPath, name, command);
+        if (!dryRun) deferredWrites.push(() => addPackageScript(pkgJsonPath, name, command));
       }
       touchedFiles.add(target);
     }
@@ -230,7 +241,7 @@ export async function applyModule(args: {
     const envFile = path.join(projectRoot, ".env.example");
     for (const v of installFields.env) {
       manifest = claim(manifest, ".env.example", v.name, owner);
-      if (!dryRun) addEnvVar(envFile, v.name, v.example, v.description);
+      if (!dryRun) deferredWrites.push(() => addEnvVar(envFile, v.name, v.example, v.description));
     }
     touchedFiles.add(".env.example");
   }
@@ -263,15 +274,16 @@ export async function applyModule(args: {
       const pkgJsonPath = path.join(projectRoot, target);
       for (const [name, range] of Object.entries(appDeps)) {
         manifest = claim(manifest, target, `app.dependencies.${name}`, owner);
-        if (!dryRun) addPackageDependency(pkgJsonPath, name, range);
+        if (!dryRun) deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range));
       }
       for (const [name, range] of Object.entries(appDevDeps)) {
         manifest = claim(manifest, target, `app.devDependencies.${name}`, owner);
-        if (!dryRun) addPackageDependency(pkgJsonPath, name, range, { dev: true });
+        if (!dryRun)
+          deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range, { dev: true }));
       }
       for (const [name, command] of Object.entries(appFields.scripts)) {
         manifest = claim(manifest, target, `app.scripts.${name}`, owner);
-        if (!dryRun) addPackageScript(pkgJsonPath, name, command);
+        if (!dryRun) deferredWrites.push(() => addPackageScript(pkgJsonPath, name, command));
       }
       touchedFiles.add(target);
     }
@@ -282,48 +294,17 @@ export async function applyModule(args: {
     const envFile = path.join(projectRoot, ".env.example");
     for (const v of appFields.env) {
       manifest = claim(manifest, ".env.example", v.name, owner);
-      if (!dryRun) addEnvVar(envFile, v.name, v.example, v.description);
+      if (!dryRun) deferredWrites.push(() => addEnvVar(envFile, v.name, v.example, v.description));
     }
     touchedFiles.add(".env.example");
   }
 
-  // 4. Imperative codemods — dispatched through the CLI's generic catalog.
-  //    For app-home and package-home modules, run once per targeted app so
-  //    codemods that edit files inside an app dir see the right app context.
-  //    For repo-home modules, run once with the seed app.
-  if (adapter.codemods?.length) {
-    const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
-    for (const app of dispatchApps) {
-      const appRoot = path.join(projectRoot, app.dir);
-      const project = lazyProject(appRoot);
-      const ctx = buildContext({
-        projectRoot,
-        app,
-        appRoot,
-        manifest,
-        module,
-        adapter,
-        project: project.get,
-        touchedFiles,
-        dryRun,
-        onClaim: (file, region) => {
-          manifest = claim(manifest, file, region, owner);
-        },
-      });
-      for (const invocation of adapter.codemods) {
-        const fn = CODEMOD_CATALOG[invocation.id];
-        if (!fn) {
-          throw new Error(
-            `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
-          );
-        }
-        if (!dryRun) {
-          const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
-          const result = await fn.apply(ctx, renderedArgs);
-          result.touchedFiles.forEach((f) => touchedFiles.add(f));
-        }
-      }
-      if (!dryRun) await project.save();
+  // Validate up front so dry-run catches missing ids too.
+  for (const invocation of adapter.codemods ?? []) {
+    if (!CODEMOD_CATALOG[invocation.id]) {
+      throw new Error(
+        `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
+      );
     }
   }
 
@@ -343,6 +324,43 @@ export async function applyModule(args: {
       },
     };
     writeManifest(projectRoot, manifest);
+
+    for (const write of deferredWrites) write();
+
+    // Codemods dispatch once per targeted app (or once with the seed app for
+    // repo-home). Manifest re-persists after claims are gathered, before
+    // `project.save()` flushes — same disk-leads-manifest contract as above.
+    if (adapter.codemods?.length) {
+      const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
+      const saves: Array<() => Promise<void>> = [];
+      for (const app of dispatchApps) {
+        const appRoot = path.join(projectRoot, app.dir);
+        const project = lazyProject(appRoot);
+        const ctx = buildContext({
+          projectRoot,
+          app,
+          appRoot,
+          manifest,
+          module,
+          adapter,
+          project: project.get,
+          touchedFiles,
+          dryRun,
+          onClaim: (file, region) => {
+            manifest = claim(manifest, file, region, owner);
+          },
+        });
+        for (const invocation of adapter.codemods) {
+          const fn = CODEMOD_CATALOG[invocation.id]!;
+          const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
+          const result = await fn.apply(ctx, renderedArgs);
+          result.touchedFiles.forEach((f) => touchedFiles.add(f));
+        }
+        saves.push(() => project.save());
+      }
+      writeManifest(projectRoot, manifest);
+      for (const save of saves) await save();
+    }
   }
 
   return { manifest, touchedFiles: [...touchedFiles], dryRun, bootstrappedPackage };
@@ -664,6 +682,7 @@ export async function revertCodemods(args: {
       packageName,
       peers: activePeerIds(manifest, app.id),
       envNames: declaredEnvNames(manifest),
+      consumesPackages: module.consumesPackages,
     });
     const project = lazyProject(appRoot);
     const ctx = buildContext({

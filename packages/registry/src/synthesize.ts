@@ -194,6 +194,7 @@ export function synthesizeTemplates(
           packageManager: opts.packageManager,
           peers: opts.peers,
           envNames,
+          consumesPackages: entry.module.consumesPackages,
         });
 
       for (const tpl of entry.adapter.templates ?? []) {
@@ -333,6 +334,7 @@ export function synthesizeReadme(
           packageManager: pm,
           peers,
           envNames,
+          consumesPackages: entry.module.consumesPackages,
         });
         lines.push(`### ${categoryLabel(category)} — ${entry.module.label}`);
         lines.push("");

@@ -417,7 +417,9 @@ const installFieldsSchema = {
 
 const adapterSchema = z.object({
   key: z.string(),
-  match: z.record(z.string(), z.string()),
+  // Keys must be valid category ids — typos would silently score specificity 0
+  // (resolver iterates `KNOWN_CATEGORIES`) and lose to less-specific siblings.
+  match: z.partialRecord(z.enum(KNOWN_CATEGORIES), z.string()),
   templates: z
     .array(
       z.object({
@@ -499,7 +501,12 @@ const categorySchema = z.object({
 /** Index summary: full module metadata with adapters reduced to `key` + `match`. */
 export const ModuleSummarySchema = z.object({
   ...moduleBaseShape,
-  adapters: z.array(z.object({ key: z.string(), match: z.record(z.string(), z.string()) })),
+  adapters: z.array(
+    z.object({
+      key: z.string(),
+      match: z.partialRecord(z.enum(KNOWN_CATEGORIES), z.string()),
+    }),
+  ),
 }) satisfies z.ZodType<ModuleSummary>;
 
 /** Runtime-validatable schema for the registry `index.json` payload. */

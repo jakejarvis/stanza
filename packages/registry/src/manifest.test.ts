@@ -76,6 +76,64 @@ describe("StanzaManifestSchema", () => {
       }),
     ).toThrow(/apps/);
   });
+
+  it("rejects two home:app framework records targeting the same app", () => {
+    const result = StanzaManifestSchema.safeParse({
+      ...emptyManifest({
+        name: "acme",
+        apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      }),
+      modules: {
+        framework: [
+          { id: "next", version: "0.1.0", adapter: "default", apps: ["web"] },
+          { id: "tanstack-start", version: "0.1.0", adapter: "default", apps: ["web"] },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+    const issues = result.success ? [] : result.error.issues;
+    expect(issues.some((i) => /≤ 1 module per app/.test(i.message))).toBe(true);
+  });
+
+  it("accepts two home:app framework records on disjoint apps", () => {
+    const result = StanzaManifestSchema.safeParse({
+      ...emptyManifest({
+        name: "acme",
+        apps: [
+          { id: "web", dir: "apps/web", kind: "web" },
+          { id: "native", dir: "apps/native", kind: "native" },
+        ],
+      }),
+      modules: {
+        framework: [
+          { id: "next", version: "0.1.0", adapter: "default", apps: ["web"] },
+          { id: "expo", version: "0.1.0", adapter: "default", apps: ["native"] },
+        ],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects two home:package auth records (per-project cardinality)", () => {
+    const result = StanzaManifestSchema.safeParse({
+      ...emptyManifest({
+        name: "acme",
+        apps: [
+          { id: "web", dir: "apps/web", kind: "web" },
+          { id: "native", dir: "apps/native", kind: "native" },
+        ],
+      }),
+      modules: {
+        auth: [
+          { id: "better-auth", version: "0.1.0", adapter: "default", apps: ["web"] },
+          { id: "clerk", version: "0.1.0", adapter: "default", apps: ["native"] },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+    const issues = result.success ? [] : result.error.issues;
+    expect(issues.some((i) => /≤ 1 module per project/.test(i.message))).toBe(true);
+  });
 });
 
 describe("app-aware selectors", () => {

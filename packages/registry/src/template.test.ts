@@ -14,6 +14,7 @@ describe("renderTemplate", () => {
     projectName: "acme",
     app: webApp,
     packageName: "@acme/auth",
+    consumesPackages: ["db"],
   });
 
   it("substitutes project.name", () => {
@@ -156,15 +157,36 @@ describe("renderTemplate", () => {
 });
 
 describe("buildRenderContext", () => {
-  it("populates packages.<dir>.name for every PACKAGE_DIR", () => {
+  it("populates packages.<dir>.name only for declared consumesPackages", () => {
+    const ctx = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      consumesPackages: ["db"],
+    });
+    expect(ctx.packages.db?.name).toBe("@acme/db");
+    // `auth` is a valid PACKAGE_DIR but wasn't declared — must not leak in.
+    expect(ctx.packages.auth).toBeUndefined();
+  });
+
+  it("ignores consumesPackages entries that aren't valid PACKAGE_DIRS", () => {
+    const ctx = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      consumesPackages: ["db", "definitely-not-a-package"],
+    });
+    expect(ctx.packages.db?.name).toBe("@acme/db");
+    expect(Object.keys(ctx.packages)).toEqual(["db"]);
+  });
+
+  it("defaults packages to {} when consumesPackages is omitted", () => {
     const ctx = buildRenderContext({
       projectName: "acme",
       app: webApp,
       packageName: "",
     });
-    // PACKAGE_DIRS is derived from CATEGORIES; auth + db are both package homes.
-    expect(ctx.packages.auth?.name).toBe("@acme/auth");
-    expect(ctx.packages.db?.name).toBe("@acme/db");
+    expect(ctx.packages).toEqual({});
   });
 
   it("materializes every PEER_CATEGORIES key under `peers` (undefined when unset)", () => {

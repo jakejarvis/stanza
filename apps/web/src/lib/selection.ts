@@ -23,6 +23,21 @@ export type BuilderSearch = { name?: string; pm?: string } & Partial<Record<Cate
 
 export const DEFAULT_NAME = "my-app";
 
+const SEARCH_KEYS = ["name", "pm", ...KNOWN_CATEGORIES] as const;
+
+/**
+ * Shared by the route's `validateSearch` and the server function's
+ * `inputValidator` so direct HTTP calls can't bypass the allow-list.
+ */
+export function validateBuilderSearch(input: Record<string, unknown>): BuilderSearch {
+  const out: BuilderSearch = {};
+  for (const key of SEARCH_KEYS) {
+    const v = input[key];
+    if (typeof v === "string" && v.length > 0) out[key] = v;
+  }
+  return out;
+}
+
 /**
  * Parse URL search params into a name + per-category selections. Every category
  * is a comma-joined list (`?testing=vitest,playwright`, `?framework=next`) — the

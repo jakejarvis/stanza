@@ -70,6 +70,15 @@ export function pmRecursive(pm: PackageManager, script: string): string {
   return `npm run ${script} --workspaces --if-present`;
 }
 
+/** `@acme/auth` → `auth`; `undefined` for repo/app-home modules (empty packageName). */
+function packageDirFromName(packageName: string): string | undefined {
+  if (!packageName) return undefined;
+  const slash = packageName.lastIndexOf("/");
+  if (slash < 0) return undefined;
+  const dir = packageName.slice(slash + 1);
+  return PACKAGE_DIRS.has(dir) ? dir : undefined;
+}
+
 // Module-singleton instance so registered helpers don't leak into other
 // Handlebars consumers (the global is shared otherwise).
 const hb = Handlebars.create();
@@ -119,6 +128,10 @@ export function renderTemplate(source: string, context: TemplateContext): string
  * when no module is selected) so templates can safely reference any peer slot
  * — that lets `{{peers.framework}}` resolve to `undefined` rather than walk
  * off the end of a missing path.
+ *
+ * `packages` only exposes the module's own home plus any `consumesPackages`
+ * it declared. Unknown keys render to empty strings, so a typo'd peer
+ * reference fails at build rather than producing a phantom import path.
  */
 export function buildRenderContext(opts: {
   projectName: string;
@@ -132,10 +145,18 @@ export function buildRenderContext(opts: {
    * the rendered output stays stable across module-order permutations.
    */
   envNames?: readonly string[];
+  /** Pass the active module's `consumesPackages` to make `{{packages.<dir>.name}}` resolve. */
+  consumesPackages?: readonly string[];
 }): TemplateContext {
   const packages: Record<string, { name: string }> = {};
-  for (const dir of PACKAGE_DIRS) {
-    packages[dir] = { name: `@${opts.projectName}/${dir}` };
+  // Own home is always exposed so a module can self-reference without having
+  // to list itself in `consumesPackages`.
+  const ownDir = packageDirFromName(opts.packageName);
+  if (ownDir) packages[ownDir] = { name: opts.packageName };
+  for (const dir of opts.consumesPackages ?? []) {
+    if (PACKAGE_DIRS.has(dir) && !packages[dir]) {
+      packages[dir] = { name: `@${opts.projectName}/${dir}` };
+    }
   }
   const peers: Partial<Record<CategoryId, string>> = {};
   for (const cat of PEER_CATEGORIES) peers[cat] = opts.peers?.[cat];

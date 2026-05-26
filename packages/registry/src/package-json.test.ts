@@ -286,6 +286,50 @@ describe("ModuleSchema (Zod) app-overlay validation", () => {
     expect(issues.some((i) => /forbidden for `home: "repo"`/.test(i.message))).toBe(true);
   });
 
+  it("synthesize picks the higher range when two modules in the same category declare the same dep", () => {
+    // Two testing add-ons (home:app, many-cardinality) both contribute @types/node.
+    const a = defineModule({
+      id: "vitest-like",
+      category: "testing" as const,
+      label: "A",
+      description: "",
+      version: "0.1.0",
+      devDependencies: { "@types/node": "^20.0.0" },
+      adapters: [{ key: "default", match: {} }],
+    });
+    const b = defineModule({
+      id: "playwright-like",
+      category: "testing" as const,
+      label: "B",
+      description: "",
+      version: "0.1.0",
+      devDependencies: { "@types/node": "^24.0.0" },
+      adapters: [{ key: "default", match: {} }],
+    });
+    const appPkg = synthesizePackageJsons(
+      {
+        testing: [
+          { module: a, adapter: a.adapters[0]! },
+          { module: b, adapter: b.adapters[0]! },
+        ],
+      },
+      { name: "acme" },
+    )["apps/web/package.json"];
+    expect(appPkg?.devDependencies?.["@types/node"]).toBe("^24.0.0");
+
+    // Swap iteration order: same winner — synth is module-order-independent.
+    const swapped = synthesizePackageJsons(
+      {
+        testing: [
+          { module: b, adapter: b.adapters[0]! },
+          { module: a, adapter: a.adapters[0]! },
+        ],
+      },
+      { name: "acme" },
+    )["apps/web/package.json"];
+    expect(swapped?.devDependencies?.["@types/node"]).toBe("^24.0.0");
+  });
+
   it("accepts manifests with app fields on package-home modules", () => {
     const ok = {
       id: "x",
@@ -297,5 +341,19 @@ describe("ModuleSchema (Zod) app-overlay validation", () => {
       adapters: [{ key: "default", match: {} }],
     };
     expect(ModuleSchema.safeParse(ok).success).toBe(true);
+  });
+
+  it("rejects adapter match keys that aren't valid category ids", () => {
+    // A typo'd key (`frameworks` instead of `framework`) would silently score
+    // specificity 0 in the resolver — make sure the schema fails loud instead.
+    const bad = {
+      id: "vitest",
+      category: "testing" as const,
+      label: "Vitest",
+      description: "",
+      version: "0.1.0",
+      adapters: [{ key: "next", match: { frameworks: "next" } }],
+    };
+    expect(ModuleSchema.safeParse(bad).success).toBe(false);
   });
 });

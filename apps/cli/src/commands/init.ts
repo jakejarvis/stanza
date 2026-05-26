@@ -124,48 +124,69 @@ export async function cmdInit(args: CliArgs): Promise<void> {
   // Collected as each module applies; feeds `synthesizeReadme` at the end
   // (`Module` objects are already in memory from the wizard — no reload needed).
   const resolvedAll: Resolved = {};
+  const applied: string[] = [];
 
-  for (const category of categoryOrder) {
-    const home = categoryHome(category);
-    for (const mod of result.selections[category] ?? []) {
-      spinner.start(`Installing ${mod.label}`);
-      const adapter = resolveAdapter(mod, {
-        manifest,
-        pending: fullPending,
-        targetAppId: home.kind === "app" ? appHomeTarget[0]!.id : undefined,
-      });
-      if (!adapter.ok) {
-        spinner.stop(`${mod.label} ${pc.red("failed")}`);
-        throw new Error(
-          `Could not resolve adapter for ${category}/${mod.id}: ${adapter.error.kind}`,
-        );
+  try {
+    for (const category of categoryOrder) {
+      const home = categoryHome(category);
+      for (const mod of result.selections[category] ?? []) {
+        spinner.start(`Installing ${mod.label}`);
+        const adapter = resolveAdapter(mod, {
+          manifest,
+          pending: fullPending,
+          targetAppId: home.kind === "app" ? appHomeTarget[0]!.id : undefined,
+        });
+        if (!adapter.ok) {
+          spinner.stop(`${mod.label} ${pc.red("failed")}`);
+          throw new Error(
+            `Could not resolve adapter for ${category}/${mod.id}: ${adapter.error.kind}`,
+          );
+        }
+        // Validate appKind when the module declares one (typically frameworks).
+        if (home.kind === "app" && mod.appKind && mod.appKind !== appHomeTarget[0]!.kind) {
+          spinner.stop(`${mod.label} ${pc.red("failed")}`);
+          throw new Error(
+            `${category}/${mod.id} requires an app of kind "${mod.appKind}" but "${appHomeTarget[0]!.id}" is "${appHomeTarget[0]!.kind}".`,
+          );
+        }
+        let r;
+        try {
+          r = await applyModule({
+            projectRoot,
+            manifest,
+            module: mod,
+            adapter: adapter.adapter,
+            // home: "app"     → single target app
+            // home: "package" → ship shims into every app (today: just one)
+            // home: "repo"    → seed app for render context (the first app)
+            targetApps: home.kind === "app" ? appHomeTarget : targetApps,
+            registryRoot,
+            dryRun,
+          });
+        } catch (err) {
+          spinner.stop(`${mod.label} ${pc.red("failed")}`);
+          throw err;
+        }
+        manifest = r.manifest;
+        (resolvedAll[category] ??= []).push({
+          module: mod,
+          adapter: adapter.adapter,
+        } satisfies ResolvedEntry);
+        applied.push(`${category}/${mod.id}`);
+        telemetry.capture("cli_module", { action: "install", group: category, module: mod.id });
+        spinner.stop(`${pc.green("✓")} ${mod.label}`);
       }
-      // Validate appKind when the module declares one (typically frameworks).
-      if (home.kind === "app" && mod.appKind && mod.appKind !== appHomeTarget[0]!.kind) {
-        throw new Error(
-          `${category}/${mod.id} requires an app of kind "${mod.appKind}" but "${appHomeTarget[0]!.id}" is "${appHomeTarget[0]!.kind}".`,
-        );
-      }
-      const r = await applyModule({
-        projectRoot,
-        manifest,
-        module: mod,
-        adapter: adapter.adapter,
-        // home: "app"     → single target app
-        // home: "package" → ship shims into every app (today: just one)
-        // home: "repo"    → seed app for render context (the first app)
-        targetApps: home.kind === "app" ? appHomeTarget : targetApps,
-        registryRoot,
-        dryRun,
-      });
-      manifest = r.manifest;
-      (resolvedAll[category] ??= []).push({
-        module: mod,
-        adapter: adapter.adapter,
-      } satisfies ResolvedEntry);
-      telemetry.capture("cli_module", { action: "install", group: category, module: mod.id });
-      spinner.stop(`${pc.green("✓")} ${mod.label}`);
     }
+  } catch (err) {
+    // Leave the partial project on disk — explicit is better than `rm -rf`-ing
+    // the user's cwd, and they may want to inspect what got applied.
+    if (!dryRun) {
+      p.log.error(
+        `Init failed after ${applied.length} module(s): ${applied.join(", ") || "(none)"}.\n` +
+          `Project left at ${projectRoot} for inspection. Remove it manually to retry.`,
+      );
+    }
+    throw err;
   }
 
   // Final step: synthesize the project README from the assembled selection and

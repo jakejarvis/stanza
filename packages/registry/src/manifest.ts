@@ -3,6 +3,8 @@ import { z } from "zod";
 import {
   APP_KINDS,
   type AppKind,
+  categoryCardinality,
+  categoryHome,
   type CategoryId,
   KNOWN_CATEGORIES,
   type ModuleId,
@@ -95,29 +97,61 @@ const appSpecSchema = z.object({
   kind: z.enum(APP_KINDS),
 }) satisfies z.ZodType<AppSpec>;
 
-export const StanzaManifestSchema = z.object({
-  $schema: z.string().optional(),
-  version: z.literal(CURRENT_MANIFEST_VERSION),
-  projectShape: z.literal("monorepo"),
-  packageManager: z.enum(["pnpm", "bun", "npm"]),
-  name: z.string(),
-  apps: z.array(appSpecSchema).min(1),
-  // Zod 4: partialRecord because not every category is filled. Every category
-  // holds an array (single-choice categories carry 0 or 1 records per app).
-  modules: z.partialRecord(
-    z.enum(KNOWN_CATEGORIES),
-    z.array(
-      z.object({
-        id: z.string(),
-        version: z.string(),
-        adapter: z.string(),
-        apps: z.array(z.string()).optional(),
-      }),
+export const StanzaManifestSchema = z
+  .object({
+    $schema: z.string().optional(),
+    version: z.literal(CURRENT_MANIFEST_VERSION),
+    projectShape: z.literal("monorepo"),
+    packageManager: z.enum(["pnpm", "bun", "npm"]),
+    name: z.string(),
+    apps: z.array(appSpecSchema).min(1),
+    // Zod 4: partialRecord because not every category is filled. Every category
+    // holds an array (single-choice categories carry 0 or 1 records per app).
+    modules: z.partialRecord(
+      z.enum(KNOWN_CATEGORIES),
+      z.array(
+        z.object({
+          id: z.string(),
+          version: z.string(),
+          adapter: z.string(),
+          apps: z.array(z.string()).optional(),
+        }),
+      ),
     ),
-  ),
-  regions: z.record(z.string(), z.record(z.string(), z.string())),
-  readmeChecksum: z.string().optional(),
-}) satisfies z.ZodType<StanzaManifest>;
+    regions: z.record(z.string(), z.record(z.string(), z.string())),
+    readmeChecksum: z.string().optional(),
+  })
+  .superRefine((m, ctx) => {
+    // The CLI enforces cardinality at apply-time; this catches hand-edited or
+    // third-party-synthesized manifests so `selectedOne` callers can rely on it.
+    const appIds = m.apps.map((a) => a.id);
+    for (const category of KNOWN_CATEGORIES) {
+      const records = m.modules[category];
+      if (!records || categoryCardinality(category) !== "one") continue;
+      if (categoryHome(category).kind === "app") {
+        const counts = new Map<string, number>();
+        for (const r of records) {
+          const targets = r.apps?.length ? r.apps : appIds;
+          for (const id of targets) counts.set(id, (counts.get(id) ?? 0) + 1);
+        }
+        for (const [id, count] of counts) {
+          if (count > 1) {
+            ctx.addIssue({
+              code: "custom",
+              message: `Category "${category}" allows ≤ 1 module per app, but app "${id}" has ${count}.`,
+              path: ["modules", category],
+            });
+          }
+        }
+      } else if (records.length > 1) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Category "${category}" allows ≤ 1 module per project, found ${records.length}.`,
+          path: ["modules", category],
+        });
+      }
+    }
+  }) satisfies z.ZodType<StanzaManifest>;
 
 /**
  * Built-in default app: a single web app at `apps/web` with id `"web"`. The

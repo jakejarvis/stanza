@@ -196,7 +196,7 @@ const ModuleCard = memo(function ModuleCard({
                       params={{ category: m.category, id: m.id }}
                       aria-label={`${m.label} details`}
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex shrink-0 translate-y-[-2px] items-center justify-center text-foreground/40 transition-colors hover:text-foreground"
+                      className="inline-flex shrink-0 translate-y-[-1px] items-center justify-center text-foreground/40 transition-colors hover:text-foreground"
                     />
                   }
                 >

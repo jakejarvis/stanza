@@ -209,7 +209,32 @@ export type Resolved = Partial<Record<CategoryId, ResolvedEntry[]>>;
 function addDep(pkg: PackageJson, name: string, range: string, dev = false): void {
   const key = dev ? "devDependencies" : "dependencies";
   const map = (pkg[key] ??= {});
-  if (map[name] === undefined) map[name] = range;
+  const existing = map[name];
+  if (existing === undefined || existing === range) {
+    map[name] = range;
+    return;
+  }
+  // Conflicting ranges across modules: pick the higher version so synth output
+  // is module-order-independent. The CLI's region tracker hard-fails on the
+  // same case, so genuine conflicts still surface at install time.
+  map[name] = pickHigherRange(existing, range);
+}
+
+/** Non-semver ranges (`workspace:*`, git URLs) compare lexically — fine in practice. */
+function pickHigherRange(a: string, b: string): string {
+  return compareSemver(a.replace(/^[\^~]/, ""), b.replace(/^[\^~]/, "")) >= 0 ? a : b;
+}
+
+function compareSemver(a: string, b: string): number {
+  const pa = a.split(".");
+  const pb = b.split(".");
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = Number(pa[i] ?? "0");
+    const nb = Number(pb[i] ?? "0");
+    if (Number.isNaN(na) || Number.isNaN(nb)) return a < b ? -1 : a > b ? 1 : 0;
+    if (na !== nb) return na - nb;
+  }
+  return 0;
 }
 
 function applyFields(pkg: PackageJson, fields: MergedInstallFields): void {
