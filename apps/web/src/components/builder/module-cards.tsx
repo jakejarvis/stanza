@@ -7,7 +7,8 @@ import {
   PEER_CATEGORIES,
   resolveAdapter,
 } from "@stanza/registry";
-import { IconCheck } from "@tabler/icons-react";
+import { IconCheck, IconHome, IconInfoCircle } from "@tabler/icons-react";
+import { Link } from "@tanstack/react-router";
 import { memo, useCallback, useMemo } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
@@ -150,12 +151,28 @@ const ModuleCard = memo(function ModuleCard({
     onToggle(category, m.id);
   }, [disabled, onToggle, category, m.id]);
 
+  const onKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+      // Only handle keys aimed at the card itself, not bubbled from the
+      // nested website link.
+      if (e.target !== e.currentTarget) return;
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        onToggle(category, m.id);
+      }
+    },
+    [disabled, onToggle, category, m.id],
+  );
+
   const card = (
-    <button
-      type="button"
-      disabled={disabled}
+    <div
+      role="button"
+      tabIndex={disabled ? -1 : 0}
       aria-pressed={selected}
+      aria-disabled={disabled || undefined}
       onClick={onClick}
+      onKeyDown={onKeyDown}
       className={cn(
         "relative flex h-full w-full flex-col gap-3 rounded-none border border-border bg-card px-2.5 py-4 text-left text-card-foreground shadow-sm transition-colors",
         "outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -168,13 +185,54 @@ const ModuleCard = memo(function ModuleCard({
         <ModuleLogo logo={m.logo} label={m.label} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm leading-tight font-medium">{m.label}</h3>
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate text-sm leading-tight font-medium">{m.label}</h3>
+              <span className="flex shrink-0 items-center gap-1.5">
+                {m.homepage && (
+                  <Tooltip>
+                    <TooltipTrigger
+                      nativeButton={false}
+                      render={
+                        <a
+                          href={m.homepage}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`${m.label} website`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex shrink-0 translate-y-[-2px] items-center justify-center text-foreground/60 transition-colors hover:text-foreground"
+                        />
+                      }
+                    >
+                      <IconHome className="size-3.5" aria-hidden />
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={8}>Open website</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger
+                    nativeButton={false}
+                    render={
+                      <Link
+                        to="/registry/$category/$id"
+                        params={{ category: m.category, id: m.id }}
+                        aria-label={`${m.label} details`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex shrink-0 translate-y-[-2px] items-center justify-center text-foreground/60 transition-colors hover:text-foreground"
+                      />
+                    }
+                  >
+                    <IconInfoCircle className="size-3.5" aria-hidden />
+                  </TooltipTrigger>
+                  <TooltipContent sideOffset={8}>View details</TooltipContent>
+                </Tooltip>
+              </span>
+            </div>
             {selected && <IconCheck className="size-4 shrink-0 text-foreground" aria-hidden />}
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
         </div>
       </div>
-    </button>
+    </div>
   );
 
   if (!disabled || !reason) return card;

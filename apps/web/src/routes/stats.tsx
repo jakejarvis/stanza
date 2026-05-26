@@ -59,7 +59,7 @@ function StatsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-      <header className="mb-10 max-w-2xl">
+      <header className="mb-8 max-w-2xl">
         <h1 className="text-3xl font-semibold tracking-tight">Stats</h1>
         <p className="mt-2 text-pretty text-muted-foreground">
           What modules people actually pick, aggregated from anonymous CLI telemetry —{" "}
@@ -73,7 +73,7 @@ function StatsPage() {
         </p>
       </header>
 
-      <section className="mb-8 grid gap-4 sm:grid-cols-2">
+      <section className="mb-4 grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
@@ -122,7 +122,7 @@ function StatsPage() {
         </Card>
       </section>
 
-      <section className="mb-12">
+      <section className="mb-8">
         <h2 className="mb-4 text-lg font-semibold tracking-tight">Popular modules by category</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {KNOWN_CATEGORIES.map((category) => {
@@ -203,7 +203,7 @@ function StatsPage() {
             </CardContent>
           </Card>
         </div>
-        <p className="mt-4 text-xs leading-7 text-muted-foreground">
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">
           <strong className="font-medium text-foreground">Opt out</strong> per-invocation with{" "}
           <code>--no-telemetry</code>, persistently with <code>STANZA_TELEMETRY=0</code> or{" "}
           <code>DO_NOT_TRACK=1</code>. More in the{" "}

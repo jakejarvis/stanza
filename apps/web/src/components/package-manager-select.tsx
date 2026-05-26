@@ -14,8 +14,7 @@ import { isPackageManager, PACKAGE_MANAGERS, type PackageManager } from "@/lib/p
 function NpmLogo(props: ComponentProps<"svg">) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden {...props}>
-      <path fill="#c12127" d="M2 2h28v28H2" />
-      <path fill="#fff" d="M7.25 7.25h17.5v17.5h-3.5v-14H16v14H7.25" />
+      <path fill="#e53935" d="M4 4v24h24V4Zm20 20h-4V12h-4v12H8V8h16Z" />
     </svg>
   );
 }
@@ -23,7 +22,11 @@ function NpmLogo(props: ComponentProps<"svg">) {
 function PnpmLogo(props: ComponentProps<"svg">) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden {...props}>
-      <path fill="#e0e0e0" d="M2 22h8v8H2zm10 0h8v8h-8zm10 0h8v8h-8zM12 12h8v8h-8z" />
+      <path
+        fill="#757575"
+        d="M2 22h8v8H2zm10 0h8v8h-8zm10 0h8v8h-8zM12 12h8v8h-8z"
+        className="dark:fill-[#e0e0e0]!"
+      />
       <path fill="#ffb300" d="M2 2h8v8H2zm10 0h8v8h-8zm10 0h8v8h-8zm0 10h8v8h-8z" />
     </svg>
   );
