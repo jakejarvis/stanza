@@ -44,6 +44,7 @@ export {
   StanzaManifestSchema,
   CURRENT_MANIFEST_VERSION,
   MANIFEST_SCHEMA_URL,
+  declaredEnvNames,
   defaultWebApp,
   emptyManifest,
   getApp,

@@ -164,6 +164,20 @@ export function synthesizeTemplates(
     return apps.filter((a) => allowed.has(a.id));
   };
 
+  // Aggregate env names from every resolved entry's merged install fields,
+  // including the `app` overlay. Mirrors what the CLI runner derives from
+  // `manifest.regions[".env.example"]` post-apply — both ends feed the same
+  // sorted/deduped array into `{{env}}`, so turbo.json `globalEnv` and any
+  // other env-aware template render identically across CLI and web preview.
+  const envNames: string[] = [];
+  for (const category of categoryOrder) {
+    for (const entry of resolved[category] ?? []) {
+      const fields = mergeInstallFields(entry.module, entry.adapter);
+      for (const v of fields.env) envNames.push(v.name);
+      for (const v of fields.app.env) envNames.push(v.name);
+    }
+  }
+
   for (const category of categoryOrder) {
     const home = categoryHome(category);
     const packageName = home.kind === "package" ? `@${opts.name}/${home.dir}` : "";
@@ -179,6 +193,7 @@ export function synthesizeTemplates(
           packageName,
           packageManager: opts.packageManager,
           peers: opts.peers,
+          envNames,
         });
 
       for (const tpl of entry.adapter.templates ?? []) {
@@ -292,6 +307,17 @@ export function synthesizeReadme(
   // `synthesizeTemplates` uses for app-agnostic templates).
   const hasModules = categoryOrder.some((c) => (resolved[c]?.length ?? 0) > 0);
   if (hasModules) {
+    // Same aggregation as `synthesizeTemplates` so a module readme can read
+    // `{{env}}` and see the full project-wide list.
+    const envNames: string[] = [];
+    for (const cat of categoryOrder) {
+      for (const entry of resolved[cat] ?? []) {
+        const fields = mergeInstallFields(entry.module, entry.adapter);
+        for (const v of fields.env) envNames.push(v.name);
+        for (const v of fields.app.env) envNames.push(v.name);
+      }
+    }
+
     lines.push("## Modules");
     lines.push("");
     for (const category of categoryOrder) {
@@ -306,6 +332,7 @@ export function synthesizeReadme(
           packageName,
           packageManager: pm,
           peers,
+          envNames,
         });
         lines.push(`### ${categoryLabel(category)} — ${entry.module.label}`);
         lines.push("");

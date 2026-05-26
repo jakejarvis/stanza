@@ -90,6 +90,26 @@ describe("renderTemplate", () => {
     expect(renderTemplate("{{package.name}}", ctx)).toBe("@acme/auth");
   });
 
+  describe("{{json}} helper", () => {
+    it("serializes the env array for turbo-style globalEnv emission", () => {
+      const withEnv = buildRenderContext({
+        projectName: "acme",
+        app: webApp,
+        packageName: "",
+        envNames: ["DATABASE_URL", "BETTER_AUTH_SECRET"],
+      });
+      expect(renderTemplate("{{json env}}", withEnv)).toBe('["BETTER_AUTH_SECRET","DATABASE_URL"]');
+    });
+
+    it("emits a valid empty array when no env names are declared", () => {
+      expect(renderTemplate("{{json env}}", ctx)).toBe("[]");
+    });
+
+    it("renders null for missing keys (still valid JSON)", () => {
+      expect(renderTemplate("{{json missing}}", ctx)).toBe("null");
+    });
+  });
+
   describe("peers + conditionals", () => {
     const withNext = buildRenderContext({
       projectName: "acme",
@@ -158,6 +178,25 @@ describe("buildRenderContext", () => {
     // ui is a PEER_CATEGORY but not set — the key exists, value is undefined.
     expect("ui" in ctx.peers).toBe(true);
     expect(ctx.peers.ui).toBeUndefined();
+  });
+
+  it("sorts and dedupes envNames so module-apply order doesn't leak into output", () => {
+    const ctx = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+      envNames: ["DATABASE_URL", "BETTER_AUTH_SECRET", "DATABASE_URL", "AUTH_URL"],
+    });
+    expect(ctx.env).toEqual(["AUTH_URL", "BETTER_AUTH_SECRET", "DATABASE_URL"]);
+  });
+
+  it("defaults env to an empty array when envNames is omitted", () => {
+    const ctx = buildRenderContext({
+      projectName: "acme",
+      app: webApp,
+      packageName: "",
+    });
+    expect(ctx.env).toEqual([]);
   });
 });
 
@@ -251,6 +290,60 @@ describe("synthesizeTemplates", () => {
     expect(out.find((t) => t.path === "apps/web/src/api.ts")?.content).toContain("// app=web");
     expect(out.find((t) => t.path === "apps/native/src/api.ts")?.content).toContain(
       "// app=native",
+    );
+  });
+
+  it("aggregates env names from every resolved entry into the {{env}} render context", () => {
+    const db: Module = defineModule({
+      id: "postgres",
+      category: "db",
+      label: "Postgres",
+      description: "",
+      version: "0.1.0",
+      env: [{ name: "DATABASE_URL", example: "postgres://...", required: true }],
+      adapters: [{ key: "default", match: {} }],
+    });
+    const authWithEnv: Module = defineModule({
+      id: "better-auth",
+      category: "auth",
+      label: "Better Auth",
+      description: "",
+      version: "0.1.0",
+      env: [
+        { name: "BETTER_AUTH_SECRET", example: "...", required: true },
+        { name: "BETTER_AUTH_URL", example: "http://localhost:3000", required: true },
+      ],
+      adapters: [
+        {
+          key: "default",
+          match: {},
+          templates: [
+            {
+              src: "turbo.json",
+              dest: "turbo.json",
+              scope: "repo",
+              template: true,
+              // Pad with whitespace so the trailing `}}` of `{{json env}}` isn't
+              // followed immediately by another `}` — Handlebars would otherwise
+              // parse `}}}` as a triple-stash close. Real turbo.json has a
+              // newline + sibling keys after the helper, so this only matters
+              // for a minimal smoke fixture.
+              content: '{ "globalEnv": {{json env}} }\n',
+            },
+          ],
+        },
+      ],
+    });
+    const out = synthesizeTemplates(
+      {
+        db: [{ module: db, adapter: db.adapters[0]! }],
+        auth: [{ module: authWithEnv, adapter: authWithEnv.adapters[0]! }],
+      },
+      { name: "acme" },
+    );
+    const turbo = out.find((t) => t.path === "turbo.json");
+    expect(turbo?.content).toBe(
+      '{ "globalEnv": ["BETTER_AUTH_SECRET","BETTER_AUTH_URL","DATABASE_URL"] }\n',
     );
   });
 });

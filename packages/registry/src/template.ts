@@ -23,6 +23,10 @@ import type { PackageManager } from "./package-json";
  *   {{ pm }}                  — project's package manager id ("pnpm" | "bun" |
  *                               "npm"). Use in shell commands so docs and
  *                               error messages match the user's chosen pm.
+ *   {{ env }}                 — sorted, deduped list of env var names declared
+ *                               by every installed module. Pair with the `json`
+ *                               helper for turbo.json `globalEnv` and similar
+ *                               cache-affecting enumerations.
  *
  * `app.*` is rebound per target app on every render pass, so a module installed
  * into two apps renders correctly in each.
@@ -34,6 +38,7 @@ export type TemplateContext = {
   packages: Record<string, { name: string }>;
   peers: Partial<Record<CategoryId, string>>;
   pm: PackageManager;
+  env: string[];
 };
 
 /**
@@ -80,6 +85,12 @@ hb.registerHelper("run", function (this: TemplateContext, script: unknown): stri
   return pmRun(this.pm, script);
 });
 
+// JSON-stringify any value. Primary use: emit the `env` array into turbo.json
+// `globalEnv` as a proper JSON literal — `"globalEnv": {{json env}}` →
+// `"globalEnv": ["DATABASE_URL","SECRET"]`. Generic so any future template
+// embedding a JS value into JSON output can reuse it.
+hb.registerHelper("json", (value: unknown) => JSON.stringify(value ?? null));
+
 /**
  * Render a Handlebars template against a {@link TemplateContext}. Output is
  * never HTML-escaped (`noEscape: true`) because templates emit code (JS/TS/
@@ -115,6 +126,12 @@ export function buildRenderContext(opts: {
   packageName: string;
   packageManager?: PackageManager;
   peers?: Partial<Record<CategoryId, string>>;
+  /**
+   * Env var names declared by every installed module — surfaced to templates
+   * as `{{env}}`. Sorted + deduped here so callers can hand in any order and
+   * the rendered output stays stable across module-order permutations.
+   */
+  envNames?: readonly string[];
 }): TemplateContext {
   const packages: Record<string, { name: string }> = {};
   for (const dir of PACKAGE_DIRS) {
@@ -122,6 +139,7 @@ export function buildRenderContext(opts: {
   }
   const peers: Partial<Record<CategoryId, string>> = {};
   for (const cat of PEER_CATEGORIES) peers[cat] = opts.peers?.[cat];
+  const env = opts.envNames ? [...new Set(opts.envNames)].toSorted() : [];
   return {
     project: { name: opts.projectName },
     app: { id: opts.app.id, dir: opts.app.dir, kind: opts.app.kind },
@@ -129,5 +147,6 @@ export function buildRenderContext(opts: {
     packages,
     peers,
     pm: opts.packageManager ?? "pnpm",
+    env,
   };
 }

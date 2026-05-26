@@ -18,6 +18,7 @@ import {
   activePeerIds,
   buildRenderContext,
   categoryHome,
+  declaredEnvNames,
   installPackageJsonTargets,
   mergeInstallFields,
   PACKAGE_DIRS,
@@ -125,12 +126,17 @@ export async function applyModule(args: {
   // reference `app.*` but `buildRenderContext` still needs a valid `AppSpec`.
   // Peers are resolved per-app so app-scoped templates see the right framework
   // (e.g. web's framework vs native's) when conditionally branching.
+  // Templates render against the manifest *as of now* — peers already applied
+  // and env vars already claimed in `.env.example`. Repo-home modules that
+  // run late (e.g. `monorepo-turbo`) get the full set of env names emitted
+  // by every prior module, which is exactly what `globalEnv` needs.
   const renderContextFor = (app: AppSpec): TemplateContext =>
     buildRenderContext({
       projectName: manifest.name,
       app,
       packageName,
       peers: activePeerIds(manifest, app.id),
+      envNames: declaredEnvNames(manifest),
     });
   const seedApp = targetApps[0]!;
 
@@ -657,6 +663,7 @@ export async function revertCodemods(args: {
       app,
       packageName,
       peers: activePeerIds(manifest, app.id),
+      envNames: declaredEnvNames(manifest),
     });
     const project = lazyProject(appRoot);
     const ctx = buildContext({

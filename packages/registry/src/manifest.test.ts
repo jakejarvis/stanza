@@ -3,6 +3,7 @@ import { assert, describe, expect, it } from "vite-plus/test";
 import {
   appsForRecord,
   CURRENT_MANIFEST_VERSION,
+  declaredEnvNames,
   defaultWebApp,
   emptyManifest,
   getApp,
@@ -129,5 +130,40 @@ describe("app-aware selectors", () => {
 
   it("getApp throws when the id is unknown", () => {
     expect(() => getApp(manifest, "missing")).toThrow(/No app "missing"/);
+  });
+});
+
+describe("declaredEnvNames", () => {
+  it("returns an empty array when no env regions are claimed", () => {
+    const manifest = emptyManifest({ name: "acme" });
+    expect(declaredEnvNames(manifest)).toEqual([]);
+  });
+
+  it("returns sorted, deduped keys from the .env.example region map", () => {
+    const manifest = {
+      ...emptyManifest({ name: "acme" }),
+      regions: {
+        ".env.example": {
+          DATABASE_URL: "db-postgres",
+          BETTER_AUTH_SECRET: "auth-better-auth",
+          BETTER_AUTH_URL: "auth-better-auth",
+        },
+      },
+    };
+    expect(declaredEnvNames(manifest)).toEqual([
+      "BETTER_AUTH_SECRET",
+      "BETTER_AUTH_URL",
+      "DATABASE_URL",
+    ]);
+  });
+
+  it("ignores regions on files other than .env.example", () => {
+    const manifest = {
+      ...emptyManifest({ name: "acme" }),
+      regions: {
+        "package.json": { "scripts.dev": "monorepo-turbo" },
+      },
+    };
+    expect(declaredEnvNames(manifest)).toEqual([]);
   });
 });

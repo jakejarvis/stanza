@@ -196,6 +196,21 @@ export function selectedAll(
 }
 
 /**
+ * Sorted, deduped list of env var names every installed module has claimed in
+ * `.env.example` — the same set that ends up in the file. Backs the `{{env}}`
+ * render context entry (and, transitively, `monorepo-turbo`'s `globalEnv` so
+ * Turborepo's task hashes track the right variables).
+ *
+ * Returns `[]` when nothing has been claimed yet (fresh init, or a project
+ * with no env-declaring modules).
+ */
+export function declaredEnvNames(manifest: StanzaManifest): string[] {
+  const envRegions = manifest.regions[".env.example"];
+  if (!envRegions) return [];
+  return Object.keys(envRegions).toSorted();
+}
+
+/**
  * JSON Schema for `stanza.json`, derived from the single Zod source of truth.
  * Published at {@link MANIFEST_SCHEMA_URL} so editors can validate and
  * autocomplete the manifest.
