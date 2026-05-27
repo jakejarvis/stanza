@@ -21,9 +21,9 @@ npx -y stanza-cli@latest init my-app --yes --framework=next
 - If the user wants create-style commands, use the correct separator for their package manager:
 
 ```sh
-pnpm create stanza@latest my-app --yes --framework=next
-npm create stanza@latest -- my-app --yes --framework=next
-bun create stanza@latest my-app --yes --framework=next
+pnpm create stanza my-app --yes --framework=next
+npm init stanza -- my-app --yes --framework=next
+bun create stanza my-app --yes --framework=next
 ```
 
 ## Non-Interactive Workflow

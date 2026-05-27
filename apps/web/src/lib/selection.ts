@@ -212,13 +212,14 @@ export function buildCommand(input: {
   pm?: PackageManager;
 }): string {
   const pm = input.pm ?? "pnpm";
+  const command = pm === "npm" ? "init" : "create";
   const flags = categoryOrder
     .map((category) => {
       const ids = input.selections[category];
       return ids && ids.length > 0 ? `--${category}=${ids.join(",")}` : null;
     })
     .filter((s): s is string => Boolean(s));
-  const base = `${pm} create stanza ${input.name}`;
+  const base = `${pm} ${command} stanza ${input.name}`;
   if (flags.length === 0) return base;
   const separator = pm === "npm" ? " -- " : " ";
   return `${base}${separator}${flags.join(" ")}`;

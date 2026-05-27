@@ -26,7 +26,7 @@ That drops the skill into your agent's skill directory; the agent picks it up on
 A few rules on top of the [CLI surface](/docs/cli) keep agent runs predictable:
 
 - **Discover before assuming.** The registry evolves — confirm any module id with [`npx -y stanza-cli@latest search`](/docs/cli#search) before passing it to `add`. Use the printed `category/id` value, not the display label.
-- **Prefer `npx` for automation.** `npx -y stanza-cli@latest <verb>` avoids the package-manager argument-forwarding ambiguity that `pnpm create` / `npm create` / `bun create` introduce.
+- **Prefer `npx` for automation.** `npx -y stanza-cli@latest <verb>` avoids the package-manager argument-forwarding ambiguity that `pnpm create` / `npm init` / `bun create` introduce.
 - **Preview with [`--dry-run`](/docs/cli#global-flags)** before mutating commands when you want to show the user what's about to happen.
 - **Respect the [dirty-worktree refusal](/docs/cli#global-flags).** Commit or stash first. Only reach for `--dangerously-allow-dirty` with the user's explicit approval.
 - **Pass [`--app=<id>`](/docs/cli#add)** to `add`/`remove` in multi-app projects. Single-app projects auto-target, but if `stanza.json`'s `apps` array has more than one entry, scripts should pass the flag explicitly rather than relying on cwd inference.
