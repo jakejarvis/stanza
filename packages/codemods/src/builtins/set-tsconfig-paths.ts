@@ -2,9 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { assertSafeRelativePath } from "@stanza/registry";
-import { applyEdits, modify, parse, type ParseError, printParseErrorCode } from "jsonc-parser";
 
-import type { Codemod } from "../index";
+import {
+  type Codemod,
+  readJson,
+  setJsonPath,
+  setJsonPathSegments,
+  unsetJsonPath,
+  unsetJsonPathSegments,
+} from "../index";
 
 /**
  * Merge entries into a `tsconfig.json`'s `compilerOptions.paths` map.
@@ -55,8 +61,7 @@ const setTsconfigPaths: Codemod<SetTsconfigPathsArgs> = {
       );
     }
 
-    let text = fs.readFileSync(abs, "utf8");
-    const root = parseJsonc(text, rel);
+    const root = readRoot(abs);
     const compilerOptions = isRecord(root.compilerOptions) ? root.compilerOptions : {};
     const existing = isRecord(compilerOptions.paths) ? compilerOptions.paths : {};
 
@@ -91,12 +96,11 @@ const setTsconfigPaths: Codemod<SetTsconfigPathsArgs> = {
     }
 
     if (compilerOptions.baseUrl === undefined) {
-      text = applyEdits(text, modify(text, ["compilerOptions", "baseUrl"], ".", FORMAT));
+      setJsonPath(abs, "compilerOptions.baseUrl", ".");
     }
     for (const [key, val] of Object.entries(args.paths)) {
-      text = applyEdits(text, modify(text, ["compilerOptions", "paths", key], val, FORMAT));
+      setJsonPathSegments(abs, ["compilerOptions", "paths", key], val);
     }
-    fs.writeFileSync(abs, text, "utf8");
     ctx.claimRegion(rel, regionKeyFor(args));
     return { touchedFiles: [rel] };
   },
@@ -109,43 +113,32 @@ const setTsconfigPaths: Codemod<SetTsconfigPathsArgs> = {
       return { touchedFiles: [] };
     }
 
-    let text = fs.readFileSync(abs, "utf8");
-    const root = parseJsonc(text, rel);
+    const root = readRoot(abs);
     const compilerOptions = isRecord(root.compilerOptions) ? root.compilerOptions : {};
     const paths = isRecord(compilerOptions.paths) ? compilerOptions.paths : {};
     let changed = false;
     for (const [key, val] of Object.entries(args.paths)) {
       if (paths[key] !== undefined && arraysEqual(toArray(paths[key]), val)) {
-        text = applyEdits(text, modify(text, ["compilerOptions", "paths", key], undefined, FORMAT));
+        unsetJsonPathSegments(abs, ["compilerOptions", "paths", key]);
         changed = true;
       }
     }
     if (changed) {
       // If the paths map ends up empty after removal, drop it entirely.
-      const after = parseJsonc(text, rel);
+      const after = readRoot(abs);
       const afterCo = isRecord(after.compilerOptions) ? after.compilerOptions : {};
       if (isRecord(afterCo.paths) && Object.keys(afterCo.paths).length === 0) {
-        text = applyEdits(text, modify(text, ["compilerOptions", "paths"], undefined, FORMAT));
+        unsetJsonPath(abs, "compilerOptions.paths");
       }
-      fs.writeFileSync(abs, text, "utf8");
     }
     ctx.releaseRegion(rel, regionKeyFor(args));
     return { touchedFiles: changed ? [rel] : [] };
   },
 };
 
-const FORMAT = { formattingOptions: { tabSize: 2, insertSpaces: true } } as const;
-
-function parseJsonc(text: string, rel: string): Record<string, unknown> {
-  const errors: ParseError[] = [];
-  const value = parse(text, errors, { allowTrailingComma: true });
-  if (errors.length > 0) {
-    const first = errors[0]!;
-    throw new Error(
-      `set-tsconfig-paths: ${rel} is not valid JSON/JSONC (${printParseErrorCode(first.error)} at offset ${first.offset}).`,
-    );
-  }
-  return isRecord(value) ? value : {};
+function readRoot(file: string): Record<string, unknown> {
+  const v = readJson(file);
+  return isRecord(v) ? v : {};
 }
 
 function resolveFilePath(

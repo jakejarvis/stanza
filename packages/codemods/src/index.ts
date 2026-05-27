@@ -29,6 +29,8 @@ export {
   mergeJson,
   setJsonPath,
   unsetJsonPath,
+  setJsonPathSegments,
+  unsetJsonPathSegments,
   addPackageDependency,
   removePackageDependency,
   addPackageScript,
