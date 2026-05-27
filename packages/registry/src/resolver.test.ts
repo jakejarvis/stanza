@@ -79,6 +79,29 @@ describe("resolveAdapter", () => {
     expect(result.error.kind).toBe("incompatible-peer");
   });
 
+  it("accepts a narrow metadata shape and returns the narrow adapter", () => {
+    // ModuleMetadata strips adapter templates/codemods/install fields — the
+    // web builder ships only this shape to the client. The generic must
+    // preserve the input's adapter type end-to-end.
+    const meta = {
+      id: "drizzle",
+      peers: { db: ["postgres", "sqlite"] },
+      adapters: [
+        { key: "postgres", match: { db: "postgres" } },
+        { key: "sqlite", match: { db: "sqlite" } },
+      ],
+    };
+    const result = resolveAdapter(meta, {
+      manifest: emptyManifest({ name: "t" }),
+      pending: { db: { id: "postgres" } },
+    });
+    assert(result.ok);
+    expect(result.adapter.key).toBe("postgres");
+    // @ts-expect-error — adapter type narrows to the input's adapter shape;
+    // the input had no `templates`, so accessing it is a type error.
+    void result.adapter.templates;
+  });
+
   it("falls back to a default (empty-match) adapter when no peers are required", () => {
     const tailwind: Module = defineModule({
       id: "tailwind",

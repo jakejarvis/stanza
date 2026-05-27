@@ -2,9 +2,9 @@ import { type StanzaManifest, selectedOne } from "./manifest";
 import {
   type CategoryId,
   KNOWN_CATEGORIES,
-  type Module,
   type ModuleAdapter,
   PEER_CATEGORIES,
+  type PeerRequirement,
 } from "./module";
 
 /**
@@ -14,11 +14,23 @@ import {
  */
 export const categoryOrder: readonly CategoryId[] = KNOWN_CATEGORIES;
 
+/**
+ * Minimum shape `resolveAdapter` reads. Both full `Module` and the lighter
+ * `ModuleMetadata` satisfy this — the web builder ships only metadata to the
+ * client, the CLI passes full Modules. The generic preserves the adapter type
+ * end-to-end so each caller gets back the same shape it put in.
+ */
+export type Resolvable<A extends Pick<ModuleAdapter, "key" | "match">> = {
+  id: string;
+  peers?: PeerRequirement;
+  adapters: A[];
+};
+
 export type ResolveContext = {
   /** Manifest state at the moment of resolution (post any pending picks). */
   manifest: StanzaManifest;
   /** Modules the user has already chosen this run but not yet committed. */
-  pending: Partial<Record<CategoryId, Module>>;
+  pending: Partial<Record<CategoryId, { id: string }>>;
   /**
    * App being targeted by this resolution. When set, peer lookups for
    * single-cardinality categories scope to records whose `apps` include this
@@ -30,12 +42,12 @@ export type ResolveContext = {
 };
 
 export type ResolveError =
-  | { kind: "no-adapter"; module: Module; peers: Partial<Record<CategoryId, string>> }
-  | { kind: "missing-peer"; module: Module; category: CategoryId }
-  | { kind: "incompatible-peer"; module: Module; category: CategoryId; peer: string };
+  | { kind: "no-adapter"; peers: Partial<Record<CategoryId, string>> }
+  | { kind: "missing-peer"; category: CategoryId }
+  | { kind: "incompatible-peer"; category: CategoryId; peer: string };
 
-export type ResolveResult =
-  | { ok: true; adapter: ModuleAdapter }
+export type ResolveResult<A extends Pick<ModuleAdapter, "key" | "match">> =
+  | { ok: true; adapter: A }
   | { ok: false; error: ResolveError };
 
 /**
@@ -44,7 +56,10 @@ export type ResolveResult =
  * Specificity = number of `match` keys satisfied. The default (empty `match`)
  * always wins on tiebreak when no peers are required.
  */
-export function resolveAdapter(module: Module, context: ResolveContext): ResolveResult {
+export function resolveAdapter<A extends Pick<ModuleAdapter, "key" | "match">>(
+  module: Resolvable<A>,
+  context: ResolveContext,
+): ResolveResult<A> {
   const activePeers = activePeerIdsForContext(context);
 
   // Check declared peers are satisfied (id present + on allow-list if specified).
@@ -53,12 +68,12 @@ export function resolveAdapter(module: Module, context: ResolveContext): Resolve
     if (allowed === undefined) continue;
     const chosen = activePeers[category];
     if (!chosen) {
-      return { ok: false, error: { kind: "missing-peer", module, category } };
+      return { ok: false, error: { kind: "missing-peer", category } };
     }
     if (allowed !== "any" && !allowed.includes(chosen)) {
       return {
         ok: false,
-        error: { kind: "incompatible-peer", module, category, peer: chosen },
+        error: { kind: "incompatible-peer", category, peer: chosen },
       };
     }
   }
@@ -73,7 +88,7 @@ export function resolveAdapter(module: Module, context: ResolveContext): Resolve
   if (candidates.length === 0) {
     return {
       ok: false,
-      error: { kind: "no-adapter", module, peers: activePeers },
+      error: { kind: "no-adapter", peers: activePeers },
     };
   }
 
@@ -82,7 +97,10 @@ export function resolveAdapter(module: Module, context: ResolveContext): Resolve
   return { ok: true, adapter: candidates[0]!.adapter };
 }
 
-export function isCompatible(module: Module, context: ResolveContext): boolean {
+export function isCompatible<A extends Pick<ModuleAdapter, "key" | "match">>(
+  module: Resolvable<A>,
+  context: ResolveContext,
+): boolean {
   return resolveAdapter(module, context).ok;
 }
 
@@ -130,7 +148,7 @@ function activePeerIdsForContext(context: ResolveContext): Partial<Record<Catego
  * an empty `match` are universally applicable (specificity 0).
  */
 function matchSpecificity(
-  adapter: ModuleAdapter,
+  adapter: Pick<ModuleAdapter, "match">,
   peers: Partial<Record<CategoryId, string>>,
 ): number {
   let score = 0;

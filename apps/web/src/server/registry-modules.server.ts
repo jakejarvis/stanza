@@ -18,17 +18,15 @@ export function getAllModules(): Promise<Record<string, Module>> {
 async function loadAll(): Promise<Record<string, Module>> {
   const index = await loadRegistryFile<RegistryIndex>("index.json");
   const settled = await Promise.all(
-    index.modules.map(async (summary): Promise<readonly [string, Module] | null> => {
+    index.modules.map(async (meta): Promise<readonly [string, Module] | null> => {
       try {
-        const mod = await loadRegistryFile<Module>(
-          `modules/${summary.category}-${summary.id}.json`,
-        );
+        const mod = await loadRegistryFile<Module>(`modules/${meta.category}-${meta.id}.json`);
         return [`${mod.category}:${mod.id}`, mod] as const;
       } catch (cause) {
         console.error("[server-error]", cause, {
           source: "getAllModules/loadModule",
-          category: summary.category,
-          moduleId: summary.id,
+          category: meta.category,
+          moduleId: meta.id,
         });
         return null;
       }

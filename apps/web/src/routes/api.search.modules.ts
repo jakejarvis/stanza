@@ -1,5 +1,5 @@
 import { create, insert, search } from "@orama/orama";
-import type { Module, ModuleSummary, RegistryIndex } from "@stanza/registry";
+import type { Module, ModuleMetadata, RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { cache } from "react";
 
@@ -11,7 +11,7 @@ const moduleSchema = {
   label: "string",
   description: "string",
   // Joined text for full-text matching. These fields never travel back to the
-  // client — only `summaries[hit.id]` does, which is `ModuleSummary`-shaped.
+  // client — only `metadata[hit.id]` does, which is `ModuleMetadata`-shaped.
   deps: "string",
   envNames: "string",
   envDescriptions: "string",
@@ -19,7 +19,7 @@ const moduleSchema = {
 
 type ModuleIndex = {
   db: ReturnType<typeof create<typeof moduleSchema>>;
-  summaries: Map<string, ModuleSummary>;
+  metadata: Map<string, ModuleMetadata>;
 };
 
 // React `cache()` dedupes the (async) build across any concurrent callers
@@ -30,25 +30,23 @@ const getModuleIndex = cache((): Promise<ModuleIndex> => buildIndex());
 async function buildIndex(): Promise<ModuleIndex> {
   const index = await loadRegistryFile<RegistryIndex>("index.json");
   const db = create({ schema: moduleSchema });
-  const summaries = new Map<string, ModuleSummary>();
+  const metadata = new Map<string, ModuleMetadata>();
 
   // Per-module file missing (shouldn't happen for first-party modules, but
-  // be tolerant): fall back to summary-only indexing via `mod: null`.
+  // be tolerant): fall back to metadata-only indexing via `mod: null`.
   const loaded = await Promise.all(
-    index.modules.map(async (summary) => {
+    index.modules.map(async (meta) => {
       try {
-        const mod = await loadRegistryFile<Module>(
-          `modules/${summary.category}-${summary.id}.json`,
-        );
-        return { summary, mod };
+        const mod = await loadRegistryFile<Module>(`modules/${meta.category}-${meta.id}.json`);
+        return { meta, mod };
       } catch {
-        return { summary, mod: null as Module | null };
+        return { meta, mod: null as Module | null };
       }
     }),
   );
 
   const inserted = await Promise.all(
-    loaded.map(async ({ summary, mod }) => {
+    loaded.map(async ({ meta, mod }) => {
       const deps = new Set<string>();
       const envNames = new Set<string>();
       const envDescriptions: string[] = [];
@@ -70,31 +68,31 @@ async function buildIndex(): Promise<ModuleIndex> {
       }
 
       const id = await insert(db, {
-        category: summary.category,
-        moduleId: summary.id,
-        label: summary.label,
-        description: summary.description,
+        category: meta.category,
+        moduleId: meta.id,
+        label: meta.label,
+        description: meta.description,
         deps: [...deps].join(" "),
         envNames: [...envNames].join(" "),
         envDescriptions: envDescriptions.join(" "),
       });
-      return { id, summary };
+      return { id, meta };
     }),
   );
-  for (const { id, summary } of inserted) summaries.set(id, summary);
+  for (const { id, meta } of inserted) metadata.set(id, meta);
 
-  return { db, summaries };
+  return { db, metadata };
 }
 
 /**
  * `GET /api/search/modules?q=…` — server-side module search. Builds an Orama
  * index from the full module data (deps, env vars, descriptions) so we can
- * match on richer fields than the client ever sees. Only `ModuleSummary`-
+ * match on richer fields than the client ever sees. Only `ModuleMetadata`-
  * shaped hits travel back, which means we can index README bodies later
  * without bloating any client payload.
  *
  * Empty query returns an empty array — the client renders all modules from
- * the registry summary it already has from the root loader.
+ * the registry metadata it already has from the root loader.
  */
 export const Route = createFileRoute("/api/search/modules")({
   server: {
@@ -105,13 +103,13 @@ export const Route = createFileRoute("/api/search/modules")({
           const q = url.searchParams.get("q") ?? "";
           if (!q) return Response.json({ results: [] });
 
-          const { db, summaries } = await getModuleIndex();
+          const { db, metadata } = await getModuleIndex();
           const hits = await search(db, { term: q, limit: 50 });
 
-          const results: ModuleSummary[] = [];
+          const results: ModuleMetadata[] = [];
           for (const hit of hits.hits) {
-            const summary = summaries.get(hit.id);
-            if (summary) results.push(summary);
+            const meta = metadata.get(hit.id);
+            if (meta) results.push(meta);
           }
           return Response.json({ results });
         } catch (error) {

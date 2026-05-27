@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
 
 import { Builder } from "@/components/builder";
 import { validateBuilderSearch } from "@/lib/selection";
@@ -24,6 +24,9 @@ export const Route = createFileRoute("/")({
 function Page() {
   const state = Route.useLoaderData();
   const search = Route.useSearch();
+  // Registry index is loaded once by the root route — read it here instead of
+  // re-shipping it in our own loader data.
+  const { registry } = useLoaderData({ from: "__root__" });
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <header className="mb-10 max-w-2xl">
@@ -44,7 +47,7 @@ function Page() {
           </Link>
         </p>
       </header>
-      <Builder state={state} search={search} />
+      <Builder state={state} search={search} metadata={registry.modules} />
     </div>
   );
 }

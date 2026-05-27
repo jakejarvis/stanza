@@ -1,4 +1,4 @@
-import type { CategoryId } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata } from "@stanza/registry";
 import { isMulti } from "@stanza/registry";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { track } from "@vercel/analytics";
@@ -19,7 +19,15 @@ import {
 } from "@/lib/selection";
 import type { BuilderState } from "@/server/builder-state.functions";
 
-export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
+export function Builder({
+  state,
+  search,
+  metadata,
+}: {
+  state: BuilderState;
+  search: BuilderSearch;
+  metadata: ModuleMetadata[];
+}) {
   const navigate = useNavigate({ from: "/" });
   // Same-pathname gate so navigations *away* from this route don't flash the
   // overlay before the page unmounts. `useRouterState` is the documented
@@ -33,16 +41,16 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
   // Drop orphaned dependents from a shared link (e.g. `?orm=drizzle` with no
   // `db`) so cards + command don't render an unresolvable selection.
   const selections = useMemo(
-    () => pruneUnresolved(state.modules, parsed.selections),
-    [state.modules, parsed.selections],
+    () => pruneUnresolved(metadata, parsed.selections),
+    [metadata, parsed.selections],
   );
 
   const [optimistic, setOptimistic] = useOptimistic(selections, (_prev, next: Selections) => next);
 
   // Latest-value snapshot so setName/setPm/toggle keep stable identities and
   // downstream memoization (`ModuleCard(s)`) actually pays off.
-  const latest = useRef({ name, pm, optimistic, modules: state.modules });
-  latest.current = { name, pm, optimistic, modules: state.modules };
+  const latest = useRef({ name, pm, optimistic, metadata });
+  latest.current = { name, pm, optimistic, metadata };
 
   const setName = useCallback(
     (next: string) => {
@@ -99,7 +107,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         track("builder_module_selected", { category, module: id });
       }
       // Dropping a peer can strand its dependents (e.g. `db` → `orm`); prune.
-      const next = pruneUnresolved(snapshot.modules, draft);
+      const next = pruneUnresolved(snapshot.metadata, draft);
       startTransition(async () => {
         setOptimistic(next);
         await navigate({
@@ -121,12 +129,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           them to reach it). On lg the right column owns it instead. */}
       <div className="min-w-0 lg:hidden">{commandBar}</div>
       <section className="min-w-0 space-y-8">
-        <ModuleCards
-          modules={state.modules}
-          summaries={state.index.modules}
-          selections={optimistic}
-          onToggle={toggle}
-        />
+        <ModuleCards metadata={metadata} selections={optimistic} onToggle={toggle} />
       </section>
       <section className="flex min-w-0 flex-col gap-6 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:self-start">
         <div className="hidden lg:block">{commandBar}</div>

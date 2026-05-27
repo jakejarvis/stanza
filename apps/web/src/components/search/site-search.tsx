@@ -1,6 +1,6 @@
 "use client";
 
-import type { ModuleSummary, RegistryIndex } from "@stanza/registry";
+import type { ModuleMetadata, RegistryIndex } from "@stanza/registry";
 import { categoryLabel } from "@stanza/registry";
 import { IconBookmark, IconSearch } from "@tabler/icons-react";
 import { formatForDisplay, useHotkey } from "@tanstack/react-hotkeys";
@@ -46,7 +46,7 @@ type DocItem = {
   description?: string;
 };
 
-type Hit = { kind: "doc"; item: DocItem } | { kind: "module"; module: ModuleSummary };
+type Hit = { kind: "doc"; item: DocItem } | { kind: "module"; module: ModuleMetadata };
 
 type Group = { key: string; label: string; hits: Hit[] };
 
@@ -80,7 +80,7 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
 
   // Modules: debounce the query, then fetch with an abort signal for any
   // request that's still in-flight when the debounced value changes again.
-  const [moduleResults, setModuleResults] = useState<ModuleSummary[] | null>(null);
+  const [moduleResults, setModuleResults] = useState<ModuleMetadata[] | null>(null);
   const moduleFetchRef = useRef<AbortController | null>(null);
   const fetchModules = useDebouncedCallback(
     (q: string) => {
@@ -308,13 +308,13 @@ function dedupeDocsByPage(hits: SortedResult[], pageTitlesByUrl: Map<string, str
   return [...byPage.values()];
 }
 
-function parseModuleResults(data: unknown): ModuleSummary[] {
+function parseModuleResults(data: unknown): ModuleMetadata[] {
   if (!data || typeof data !== "object") return [];
   const results = (data as { results?: unknown }).results;
   if (!Array.isArray(results)) return [];
   // First-party endpoint: we control the response shape in api.search.modules.ts.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  return results as ModuleSummary[];
+  return results as ModuleMetadata[];
 }
 
 function hitKey(hit: Hit, index: number): string {

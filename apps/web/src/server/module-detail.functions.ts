@@ -3,7 +3,7 @@ import type {
   EnvVar,
   Module,
   ModuleAdapter,
-  ModuleSummary,
+  ModuleMetadata,
   PeerRequirement,
   RegistryIndex,
 } from "@stanza/registry";
@@ -81,8 +81,8 @@ export const getModuleDetail = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ModuleDetail | null> => {
     const index = await loadRegistryFile<RegistryIndex>("index.json");
 
-    const summary = index.modules.find((m) => m.category === data.category && m.id === data.id);
-    if (!summary) return null;
+    const meta = index.modules.find((m) => m.category === data.category && m.id === data.id);
+    if (!meta) return null;
 
     const module = await loadRegistryFile<Module>(`modules/${data.category}-${data.id}.json`);
 
@@ -236,4 +236,4 @@ function effectiveInstallFields(module: Module, adapter: ModuleAdapter): Effecti
   };
 }
 
-export type { ModuleSummary };
+export type { ModuleMetadata };

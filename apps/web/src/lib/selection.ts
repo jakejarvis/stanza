@@ -1,4 +1,11 @@
-import type { AppSpec, CategoryId, Module, Resolved, ResolvedEntry } from "@stanza/registry";
+import type {
+  AppSpec,
+  CategoryId,
+  Module,
+  ModuleMetadata,
+  Resolved,
+  ResolvedEntry,
+} from "@stanza/registry";
 import {
   categoryOrder,
   defaultWebApp,
@@ -89,11 +96,11 @@ export function toSearchParams(input: {
 }
 
 /** Build the peer context — only one-cardinality categories can be peers. */
-function pendingPeers(
-  modules: Record<string, Module>,
+function pendingPeers<M extends { id: string }>(
+  modules: Record<string, M>,
   selections: Selections,
-): Partial<Record<CategoryId, Module>> {
-  const pending: Partial<Record<CategoryId, Module>> = {};
+): Partial<Record<CategoryId, M>> {
+  const pending: Partial<Record<CategoryId, M>> = {};
   for (const category of PEER_CATEGORIES) {
     const id = selections[category]?.[0];
     if (!id) continue;
@@ -146,22 +153,41 @@ export function resolveSelected(modules: Record<string, Module>, selections: Sel
  * landing on a shared URL like `?orm=drizzle` with no `db`) would otherwise
  * leave the orphaned dependent selected-but-unresolvable. Pruning to a fixpoint
  * keeps selections in lockstep with what the resolver — and the CLI — accepts.
+ *
+ * Takes `ModuleMetadata[]` rather than full `Module`s — the resolver only reads
+ * `id`/`peers`/`adapters[].match`, all of which the index metadata already
+ * carries. That lets the home route avoid shipping the ~400 KB hydrated
+ * catalog down to the client.
  */
-export function pruneUnresolved(
-  modules: Record<string, Module>,
-  selections: Selections,
-): Selections {
+export function pruneUnresolved(metadata: ModuleMetadata[], selections: Selections): Selections {
+  const byKey = new Map<string, ModuleMetadata>();
+  for (const m of metadata) byKey.set(`${m.category}:${m.id}`, m);
+  const manifest = emptyManifest({ name: "t" });
+
   let current: Selections = { ...selections };
   for (;;) {
-    const resolved = resolveSelected(modules, current);
+    const pending: Partial<Record<CategoryId, ModuleMetadata>> = {};
+    for (const c of PEER_CATEGORIES) {
+      const id = current[c]?.[0];
+      if (!id) continue;
+      const mod = byKey.get(`${c}:${id}`);
+      if (mod) pending[c] = mod;
+    }
     let removed = false;
     const next: Selections = {};
     for (const category of KNOWN_CATEGORIES) {
       const ids = current[category];
       if (!ids?.length) continue;
-      const okIds = new Set((resolved[category] ?? []).map((e) => e.module.id));
-      const kept = ids.filter((id) => okIds.has(id));
-      if (kept.length !== ids.length) removed = true;
+      const kept: string[] = [];
+      for (const id of ids) {
+        const mod = byKey.get(`${category}:${id}`);
+        if (!mod) {
+          removed = true;
+          continue;
+        }
+        if (resolveAdapter(mod, { manifest, pending }).ok) kept.push(id);
+        else removed = true;
+      }
       if (kept.length > 0) next[category] = kept;
     }
     current = next;

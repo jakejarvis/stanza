@@ -27,12 +27,12 @@ export const Route = createFileRoute("/og/registry/$category/$id")({
           return new Response("Registry unavailable", { status: 502 });
         }
 
-        const summary = index.modules.find((m) => m.category === category && m.id === id);
-        if (!summary) {
+        const meta = index.modules.find((m) => m.category === category && m.id === id);
+        if (!meta) {
           return new Response("Not found", { status: 404 });
         }
 
-        return new ImageResponse(OgCard({ summary }), {
+        return new ImageResponse(OgCard({ meta }), {
           width: 1200,
           height: 630,
           format: "webp",

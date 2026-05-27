@@ -1,4 +1,4 @@
-import type { CategoryId, ModuleSummary } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
@@ -91,8 +91,8 @@ function StatsPage() {
 
   const isLoading = stats === null;
 
-  const findModule = (category: CategoryId, id: string): ModuleSummary | undefined =>
-    registry.modules.find((m: ModuleSummary) => m.category === category && m.id === id);
+  const findModule = (category: CategoryId, id: string): ModuleMetadata | undefined =>
+    registry.modules.find((m) => m.category === category && m.id === id);
 
   const activitySum = stats?.activity30d.reduce((acc, day) => acc + day.count, 0) ?? 0;
 
@@ -188,12 +188,12 @@ function StatsPage() {
                   <BarList
                     emptyMessage={isLoading ? "Loading…" : "No data yet."}
                     data={entries.map((entry) => {
-                      const summary = findModule(category, entry.id);
-                      const label = summary?.label ?? entry.id;
+                      const meta = findModule(category, entry.id);
+                      const label = meta?.label ?? entry.id;
                       return {
                         name: label,
                         value: entry.count,
-                        leading: <ModuleLogo logo={summary?.logo} label={label} size="sm" />,
+                        leading: <ModuleLogo logo={meta?.logo} label={label} size="sm" />,
                         trailingSecondary: numberFormatter.format(entry.count),
                         trailing: percentFormatter.format(entry.share),
                         href: `/registry/${category}/${entry.id}`,

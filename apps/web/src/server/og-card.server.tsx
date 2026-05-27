@@ -1,4 +1,4 @@
-import type { ModuleSummary } from "@stanza/registry";
+import type { ModuleMetadata } from "@stanza/registry";
 import { categoryLabel } from "@stanza/registry";
 import type { CSSProperties, ReactElement } from "react";
 
@@ -102,8 +102,8 @@ const TAGLINE: CSSProperties = {
 };
 const DEFAULT_FOOTER: CSSProperties = { color: "#52525b", fontSize: "22px" };
 
-export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
-  const logo = summary.logo;
+export function OgCard({ meta }: { meta: ModuleMetadata }): ReactElement {
+  const logo = meta.logo;
   // The OG card is always dark-background. For a theme pair, use the `dark`
   // variant (designed for dark surfaces); for a single theme-agnostic mark,
   // use it as-is. Either way we render it untouched — inverting mangles
@@ -114,7 +114,7 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
       <div style={HEADER_ROW}>
         <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="Stanza" />
         <span style={DOT}>·</span>
-        <span style={SLOT}>{categoryLabel(summary.category)}</span>
+        <span style={SLOT}>{categoryLabel(meta.category)}</span>
       </div>
 
       <div style={BODY}>
@@ -125,16 +125,16 @@ export function OgCard({ summary }: { summary: ModuleSummary }): ReactElement {
               <img src={svgToDataUri(logoSrc)} width={64} height={64} alt="" />
             </div>
           ) : (
-            <div style={LETTER_BOX}>{summary.label.slice(0, 1)}</div>
+            <div style={LETTER_BOX}>{meta.label.slice(0, 1)}</div>
           )}
-          <div style={TITLE}>{summary.label}</div>
+          <div style={TITLE}>{meta.label}</div>
         </div>
-        <div style={DESCRIPTION}>{summary.description}</div>
+        <div style={DESCRIPTION}>{meta.description}</div>
       </div>
 
       <div style={FOOTER}>
         <span>
-          stanza.tools/registry/{summary.category}/{summary.id}
+          stanza.tools/registry/{meta.category}/{meta.id}
         </span>
       </div>
     </div>

@@ -339,10 +339,11 @@ export type Module = ModuleInstallFields & {
 };
 
 /**
- * Lightweight summary for the registry index — strips codemod implementations
- * but keeps everything the wizard / search UI needs.
+ * Lightweight per-module metadata for the registry index — strips template
+ * bodies and codemod implementations but keeps everything the wizard, search,
+ * and web builder need for display + peer resolution.
  */
-export type ModuleSummary = Omit<Module, "adapters"> & {
+export type ModuleMetadata = Omit<Module, "adapters"> & {
   adapters: Pick<ModuleAdapter, "key" | "match">[];
 };
 
@@ -350,7 +351,7 @@ export type RegistryIndex = {
   generatedAt: string;
   schemaVersion: 1;
   categories: Category[];
-  modules: ModuleSummary[];
+  modules: ModuleMetadata[];
 };
 
 /**
@@ -451,7 +452,7 @@ const adapterSchema = z.object({
   ...installFieldsSchema,
 });
 
-/** Shape shared by a full `Module` and its index `ModuleSummary` (all but `adapters`). */
+/** Shape shared by a full `Module` and its index `ModuleMetadata` (all but `adapters`). */
 const moduleBaseShape = {
   category: z.enum(KNOWN_CATEGORIES),
   id: z.string(),
@@ -507,8 +508,8 @@ const categorySchema = z.object({
   ]),
 }) satisfies z.ZodType<Category>;
 
-/** Index summary: full module metadata with adapters reduced to `key` + `match`. */
-export const ModuleSummarySchema = z.object({
+/** Per-module index entry: full metadata with adapters reduced to `key` + `match`. */
+export const ModuleMetadataSchema = z.object({
   ...moduleBaseShape,
   adapters: z.array(
     z.object({
@@ -516,12 +517,12 @@ export const ModuleSummarySchema = z.object({
       match: z.partialRecord(z.enum(KNOWN_CATEGORIES), z.string()),
     }),
   ),
-}) satisfies z.ZodType<ModuleSummary>;
+}) satisfies z.ZodType<ModuleMetadata>;
 
 /** Runtime-validatable schema for the registry `index.json` payload. */
 export const RegistryIndexSchema = z.object({
   generatedAt: z.string(),
   schemaVersion: z.literal(1),
   categories: z.array(categorySchema),
-  modules: z.array(ModuleSummarySchema),
+  modules: z.array(ModuleMetadataSchema),
 }) satisfies z.ZodType<RegistryIndex>;

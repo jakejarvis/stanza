@@ -1,7 +1,7 @@
 /**
  * Static registry build. Scans `registry/modules/*`, imports each module's
  * default export, writes:
- *   - <out>/registry/index.json           — registry index (slot/module summaries)
+ *   - <out>/registry/index.json           — registry index (per-module metadata)
  *   - <out>/registry/modules/<slot>-<id>.json — per-module full manifests
  *   - <out>/schema.json                   — JSON Schema for stanza.json (served at the web root)
  *
@@ -40,7 +40,7 @@ async function main() {
     .filter((d) => d.isDirectory())
     .map((d) => d.name);
 
-  const summaries = [];
+  const metadata = [];
   for (const dir of dirs) {
     const entry = path.join(modulesDir, dir, "module.ts");
     const imported: { default: Module } = await import(entry);
@@ -74,11 +74,11 @@ async function main() {
       JSON.stringify(inlined, null, 2),
     );
 
-    // The index keeps a lightweight summary — no `content`, no per-adapter
-    // payloads — but it DOES carry top-level metadata like `logo` so the
-    // wizard / web builder can render module cards without fetching the
-    // full per-module JSON.
-    summaries.push({
+    // The index keeps lightweight metadata — no template `content`, no
+    // per-adapter payloads — but it DOES carry top-level fields like `logo`
+    // so the wizard / web builder can render module cards without fetching
+    // the full per-module JSON.
+    metadata.push({
       ...inlined,
       adapters: inlined.adapters.map((a) => ({ key: a.key, match: a.match })),
     });
@@ -88,7 +88,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     schemaVersion: 1,
     categories: [...CATEGORIES],
-    modules: summaries,
+    modules: metadata,
   };
 
   fs.writeFileSync(path.join(registryDir, "index.json"), JSON.stringify(index, null, 2));
@@ -100,7 +100,7 @@ async function main() {
     JSON.stringify(manifestJsonSchema(), null, 2),
   );
 
-  console.log(`Wrote ${summaries.length} modules to ${outBase}`);
+  console.log(`Wrote ${metadata.length} modules to ${outBase}`);
 }
 
 /**

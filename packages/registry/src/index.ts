@@ -8,7 +8,7 @@ export type {
   PeerRequirement,
   Module,
   ModuleAdapter,
-  ModuleSummary,
+  ModuleMetadata,
   RegistryIndex,
   TemplateRef,
   EnvVar,
@@ -29,7 +29,7 @@ export {
   categoryCardinality,
   isMulti,
   ModuleSchema,
-  ModuleSummarySchema,
+  ModuleMetadataSchema,
   RegistryIndexSchema,
 } from "./module";
 

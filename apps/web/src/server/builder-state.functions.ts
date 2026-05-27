@@ -1,4 +1,3 @@
-import type { Module, RegistryIndex } from "@stanza/registry";
 import {
   synthesizeEnvExample,
   synthesizeManifest,
@@ -17,13 +16,9 @@ import {
 } from "@/lib/selection";
 import type { Preview } from "@/server/highlighter";
 import { getHighlighter, renderPreview } from "@/server/highlighter.server";
-import { loadRegistryFile } from "@/server/registry-base.server";
 import { getAllModules } from "@/server/registry-modules.server";
 
 export type BuilderState = {
-  index: RegistryIndex;
-  /** Keyed by `${category}:${id}` for direct lookup. */
-  modules: Record<string, Module>;
   /** Pre-rendered Shiki HTML, keyed by file path (relative to repo root). */
   previews: Record<string, Preview>;
   /** Ordered list of file paths derived from current selections. */
@@ -34,6 +29,10 @@ export type BuilderState = {
  * Server function that powers the builder. Runs on every search-param change
  * via the route's `loaderDeps`. Pulls the registry, derives the selected file
  * list, and pre-renders Shiki HTML for each — keeping shiki off the client.
+ *
+ * The full hydrated module catalog stays server-side: the client reads
+ * `ModuleMetadata[]` from the root route's loader for card rendering + peer
+ * resolution, which is all it needs.
  */
 export const getBuilderState = createServerFn({ method: "GET" })
   // Server functions are HTTP-reachable; share the route's allow-list so a
@@ -47,12 +46,9 @@ export const getBuilderState = createServerFn({ method: "GET" })
     // warm highlighter instead of paying ~hundreds of ms of cold-start.
     void getHighlighter();
 
-    // Module catalog is cached per-process; `getAllModules` reads `index.json`
-    // internally, we still load it here for the BuilderState response.
-    const [index, modules] = await Promise.all([
-      loadRegistryFile<RegistryIndex>("index.json"),
-      getAllModules(),
-    ]);
+    // Full module records are needed server-side for synth, but never shipped
+    // to the client — that's the point of this server function.
+    const modules = await getAllModules();
 
     const { name, pm, selections } = parseSelections(data);
     const resolved = resolveSelected(modules, selections);
@@ -102,8 +98,6 @@ export const getBuilderState = createServerFn({ method: "GET" })
     );
 
     return {
-      index,
-      modules,
       previews: Object.fromEntries(previewEntries),
       filePaths: previewFiles.map((f) => f.path),
     };

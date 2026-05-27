@@ -1,10 +1,10 @@
-import type { CategoryId, ModuleSummary, RegistryIndex } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata, RegistryIndex } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 import { useMemo } from "react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-function summaryKey(slot: CategoryId, id: string): string {
+function metaKey(slot: CategoryId, id: string): string {
   return `${slot}:${id}`;
 }
 
@@ -33,11 +33,11 @@ export function AdapterSwitcher({
     [peerOptions],
   );
 
-  // Pre-index summaries so the option-label lookup is O(1) instead of scanning
+  // Pre-index metadata so the option-label lookup is O(1) instead of scanning
   // `index.modules` per option per slot per render.
-  const summaryIndex = useMemo(() => {
-    const map = new Map<string, ModuleSummary>();
-    for (const m of index.modules) map.set(summaryKey(m.category, m.id), m);
+  const metaIndex = useMemo(() => {
+    const map = new Map<string, ModuleMetadata>();
+    for (const m of index.modules) map.set(metaKey(m.category, m.id), m);
     return map;
   }, [index.modules]);
 
@@ -63,7 +63,7 @@ export function AdapterSwitcher({
               }}
             >
               {options.map((id) => {
-                const label = summaryIndex.get(summaryKey(slot, id))?.label ?? id;
+                const label = metaIndex.get(metaKey(slot, id))?.label ?? id;
                 return (
                   <ToggleGroupItem
                     key={id}

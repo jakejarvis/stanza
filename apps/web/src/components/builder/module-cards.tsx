@@ -1,4 +1,4 @@
-import type { CategoryId, Module, ModuleSummary, ResolveError } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata, ResolveError } from "@stanza/registry";
 import {
   categoryLabel,
   emptyManifest,
@@ -21,37 +21,40 @@ import { cn } from "@/lib/utils";
 const RESOLVER_MANIFEST = emptyManifest({ name: "t" });
 
 export function ModuleCards({
-  modules,
-  summaries,
+  metadata,
   selections,
   onToggle,
 }: {
-  modules: Record<string, Module>;
-  summaries: ModuleSummary[];
+  metadata: ModuleMetadata[];
   selections: Selections;
   onToggle: (category: CategoryId, id: string) => void;
 }) {
+  // Bucket metadata by category once, and also build a flat `${cat}:${id}`
+  // lookup the peer-context memo reuses.
+  const { byCategory, byKey } = useMemo(() => {
+    const buckets = new Map<CategoryId, ModuleMetadata[]>();
+    const keyed = new Map<string, ModuleMetadata>();
+    for (const m of metadata) {
+      const list = buckets.get(m.category);
+      if (list) list.push(m);
+      else buckets.set(m.category, [m]);
+      keyed.set(`${m.category}:${m.id}`, m);
+    }
+    return { byCategory: buckets, byKey: keyed };
+  }, [metadata]);
+
   // Shared peer context: the chosen one-cardinality modules. Every card resolves
   // compatibility against this.
-  const pending = useMemo<Partial<Record<CategoryId, Module>>>(() => {
-    const out: Partial<Record<CategoryId, Module>> = {};
+  const pending = useMemo<Partial<Record<CategoryId, ModuleMetadata>>>(() => {
+    const out: Partial<Record<CategoryId, ModuleMetadata>> = {};
     for (const c of PEER_CATEGORIES) {
       const id = selections[c]?.[0];
-      if (id && modules[`${c}:${id}`]) out[c] = modules[`${c}:${id}`];
+      if (!id) continue;
+      const mod = byKey.get(`${c}:${id}`);
+      if (mod) out[c] = mod;
     }
     return out;
-  }, [modules, selections]);
-
-  // Bucket summaries by category once instead of filtering per-section.
-  const byCategory = useMemo(() => {
-    const map = new Map<CategoryId, ModuleSummary[]>();
-    for (const m of summaries) {
-      const list = map.get(m.category);
-      if (list) list.push(m);
-      else map.set(m.category, [m]);
-    }
-    return map;
-  }, [summaries]);
+  }, [byKey, selections]);
 
   // Only render categories that actually have modules in the registry.
   const categories = useMemo(() => KNOWN_CATEGORIES.filter((c) => byCategory.has(c)), [byCategory]);
@@ -62,8 +65,7 @@ export function ModuleCards({
         <ModuleSection
           key={category}
           group={category}
-          summaries={byCategory.get(category) ?? []}
-          modulesById={modules}
+          metadata={byCategory.get(category) ?? []}
           pending={pending}
           selections={selections}
           index={index + 1}
@@ -77,8 +79,7 @@ export function ModuleCards({
 
 function ModuleSection({
   group,
-  summaries,
-  modulesById,
+  metadata,
   pending,
   selections,
   index,
@@ -86,15 +87,14 @@ function ModuleSection({
   onToggle,
 }: {
   group: CategoryId;
-  summaries: ModuleSummary[];
-  modulesById: Record<string, Module>;
-  pending: Partial<Record<CategoryId, Module>>;
+  metadata: ModuleMetadata[];
+  pending: Partial<Record<CategoryId, ModuleMetadata>>;
   selections: Selections;
   index: number;
   multi: boolean;
   onToggle: (category: CategoryId, id: string) => void;
 }) {
-  if (summaries.length === 0) return null;
+  if (metadata.length === 0) return null;
 
   const selectedIds = selections[group];
   return (
@@ -106,14 +106,11 @@ function ModuleSection({
         <h2 className="text-lg font-medium tracking-tight">{categoryLabel(group)}</h2>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {summaries.map((m) => {
-          const full = modulesById[`${m.category}:${m.id}`];
-          const result = full
-            ? resolveAdapter(full, { manifest: RESOLVER_MANIFEST, pending })
-            : undefined;
-          const disabled = !result?.ok;
+        {metadata.map((m) => {
+          const result = resolveAdapter(m, { manifest: RESOLVER_MANIFEST, pending });
+          const disabled = !result.ok;
           const selected = Boolean(selectedIds?.includes(m.id));
-          const reason = result && !result.ok ? describeError(result.error) : undefined;
+          const reason = !result.ok ? describeError(result.error) : undefined;
           return (
             <ModuleCard
               key={m.id}
@@ -139,7 +136,7 @@ const ModuleCard = memo(function ModuleCard({
   reason,
   onToggle,
 }: {
-  module: ModuleSummary;
+  module: ModuleMetadata;
   category: CategoryId;
   selected: boolean;
   disabled: boolean;

@@ -1,9 +1,9 @@
-import type { CategoryId, ModuleSummary } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata } from "@stanza/registry";
 
 export function groupByCategory(
-  modules: ModuleSummary[],
-): Array<{ group: CategoryId; modules: ModuleSummary[] }> {
-  const groups = new Map<CategoryId, ModuleSummary[]>();
+  modules: ModuleMetadata[],
+): Array<{ group: CategoryId; modules: ModuleMetadata[] }> {
+  const groups = new Map<CategoryId, ModuleMetadata[]>();
   for (const m of modules) {
     const list = groups.get(m.category) ?? [];
     list.push(m);
