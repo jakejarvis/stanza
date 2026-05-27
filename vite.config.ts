@@ -1,11 +1,17 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  test: {
-    projects: ["apps/*", "packages/*"],
+  run: {
+    cache: {
+      scripts: true,
+      tasks: true,
+    },
   },
   staged: {
     "*": "vp check --fix",
+  },
+  test: {
+    projects: ["apps/*", "packages/*"],
   },
   fmt: {
     sortImports: {},
@@ -31,6 +37,12 @@ export default defineConfig({
   },
   lint: {
     plugins: ["oxc", "eslint", "typescript", "unicorn", "import", "promise", "vitest"],
+    jsPlugins: [
+      {
+        name: "vite-plus",
+        specifier: "vite-plus/oxlint-plugin",
+      },
+    ],
     categories: {
       correctness: "error",
       suspicious: "warn",
@@ -96,11 +108,5 @@ export default defineConfig({
       typeAware: true,
       typeCheck: true,
     },
-    jsPlugins: [
-      {
-        name: "vite-plus",
-        specifier: "vite-plus/oxlint-plugin",
-      },
-    ],
   },
 });

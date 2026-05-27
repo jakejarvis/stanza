@@ -29,14 +29,17 @@ jobs:
           node-version: 24
           cache: true
 
+      # TODO: we need to build the entire repo here just so that typechecking
+      # passes in the next step; otherwise, the web app is missing the built
+      # content-collections files and hard-fails on apps/web/src/lib/source.ts.
+      - name: Build
+        run: vp run build
+
       - name: Lint
         run: vp check
 
       - name: Tests
         run: vp test
-
-      - name: Build
-        run: vp run build:cli
 
       - name: Create release PR or publish
         id: changesets
