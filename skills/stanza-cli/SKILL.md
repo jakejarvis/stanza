@@ -72,8 +72,8 @@ Run `add`, `remove`, and `list` from the project root or any child directory con
 
 Every module belongs to exactly one **category**, and each category is either single-choice or multi-choice:
 
-- **Single-choice** categories: `framework`, `ui`, `db`, `orm`, `auth`, `tooling`. Adding a module to a filled single-choice category fails until the existing one is removed.
-- **Multi-choice** categories: `testing` (with `deploy`, `email`, `monorepo` planned). Multiple modules coexist in one category.
+- **Single-choice** categories: `framework`, `ui`, `db`, `orm`, `auth`, `payments`, `email`, `ai`, `tooling`, `monorepo`. Adding a module to a filled single-choice category fails until the existing one is removed.
+- **Multi-choice** categories: `testing`, `deploy`. Multiple modules coexist in one category.
 
 For `init --yes`, pass each category's module ids as a comma-separated value; single-choice categories take exactly one, multi-choice take several — for example `--framework=next` and `--testing=vitest,playwright`.
 
@@ -88,8 +88,41 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 
 - Use `--dry-run` before a mutating command when the user wants a preview. It writes nothing.
 - Mutating commands refuse to run in a dirty git worktree. Ask the user before using `--dangerously-allow-dirty`; it intentionally allows Stanza edits to mix with existing changes.
-- Use `STANZA_REGISTRY=<url-or-path>` only when the user asks for a custom/self-hosted registry or test fixture. Otherwise let the published CLI use its default registry.
-- For third-party modules from another publisher, declare the registry in `stanza.json` under `registries` (e.g. `"registries": { "@acme": "https://reg.acme.dev" }`) and install with `stanza add <category> @acme/<module>`. Unknown namespaces fail fast — there is no implicit fallback to the default registry.
+
+## Registries
+
+Stanza ships modules from the first-party `@stanza` namespace by default. To install modules from another publisher, declare the registry in `stanza.json#registries` and address modules with `@<scope>/<id>` syntax:
+
+```json
+{
+  "registries": {
+    "@acme": "https://reg.acme.dev"
+  }
+}
+```
+
+```sh
+stanza add testing @acme/cosmos
+```
+
+Editing `stanza.json#registries` is an expected user-driven edit (the rest of the manifest stays runner-managed). For non-canonical layouts, use the object form:
+
+```json
+{
+  "registries": {
+    "@acme": {
+      "url": "https://api.acme.dev/r/{category}/{id}.json",
+      "indexUrl": "https://api.acme.dev/r/index.json",
+      "headers": { "Authorization": "Bearer ${ACME_TOKEN}" },
+      "params": { "channel": "stable" }
+    }
+  }
+}
+```
+
+`{category}` and `{id}` are required placeholders. `indexUrl` is optional — without it, `stanza search` skips that namespace but install-by-name still works. `${ENV_VAR}` expansion runs against `process.env`: unset vars in `headers` silently drop the header; unset vars in `params` are a hard error. Unknown namespaces fail fast — no implicit fallback to `@stanza`. `@stanza` itself is reserved and rejected if redeclared under `registries`.
+
+`STANZA_REGISTRY=<url-or-path>` overrides the `@stanza` namespace's URL only — for a self-hosted mirror, air-gapped install, or CI fixture. It does NOT enable third-party modules.
 
 ## Telemetry
 
@@ -106,6 +139,6 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 ## Agent Rules
 
 - Treat generated files as user-owned project code after Stanza writes them.
-- Do not edit `stanza.json` by hand unless the user explicitly asks for manual repair.
+- Don't synthesize `modules`, `regions`, or `readmeChecksum` in `stanza.json` — those are runner-managed. `registries`, `apps`, and `packageManager` are user config and may be edited.
 - Prefer CLI commands over reconstructing Stanza's template output yourself.
 - When reporting results, include the exact command run, whether it wrote files, and any follow-up package-manager command needed.

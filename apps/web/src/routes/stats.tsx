@@ -44,17 +44,12 @@ function formatGeneratedAt(iso: string): string {
 function LastRefreshed({ iso }: { iso: string }) {
   const ago = useTimeAgo(iso);
   return (
-    <p className="text-xs leading-4">
+    <p className="font-mono text-xs leading-4 text-muted-foreground/70">
       Last refreshed{" "}
       <Tooltip>
         <TooltipTrigger
           nativeButton={false}
-          render={
-            <time
-              dateTime={iso}
-              className="cursor-help font-mono text-muted-foreground/70 tabular-nums"
-            />
-          }
+          render={<time dateTime={iso} className="cursor-help tabular-nums" />}
         >
           {ago}
         </TooltipTrigger>
@@ -87,8 +82,6 @@ function StatsPage() {
     };
   }, []);
 
-  const isLoading = stats === null;
-
   const findModule = (category: CategoryId, id: string): ModuleMetadata | undefined =>
     registry.modules.find((m) => m.category === category && m.id === id);
 
@@ -119,9 +112,9 @@ function StatsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {isLoading ? "—" : <NumberFlow value={stats.projectsScaffolded} locales="en-US" />}
-            </p>
+            <div className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              <NumberFlow value={stats?.projectsScaffolded ?? 0} locales="en-US" />
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -131,9 +124,9 @@ function StatsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {isLoading ? "—" : <NumberFlow value={stats.modulesInstalled} locales="en-US" />}
-            </p>
+            <div className="font-mono text-4xl font-medium tracking-tight tabular-nums">
+              <NumberFlow value={stats?.modulesInstalled ?? 0} locales="en-US" />
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -145,7 +138,7 @@ function StatsPage() {
               <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 CLI runs &middot; last 30 days
               </CardTitle>
-              {!isLoading ? (
+              {stats ? (
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">
                   {activitySum > 0
                     ? `${numberFormatter.format(activitySum)} total`
@@ -156,7 +149,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent className="pb-1">
             <Suspense fallback={<div aria-hidden className="h-24 w-full" />}>
-              <ActivityChart activity30d={stats?.activity30d ?? []} isLoading={isLoading} />
+              <ActivityChart activity30d={stats?.activity30d ?? []} isLoading={stats === null} />
             </Suspense>
           </CardContent>
         </Card>
@@ -184,7 +177,7 @@ function StatsPage() {
                 </CardHeader>
                 <CardContent>
                   <BarList
-                    emptyMessage={isLoading ? "Loading…" : "No data yet."}
+                    emptyMessage={stats ? "No data yet." : "Loading…"}
                     data={entries.map((entry) => {
                       const meta = findModule(category, entry.id);
                       const label = meta?.label ?? entry.id;
