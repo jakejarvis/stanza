@@ -5,10 +5,11 @@ import { DocsBody } from "fumadocs-ui/layouts/docs/page";
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
 
+import { DocsActions } from "@/components/docs/docs-actions";
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import { DocsToc } from "@/components/docs/docs-toc";
 import { getMDXComponents } from "@/components/mdx";
-import { buildHead, getTechArticleJsonLd } from "@/lib/seo";
+import { buildHead, getTechArticleJsonLd, SITE_URL } from "@/lib/seo";
 import { source } from "@/lib/source";
 import { getDocMeta } from "@/server/docs-meta.functions";
 
@@ -23,6 +24,8 @@ const getDocLayout = createServerFn({ method: "GET" })
     const page = source.getPage(slugs);
     if (!page) throw notFound();
     const MDX = page.data.body;
+    const markdownPath = `${page.url}.md`;
+    const pageUrl = `${SITE_URL.replace(/\/$/, "")}${page.url}`;
     return await renderServerComponent(
       <RootProvider theme={{ enabled: false }} search={{ enabled: false }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
@@ -31,12 +34,21 @@ const getDocLayout = createServerFn({ method: "GET" })
             <div className="min-w-0 flex-1">
               <div className="xl:flex xl:gap-8">
                 <article className="min-w-0 flex-1 pt-2 pb-8 md:pt-8">
-                  <h1 className="text-3xl font-medium tracking-tight">{page.data.title}</h1>
-                  {page.data.description && (
-                    <p className="mt-2 text-base leading-normal text-muted-foreground">
-                      {page.data.description}
-                    </p>
-                  )}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h1 className="text-3xl font-medium tracking-tight">{page.data.title}</h1>
+                      {page.data.description && (
+                        <p className="mt-2 text-base leading-normal text-muted-foreground">
+                          {page.data.description}
+                        </p>
+                      )}
+                    </div>
+                    <DocsActions
+                      markdownPath={markdownPath}
+                      pageUrl={pageUrl}
+                      className="mt-1 shrink-0"
+                    />
+                  </div>
                   <DocsBody className="mt-8">
                     <MDX
                       components={getMDXComponents({
