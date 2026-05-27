@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { source } from "@/lib/source";
+import { getOrderedPages } from "@/lib/source";
 
 export type DocsPageSummary = {
   title: string;
@@ -20,7 +20,7 @@ export type DocsIndex = {
  */
 export const getDocsIndex = createServerFn({ method: "GET" }).handler(
   async (): Promise<DocsIndex> => ({
-    pages: source.getPages().map((p) => ({
+    pages: getOrderedPages().map((p) => ({
       title: p.data.title,
       description: p.data.description,
       url: p.url,

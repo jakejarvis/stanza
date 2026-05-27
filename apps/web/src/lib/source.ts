@@ -1,4 +1,5 @@
 import { docs } from "collections/server";
+import type { Node } from "fumadocs-core/page-tree";
 import { loader } from "fumadocs-core/source";
 
 export const source = loader({
@@ -27,5 +28,30 @@ export function markdownPathToSlugs(segs: string[]) {
  */
 export async function getLLMText(page: (typeof source)["$inferPage"]) {
   const processed = await page.data.getText("processed");
-  return `# ${page.data.title} (${page.url})\n\n${processed}`;
+  return `# ${page.data.title} (${page.url})\n\n${page.data.description ? `> ${page.data.description.trim()}\n\n` : ""}${processed.trimStart()}`;
+}
+
+/**
+ * Walk `source.pageTree` and yield pages in the order declared by `meta.json`
+ * (recursively into folders). `source.getPages()` returns filesystem order;
+ * the tree honors the sidebar order, which is what users see.
+ */
+export function getOrderedPages() {
+  const out: (typeof source)["$inferPage"][] = [];
+  const visit = (nodes: Node[]) => {
+    for (const node of nodes) {
+      if (node.type === "page") {
+        const page = source.getNodePage(node);
+        if (page) out.push(page);
+      } else if (node.type === "folder") {
+        if (node.index) {
+          const page = source.getNodePage(node.index);
+          if (page) out.push(page);
+        }
+        visit(node.children);
+      }
+    }
+  };
+  visit(source.getPageTree().children);
+  return out;
 }

@@ -13,7 +13,7 @@ function format(iso: string, now: Date): string {
   if (Number.isNaN(date.getTime())) return iso;
   const diffSec = Math.round((date.getTime() - now.getTime()) / 1000);
   const abs = Math.abs(diffSec);
-  if (abs < MINUTE) return relativeFormatter.format(diffSec, "second");
+  if (abs < MINUTE) return "just now";
   if (abs < HOUR) return relativeFormatter.format(Math.round(diffSec / MINUTE), "minute");
   if (abs < DAY) return relativeFormatter.format(Math.round(diffSec / HOUR), "hour");
   if (abs < MONTH) return relativeFormatter.format(Math.round(diffSec / DAY), "day");

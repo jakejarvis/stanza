@@ -30,7 +30,7 @@ function Page() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <header className="mb-10 max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-medium tracking-tight">
           Build your stack, minus the pressure.
         </h1>
         <p className="mt-2 text-pretty text-muted-foreground">

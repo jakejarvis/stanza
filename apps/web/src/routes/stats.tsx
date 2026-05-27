@@ -45,6 +45,7 @@ function LastRefreshed({ iso }: { iso: string }) {
   const ago = useTimeAgo(iso);
   return (
     <p className="text-xs leading-4">
+      Last refreshed{" "}
       <Tooltip>
         <TooltipTrigger
           nativeButton={false}
@@ -55,10 +56,11 @@ function LastRefreshed({ iso }: { iso: string }) {
             />
           }
         >
-          Last refreshed {ago}.
+          {ago}
         </TooltipTrigger>
         <TooltipContent sideOffset={8}>{formatGeneratedAt(iso)} UTC</TooltipContent>
       </Tooltip>
+      .
     </p>
   );
 }
@@ -95,7 +97,7 @@ function StatsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <header className="mb-8 max-w-2xl">
-        <h1 className="mb-2 text-3xl font-semibold tracking-tight">Stats</h1>
+        <h1 className="mb-2 text-3xl font-medium tracking-tight">Stats</h1>
         <p className="mb-4 text-pretty text-muted-foreground">
           What modules developers actually pick, aggregated from anonymous CLI telemetry —{" "}
           <a
@@ -161,7 +163,7 @@ function StatsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">Popular modules by category</h2>
+        <h2 className="mb-4 text-lg font-medium tracking-tight">Popular modules by category</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {KNOWN_CATEGORIES.map((category) => {
             const entries = stats?.perCategory[category] ?? [];
@@ -170,11 +172,11 @@ function StatsPage() {
               <Card key={category}>
                 <CardHeader>
                   <div className="flex items-baseline justify-between gap-3">
-                    <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                    <CardTitle className="text-xs font-medium tracking-wider text-foreground/85 uppercase">
                       {categoryLabel(category)}
                     </CardTitle>
                     {totalInCategory > 0 ? (
-                      <span className="font-mono text-xs text-muted-foreground/70 tabular-nums">
+                      <span className="font-mono text-xs text-muted-foreground tabular-nums">
                         {numberFormatter.format(totalInCategory)}
                       </span>
                     ) : null}
@@ -204,11 +206,11 @@ function StatsPage() {
       </section>
 
       <section id="telemetry" className="scroll-mt-20">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">Telemetry policy</h2>
+        <h2 className="mb-4 text-lg font-medium tracking-tight">Telemetry policy</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              <CardTitle className="text-xs font-medium tracking-wider text-foreground/85 uppercase">
                 What we save
               </CardTitle>
             </CardHeader>
@@ -223,7 +225,7 @@ function StatsPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+              <CardTitle className="text-xs font-medium tracking-wider text-foreground/85 uppercase">
                 What we don&rsquo;t
               </CardTitle>
             </CardHeader>
