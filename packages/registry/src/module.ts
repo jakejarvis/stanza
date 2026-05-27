@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { safeRelativePath } from "./safe-path";
+
 /**
  * Kind of app a framework module targets. The closed enum lets the runtime
  * validate "you can't install Next.js into a `kind: \"native\"` app" — add new
@@ -408,6 +410,13 @@ const appInstallFieldsSchema = {
   scripts: z.record(z.string(), z.string()).optional(),
 };
 
+// Path traversal defense — template src/dest values come from third-party
+// registry JSON, which can't be trusted to stay inside the project root.
+const relativePathSchema = z.string().superRefine((s, ctx) => {
+  const err = safeRelativePath(s);
+  if (err) ctx.addIssue({ code: "custom", message: err });
+});
+
 const installFieldsSchema = {
   ...appInstallFieldsSchema,
   // The `app` overlay routes to consuming app(s) instead of the module's
@@ -423,8 +432,8 @@ const adapterSchema = z.object({
   templates: z
     .array(
       z.object({
-        src: z.string(),
-        dest: z.string(),
+        src: relativePathSchema,
+        dest: relativePathSchema,
         scope: z.enum(["repo", "app", "package"]).optional(),
         template: z.boolean().optional(),
         content: z.string().optional(),

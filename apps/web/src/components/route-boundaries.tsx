@@ -1,23 +1,7 @@
 import { IconHome, IconRefresh } from "@tabler/icons-react";
-import {
-  ErrorComponent,
-  type ErrorComponentProps,
-  Link,
-  useRouter,
-  isNotFound,
-  isRedirect,
-} from "@tanstack/react-router";
-import { useEffect } from "react";
+import { ErrorComponent, type ErrorComponentProps, Link, useRouter } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
-
-/**
- * `throw notFound()` and `throw redirect()` flow through the same error path
- * as real failures, but they're routing primitives — not bugs to report.
- */
-function isRoutingError(error: unknown): boolean {
-  return isNotFound(error) || isRedirect(error);
-}
 
 /**
  * Shared layout for every route-boundary state (error, not-found, pending).
@@ -47,20 +31,10 @@ const GENERIC_ERROR_MESSAGE =
 /**
  * Default error component for the router. Re-runs the loader on Try again via
  * `router.invalidate()` (the TanStack-recommended retry path — `reset()` only
- * clears UI without re-fetching). Reports client-side errors to PostHog when
- * it's loaded.
+ * clears UI without re-fetching).
  */
 export function RouteErrorBoundary({ error }: ErrorComponentProps) {
   const router = useRouter();
-
-  useEffect(() => {
-    if (isRoutingError(error)) return;
-    // Dynamic import so SSR never pulls the browser bundle into the server.
-    void (async () => {
-      const { posthog } = await import("posthog-js");
-      if (posthog.__loaded) posthog.captureException(error);
-    })();
-  }, [error]);
 
   const description = import.meta.env.DEV
     ? (error.message ?? GENERIC_ERROR_MESSAGE)

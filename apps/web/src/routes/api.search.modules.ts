@@ -3,7 +3,6 @@ import type { Module, ModuleSummary, RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
 import { cache } from "react";
 
-import { reportServerError } from "@/server/posthog.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 const moduleSchema = {
@@ -116,7 +115,7 @@ export const Route = createFileRoute("/api/search/modules")({
           }
           return Response.json({ results });
         } catch (error) {
-          reportServerError(error, { source: "/api/search/modules" });
+          console.error("[server-error]", error, { source: "/api/search/modules" });
           return Response.json(
             { error: "Search failed", code: "MODULES_SEARCH_FAILED" },
             { status: 500 },

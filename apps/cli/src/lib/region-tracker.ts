@@ -57,12 +57,13 @@ export function release(manifest: StanzaManifest, file: string, region: string):
 
 export function regionsOwnedBy(
   manifest: StanzaManifest,
-  owner: string,
+  owner: string | string[],
 ): { file: string; region: string }[] {
+  const owners = new Set(Array.isArray(owner) ? owner : [owner]);
   const out: { file: string; region: string }[] = [];
   for (const [file, regions] of Object.entries(manifest.regions)) {
     for (const [region, value] of Object.entries(regions)) {
-      if (value === owner) out.push({ file, region });
+      if (owners.has(value)) out.push({ file, region });
     }
   }
   return out;

@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
 import type { ArrayLiteralExpression } from "ts-morph";
 
 import {
@@ -79,10 +80,12 @@ const addPluginToCall: Codemod<AddPluginToCallArgs> = {
     const sf = ctx.project().addSourceFileAtPath(abs);
     const plugins = getOrCreatePluginsArray(sf, args);
 
-    // Idempotency: same call already present → no-op.
+    // Idempotency: same call already present → no-op. Still claim so revert
+    // works on installs where the user pre-populated the array manually.
     const target = normalize(args.call);
     const elements = plugins.getElements();
     if (elements.some((el: Node) => normalize(el.getText()) === target)) {
+      ctx.claimRegion(rel, regionKeyFor(args));
       return { touchedFiles: [] };
     }
 
@@ -125,9 +128,12 @@ function resolveFilePath(
   ctx: { projectRoot: string; appRoot: string },
   args: AddPluginToCallArgs,
 ): string {
+  assertSafeRelativePath(args.file, "add-plugin-to-call: args.file");
   const base = args.base ?? "app";
   if (base.startsWith("package:")) {
-    return path.join(ctx.projectRoot, "packages", base.slice("package:".length), args.file);
+    const dir = base.slice("package:".length);
+    assertSafeRelativePath(dir, "add-plugin-to-call: args.base package dir");
+    return path.join(ctx.projectRoot, "packages", dir, args.file);
   }
   return path.join(base === "repo" ? ctx.projectRoot : ctx.appRoot, args.file);
 }

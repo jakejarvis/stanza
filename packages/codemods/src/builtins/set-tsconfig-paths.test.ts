@@ -92,6 +92,52 @@ describe("set-tsconfig-paths", () => {
     ).toThrow(/already maps "@acme\/ui\/\*"/);
   });
 
+  it("handles a JSONC tsconfig (comments + trailing comma) without crashing", () => {
+    const abs = path.join(tmp, "apps/web/tsconfig.json");
+    const jsonc = `{
+  // Editor hints for the IDE
+  "compilerOptions": {
+    "strict": true, // important
+  },
+}
+`;
+    fs.writeFileSync(abs, jsonc);
+    const project = openProject(path.join(tmp, "apps/web"));
+    const manifest = emptyManifest({ name: "acme" });
+    const ctx: CodemodContext = {
+      projectRoot: tmp,
+      app: manifest.apps[0]!,
+      appRoot: path.join(tmp, "apps/web"),
+      project: () => project,
+      manifest,
+      owner: { category: "ui", module: "shadcn-radix" },
+      adapter: "next",
+      claimRegion() {},
+      releaseRegion() {},
+    };
+    setTsconfigPaths.apply(ctx, {
+      paths: { "@acme/ui/*": ["../../packages/ui/src/*"] },
+    });
+    const next = fs.readFileSync(abs, "utf8");
+    // Comments should survive the rewrite.
+    expect(next).toContain("// Editor hints for the IDE");
+    expect(next).toContain("// important");
+    expect(next).toContain('"@acme/ui/*"');
+    expect(next).toContain('"baseUrl"');
+  });
+
+  it("refuses to add paths to a tsconfig that uses `extends`", () => {
+    const { ctx } = setup({
+      extends: "./tsconfig.base.json",
+      compilerOptions: { strict: true },
+    });
+    expect(() =>
+      setTsconfigPaths.apply(ctx, {
+        paths: { "@acme/ui/*": ["../../packages/ui/src/*"] },
+      }),
+    ).toThrow(/extends/);
+  });
+
   it("revert removes only the keys we added", () => {
     const { ctx, abs } = setup({
       compilerOptions: {

@@ -215,6 +215,14 @@ describe("third-party registries", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects unknown top-level keys (catches typos like `registies`)", () => {
+    const result = StanzaManifestSchema.safeParse({
+      ...emptyManifest({ name: "acme" }),
+      registies: { "@acme": "https://reg.acme.dev" },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("app-aware selectors", () => {

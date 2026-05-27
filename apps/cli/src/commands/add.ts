@@ -139,22 +139,24 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     targetApps = [manifest.apps[0]!];
   }
 
-  // Per-app cardinality check for home:"app" categories; per-project for the
-  // rest. `selectedAll(manifest, category, appId)` filters to records that
-  // target the given app (or are global).
-  const existing = selectedAll(manifest, category, pickedAppId);
+  // Per-app cardinality check for home:"app" categories; per-project for
+  // home:"package" and "repo" — the manifest schema enforces ≤1 record total
+  // for non-app homes regardless of `apps`. App-filtering here would let a
+  // second package-home pick slip past, only to fail on the next read.
+  const cardinalityScopeApp = home.kind === "app" ? pickedAppId : undefined;
+  const existing = selectedAll(manifest, category, cardinalityScopeApp);
   if (isMulti(category)) {
     if (existing.some((r) => r.id === moduleId)) {
-      const where = pickedAppId ? ` in app "${pickedAppId}"` : "";
+      const where = cardinalityScopeApp ? ` in app "${cardinalityScopeApp}"` : "";
       p.log.error(`"${category}/${moduleId}" is already added${where}.`);
       process.exitCode = 1;
       return;
     }
   } else if (existing.length > 0) {
-    const where = pickedAppId ? ` (app "${pickedAppId}")` : "";
+    const where = cardinalityScopeApp ? ` (app "${cardinalityScopeApp}")` : "";
     p.log.error(
       `Category "${category}"${where} is already filled by "${existing[0]!.id}". ` +
-        `Run \`stanza remove ${category}${pickedAppId ? ` --app=${pickedAppId}` : ""}\` first.`,
+        `Run \`stanza remove ${category}${cardinalityScopeApp ? ` --app=${cardinalityScopeApp}` : ""}\` first.`,
     );
     process.exitCode = 1;
     return;

@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import * as p from "@clack/prompts";
 import type { AppSpec, CategoryId, Module, PackageManager, RegistryIndex } from "@stanza/registry";
 import {
@@ -63,8 +66,13 @@ export async function runInitWizard(args: {
     message: "Project name",
     initialValue: defaultName,
     validate: (v) => {
-      const result = validateProjectName(v ?? "");
-      return result.ok ? undefined : result.message;
+      const candidate = v ?? "";
+      const result = validateProjectName(candidate);
+      if (!result.ok) return result.message;
+      if (fs.existsSync(path.resolve(process.cwd(), candidate))) {
+        return `Directory "${candidate}" already exists in ${process.cwd()}.`;
+      }
+      return undefined;
     },
   });
   if (p.isCancel(name)) {
@@ -189,6 +197,10 @@ async function runNonInteractive(args: {
   const validation = validateProjectName(name);
   if (!validation.ok) {
     p.log.error(`Invalid project name: "${name}". ${validation.message}`);
+    return null;
+  }
+  if (fs.existsSync(path.resolve(process.cwd(), name))) {
+    p.log.error(`Directory "${name}" already exists in ${process.cwd()}.`);
     return null;
   }
 

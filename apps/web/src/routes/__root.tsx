@@ -1,11 +1,11 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Analytics } from "@vercel/analytics/react";
 
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { NavigationProgress } from "@/components/navigation-progress";
-import { PostHogProvider } from "@/components/posthog-provider";
 import { RouteErrorBoundary, RouteNotFoundBoundary } from "@/components/route-boundaries";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -44,31 +44,30 @@ function RootComponent() {
         <HeadContent />
       </head>
       <body className="min-h-svh bg-background font-sans text-foreground tabular-nums antialiased">
-        <PostHogProvider>
-          <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
-            <TooltipProvider>
-              <a
-                href="#main"
-                className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:rounded-none focus-visible:border focus-visible:border-border focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                Skip to content
-              </a>
-              <NavigationProgress />
-              <div className="flex min-h-svh flex-col">
-                <Header />
-                <main id="main" className="flex-1">
-                  <Outlet />
-                </main>
-                <Footer />
-              </div>
-              <Toaster />
-            </TooltipProvider>
-          </ThemeProvider>
-        </PostHogProvider>
+        <ThemeProvider defaultTheme="system" storageKey="stanza-theme">
+          <TooltipProvider>
+            <a
+              href="#main"
+              className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:rounded-none focus-visible:border focus-visible:border-border focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Skip to content
+            </a>
+            <NavigationProgress />
+            <div className="flex min-h-svh flex-col">
+              <Header />
+              <main id="main" className="flex-1">
+                <Outlet />
+              </main>
+              <Footer />
+            </div>
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
         <TanStackDevtools
           config={{ position: "bottom-right" }}
           plugins={[{ name: "TanStack Router", render: <TanStackRouterDevtoolsPanel /> }]}
         />
+        <Analytics />
         <Scripts />
       </body>
     </html>

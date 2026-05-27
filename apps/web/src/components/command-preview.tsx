@@ -1,6 +1,8 @@
+import { track } from "@vercel/analytics";
+
 import { PackageManagerSelect } from "@/components/package-manager-select";
 import { CopyableField } from "@/components/ui/copyable-field";
-import { selectionProperties, useAnalytics } from "@/lib/analytics";
+import { selectionProperties } from "@/lib/analytics";
 import type { PackageManager } from "@/lib/package-manager";
 import { buildCommand, DEFAULT_NAME, type Selections } from "@/lib/selection";
 
@@ -22,10 +24,9 @@ export function CommandPreview({
   onPmChange: (pm: PackageManager) => void;
 }) {
   const command = buildCommand({ name, selections, pm });
-  const capture = useAnalytics();
 
   const onCopy = () => {
-    capture("builder_command_copied", {
+    track("builder_command_copied", {
       package_manager: pm,
       command,
       name_customized: name !== DEFAULT_NAME,

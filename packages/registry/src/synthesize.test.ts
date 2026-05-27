@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { defineModule, type Module } from "./module";
 import type { Resolved } from "./package-json";
-import { synthesizeReadme } from "./synthesize";
+import { ENV_EXAMPLE_HEADER, synthesizeEnvExample, synthesizeReadme } from "./synthesize";
 
 const nextMod: Module = defineModule({
   id: "next",
@@ -127,5 +127,39 @@ describe("synthesizeReadme", () => {
     expect(out).not.toContain("## Stack");
     expect(out).not.toContain("## Modules");
     expect(out).toContain("## Getting started");
+  });
+});
+
+describe("synthesizeEnvExample", () => {
+  it("emits just the header when no module declares env", () => {
+    const resolved: Resolved = {
+      framework: [{ module: nextMod, adapter: nextMod.adapters[0]! }],
+    };
+    expect(synthesizeEnvExample(resolved)).toBe(ENV_EXAMPLE_HEADER);
+  });
+
+  it("includes module-level env entries", () => {
+    const resolved: Resolved = {
+      db: [{ module: postgresMod, adapter: postgresMod.adapters[0]! }],
+    };
+    const out = synthesizeEnvExample(resolved);
+    expect(out).toContain("DATABASE_URL=");
+  });
+
+  it("includes app-overlay env entries (CLI writes both into .env.example)", () => {
+    const uiWithAppEnv: Module = defineModule({
+      id: "shadcn-base",
+      category: "ui",
+      label: "Shadcn",
+      description: "",
+      version: "0.1.0",
+      app: { env: [{ name: "POSTHOG_API_KEY", example: "phc_xxx", required: false }] },
+      adapters: [{ key: "default", match: {} }],
+    });
+    const resolved: Resolved = {
+      ui: [{ module: uiWithAppEnv, adapter: uiWithAppEnv.adapters[0]! }],
+    };
+    const out = synthesizeEnvExample(resolved);
+    expect(out).toContain("POSTHOG_API_KEY=phc_xxx");
   });
 });

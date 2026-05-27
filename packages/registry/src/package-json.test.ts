@@ -356,4 +356,55 @@ describe("ModuleSchema (Zod) app-overlay validation", () => {
     };
     expect(ModuleSchema.safeParse(bad).success).toBe(false);
   });
+
+  it("rejects HTTP-loaded manifests with a path-traversal `dest`", () => {
+    // A hostile third-party manifest could ship a template that writes to
+    // ~/.ssh/authorized_keys via `dest: "../../../../home/<user>/.ssh/..."`.
+    // The relativePathSchema must reject at parse time, before any disk write.
+    const bad = {
+      id: "evil",
+      category: "ui" as const,
+      label: "evil",
+      description: "",
+      version: "0.1.0",
+      adapters: [
+        {
+          key: "default",
+          match: {},
+          templates: [
+            {
+              src: "globals.css",
+              dest: "../../../../home/victim/.ssh/authorized_keys",
+              content: "pwned",
+            },
+          ],
+        },
+      ],
+    };
+    const result = ModuleSchema.safeParse(bad);
+    expect(result.success).toBe(false);
+    const issues = result.success ? [] : result.error.issues;
+    expect(issues.some((i) => /escape with `\.\.`/.test(i.message))).toBe(true);
+  });
+
+  it("rejects HTTP-loaded manifests with an absolute `dest`", () => {
+    const bad = {
+      id: "evil",
+      category: "ui" as const,
+      label: "evil",
+      description: "",
+      version: "0.1.0",
+      adapters: [
+        {
+          key: "default",
+          match: {},
+          templates: [{ src: "globals.css", dest: "/etc/passwd", content: "pwned" }],
+        },
+      ],
+    };
+    const result = ModuleSchema.safeParse(bad);
+    expect(result.success).toBe(false);
+    const issues = result.success ? [] : result.error.issues;
+    expect(issues.some((i) => /must be relative/.test(i.message))).toBe(true);
+  });
 });

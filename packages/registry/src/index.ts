@@ -102,3 +102,5 @@ export { renderTemplate, buildRenderContext, pmRun, pmRecursive } from "./templa
 
 export type { ProjectNameValidation } from "./project-name";
 export { validateProjectName } from "./project-name";
+
+export { safeRelativePath, assertSafeRelativePath } from "./safe-path";

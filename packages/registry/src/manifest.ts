@@ -66,6 +66,14 @@ export type StanzaModuleRecord = {
    * registry.
    */
   namespace?: string;
+  /**
+   * Snapshot of the codemod invocations the adapter ran. `stanza remove`
+   * reads these to drive reverts so the operation works even if the upstream
+   * registry has since renamed the adapter or its codemod list.
+   */
+  codemods?: Array<{ id: string; args?: Record<string, unknown> }>;
+  /** Module-level `consumesPackages`, snapshotted so revert can rebuild a render context offline. */
+  consumesPackages?: string[];
 };
 
 /**
@@ -150,6 +158,15 @@ export const StanzaManifestSchema = z
           adapter: z.string(),
           apps: z.array(z.string()).optional(),
           namespace: z.string().optional(),
+          codemods: z
+            .array(
+              z.object({
+                id: z.string(),
+                args: z.record(z.string(), z.unknown()).optional(),
+              }),
+            )
+            .optional(),
+          consumesPackages: z.array(z.string()).optional(),
         }),
       ),
     ),
@@ -157,6 +174,7 @@ export const StanzaManifestSchema = z
     registries: RegistriesSchema.optional(),
     readmeChecksum: z.string().optional(),
   })
+  .strict()
   .superRefine((m, ctx) => {
     // The CLI enforces cardinality at apply-time; this catches hand-edited or
     // third-party-synthesized manifests so `selectedOne` callers can rely on it.

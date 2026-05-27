@@ -3,7 +3,7 @@ import path from "node:path";
 
 import * as p from "@clack/prompts";
 import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
-import type { AppSpec, StanzaModuleRecord } from "@stanza/registry";
+import type { AppSpec, StanzaManifest, StanzaModuleRecord } from "@stanza/registry";
 import {
   appsForRecord,
   categoryHome,
@@ -24,7 +24,7 @@ import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
 import { regionsOwnedBy } from "../lib/region-tracker";
-import { loadRegistries } from "../lib/registry-loader";
+import { loadRegistries, type Registries } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
 
@@ -102,6 +102,14 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   let manifest = readManifest(projectRoot);
   const home = categoryHome(category);
 
+  if (appFlag && !manifest.apps.some((a) => a.id === appFlag)) {
+    p.log.error(
+      `Unknown app "${appFlag}". Available: ${manifest.apps.map((a) => a.id).join(", ")}.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   // For app-home categories, --app scopes to records in that app. For other
   // homes the flag is mostly meaningless (records aren't app-keyed), but we
   // honor it to filter package-home records that explicitly target one app.
@@ -146,15 +154,21 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   // Step 1: revert imperative codemods first. They modify framework- or
   // peer-owned files (root layout, schema barrels, vite config) — reverts
   // need to see those files intact, before any template deletions below.
+  // Drive from the snapshot persisted on the record so this works even if
+  // the upstream registry has renamed the adapter or shuffled codemod ids.
   const registry = await loadRegistries(manifest);
   const mod = await registry.loadModule(group, installed.id, installed.namespace).catch(() => null);
   const adapter = mod?.adapters.find((a) => a.key === installed.adapter);
-  if (mod && adapter) {
+  const codemodSnapshot = installed.codemods ?? adapter?.codemods ?? [];
+  if (codemodSnapshot.length > 0) {
     const revertResult = await revertCodemods({
       projectRoot,
       manifest,
-      module: mod,
-      adapter,
+      category,
+      moduleId: installed.id,
+      adapterKey: installed.adapter,
+      codemods: codemodSnapshot,
+      consumesPackages: installed.consumesPackages ?? mod?.consumesPackages,
       targetApps: installedApps,
       dryRun,
     });
@@ -162,7 +176,9 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     for (const id of revertResult.manualCleanup) {
       manualCleanup.push(`codemod:${id} (no revert or revert threw)`);
     }
-  } else {
+  } else if (!mod || !adapter) {
+    // Nothing to revert from the registry AND nothing snapshotted — surface
+    // so the user knows reverts were skipped if they expected some.
     p.log.warn(
       `Couldn't re-load ${installed.id}@${installed.adapter} from the registry — skipping imperative codemod reversal.`,
     );
@@ -170,7 +186,14 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
 
   // Step 2: reverse the declarative side — files, deps, scripts, env vars —
   // driven by whatever region claims remain after the codemod reverts.
-  const owned = regionsOwnedBy(manifest, installed.id);
+  // Owner is composite (`<id>@<app>`) for home:app installs so cross-app
+  // installs of the same module don't collide. Bare `<id>` covers older
+  // manifests + the non-app homes that never used a composite owner.
+  const ownerKeys =
+    home.kind === "app" && installed.apps?.length === 1
+      ? [`${installed.id}@${installed.apps[0]}`, installed.id]
+      : [installed.id];
+  const owned = regionsOwnedBy(manifest, ownerKeys);
   for (const { file, region } of owned) {
     const abs = path.join(projectRoot, file);
     if (file === ".env.example") {
@@ -231,7 +254,12 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   // Step 3: sweep any internal package whose claims have all been released.
   // The bootstrap files (package.json, tsconfig.json, the workspace dep on
   // every consuming app) are system-owned — not tracked in regions, so they'd
-  // otherwise linger forever.
+  // otherwise linger forever. Anything *else* under `packages/<dir>/` after
+  // Step 2 is user-authored (a gitignored secrets file, scratch script, etc.)
+  // — refuse to sweep so we don't silently destroy user work. Also refuse
+  // when a still-installed module declares the dir in `consumesPackages` —
+  // its source code imports from `@<name>/<dir>` and would break otherwise.
+  const protectors = await collectConsumesPackagesProtectors(manifest, registry);
   const sweptPackages: string[] = [];
   for (const dir of PACKAGE_DIRS) {
     const stillUsed = Object.keys(manifest.regions).some((file) =>
@@ -240,6 +268,23 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     if (stillUsed) continue;
     const pkgRoot = path.join(projectRoot, "packages", dir);
     if (!fs.existsSync(pkgRoot)) continue;
+    const consumers = protectors.get(dir);
+    if (consumers && consumers.length > 0) {
+      manualCleanup.push(
+        `packages/${dir}/ (refusing to sweep — still consumed by: ` +
+          `${consumers.join(", ")}. Remove those first.)`,
+      );
+      continue;
+    }
+    const stray = findStrayFiles(pkgRoot);
+    if (stray.length > 0) {
+      manualCleanup.push(
+        `packages/${dir}/ (refusing to sweep — found ${stray.length} non-Stanza file(s):\n` +
+          stray.map((f) => `      • packages/${dir}/${f}`).join("\n") +
+          `)`,
+      );
+      continue;
+    }
     if (!dryRun) {
       fs.rmSync(pkgRoot, { recursive: true, force: true });
       // Strip the workspace dep from every app's package.json.
@@ -291,6 +336,55 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     );
   }
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
+}
+
+// Skips records whose registry entry can't be re-loaded (offline, rename) —
+// failing open here beats blocking remove on a transient network error.
+async function collectConsumesPackagesProtectors(
+  manifest: StanzaManifest,
+  registry: Registries,
+): Promise<Map<string, string[]>> {
+  const protectors = new Map<string, string[]>();
+  const tasks: Array<Promise<void>> = [];
+  for (const [category, records] of Object.entries(manifest.modules)) {
+    for (const record of records ?? []) {
+      tasks.push(
+        (async () => {
+          const mod = await registry
+            .loadModule(category, record.id, record.namespace)
+            .catch(() => null);
+          if (!mod?.consumesPackages?.length) return;
+          for (const dir of mod.consumesPackages) {
+            const arr = protectors.get(dir) ?? [];
+            arr.push(`${category}/${record.id}`);
+            protectors.set(dir, arr);
+          }
+        })(),
+      );
+    }
+  }
+  await Promise.all(tasks);
+  return protectors;
+}
+
+// Anything else under `packages/<dir>/` after Step 2 is user-authored.
+const SYSTEM_BOOTSTRAP_FILES = new Set(["package.json", "tsconfig.json"]);
+
+function findStrayFiles(pkgRoot: string): string[] {
+  const stray: string[] = [];
+  const walk = (dir: string, relParts: string[]): void => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs, [...relParts, entry.name]);
+        continue;
+      }
+      if (relParts.length === 0 && SYSTEM_BOOTSTRAP_FILES.has(entry.name)) continue;
+      stray.push([...relParts, entry.name].join("/"));
+    }
+  };
+  walk(pkgRoot, []);
+  return stray;
 }
 
 function sameAppSet(a: string[] | undefined, b: string[] | undefined): boolean {

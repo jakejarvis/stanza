@@ -1,6 +1,5 @@
 import type { Module, RegistryIndex } from "@stanza/registry";
 
-import { reportServerError } from "@/server/posthog.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 let modulesPromise: Promise<Record<string, Module>> | undefined;
@@ -26,7 +25,7 @@ async function loadAll(): Promise<Record<string, Module>> {
         );
         return [`${mod.category}:${mod.id}`, mod] as const;
       } catch (cause) {
-        reportServerError(cause, {
+        console.error("[server-error]", cause, {
           source: "getAllModules/loadModule",
           category: summary.category,
           moduleId: summary.id,

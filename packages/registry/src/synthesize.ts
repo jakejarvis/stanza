@@ -64,12 +64,17 @@ export function appendEnvVar(
  * Compute the `.env.example` stanza would write for a resolved selection:
  * the managed header followed by every module's env vars, in `categoryOrder`.
  * Mirrors the CLI apply path, so the preview matches what `stanza init`
- * produces byte-for-byte.
+ * produces byte-for-byte. Includes both the module-level `env` and the
+ * `app.env` overlay (the CLI runner writes both into `.env.example`).
  */
 export function synthesizeEnvExample(resolved: Resolved): string {
   let out = ENV_EXAMPLE_HEADER;
   const apply = (entry: ResolvedEntry) => {
-    for (const v of mergeInstallFields(entry.module, entry.adapter).env) {
+    const merged = mergeInstallFields(entry.module, entry.adapter);
+    for (const v of merged.env) {
+      out = appendEnvVar(out, v.name, v.example, v.description);
+    }
+    for (const v of merged.app.env) {
       out = appendEnvVar(out, v.name, v.example, v.description);
     }
   };

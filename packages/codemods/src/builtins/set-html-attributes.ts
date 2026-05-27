@@ -1,5 +1,7 @@
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
+
 import {
   type Codemod,
   type JsxAttribute,
@@ -95,9 +97,12 @@ function resolveFilePath(
   ctx: { projectRoot: string; appRoot: string },
   args: SetHtmlAttributesArgs,
 ): string {
+  assertSafeRelativePath(args.file, "set-html-attributes: args.file");
   const base = args.base ?? "app";
   if (base.startsWith("package:")) {
-    return path.join(ctx.projectRoot, "packages", base.slice("package:".length), args.file);
+    const dir = base.slice("package:".length);
+    assertSafeRelativePath(dir, "set-html-attributes: args.base package dir");
+    return path.join(ctx.projectRoot, "packages", dir, args.file);
   }
   return path.join(base === "repo" ? ctx.projectRoot : ctx.appRoot, args.file);
 }
@@ -138,9 +143,18 @@ function applyOne(
 
   if ("value" in attr) {
     if (attr.name === "className" && existing) {
-      // Merge tokens into the existing string literal (only — bail on expr form).
+      // Merge tokens into the existing string literal. If the initializer is
+      // an expression (e.g. `className={cn(…)}`), we can't safely splice
+      // tokens — surface a warning so the user knows their intended classes
+      // didn't land, then leave the file alone.
       const init = existing.getInitializer();
-      if (!init || init.getKind() !== SyntaxKind.StringLiteral) return false;
+      if (!init || init.getKind() !== SyntaxKind.StringLiteral) {
+        console.warn(
+          `set-html-attributes: <html> className is an expression; can't merge ` +
+            `tokens [${attr.value}]. Add them to the existing expression manually.`,
+        );
+        return false;
+      }
       const current: string[] = init.getText().slice(1, -1).split(/\s+/).filter(Boolean);
       const incoming: string[] = attr.value.split(/\s+/).filter(Boolean);
       const additions = incoming.filter((t: string) => !current.includes(t));

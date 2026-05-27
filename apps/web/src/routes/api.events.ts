@@ -1,23 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-
-import { getPostHogServerClient } from "@/server/posthog.server";
+import { PostHog } from "posthog-node";
 
 /**
  * `POST /api/events` — analytics ingest for the `stanza-cli`. The CLI sends
  * plain `fetch` batches here so it never has to bundle `posthog-node`; this
  * route holds the PostHog project key server-side and forwards each event via
  * the `posthog-node` client.
- *
- * Configure via env (set these in the Vercel project for prod):
- *   VITE_PUBLIC_POSTHOG_KEY  — the PostHog project key. When unset the route
- *                              no-ops (returns 204) so local dev / self-hosters
- *                              never error.
- *   VITE_PUBLIC_POSTHOG_HOST — PostHog ingest host. Defaults to
- *                              https://us.i.posthog.com.
  */
 
 const MAX_EVENTS = 20;
+
+// Module-level singleton so successive cold-start invocations reuse the client.
+let client: PostHog | null = null;
+function getClient(): PostHog | null {
+  const apiKey = process.env.VITE_PUBLIC_POSTHOG_KEY;
+  if (!apiKey) return null;
+  if (!client) {
+    client = new PostHog(apiKey, {
+      host: process.env.VITE_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
+      flushAt: 1,
+      flushInterval: 0,
+    });
+  }
+  return client;
+}
 
 type IncomingEvent = {
   event: string;
@@ -66,7 +73,7 @@ export const Route = createFileRoute("/api/events")({
         const payload = parsePayload(body);
         if (!payload) return new Response("Invalid payload", { status: 400 });
 
-        const posthog = getPostHogServerClient();
+        const posthog = getClient();
         // No key configured (local dev / self-host without analytics): accept
         // and discard so the CLI never sees an error.
         if (!posthog) return new Response(null, { status: 204 });

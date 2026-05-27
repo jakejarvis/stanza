@@ -1,5 +1,7 @@
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
+
 import { type Codemod, type ImportDeclaration } from "../index";
 
 /**
@@ -89,9 +91,12 @@ function resolveFilePath(
   ctx: { projectRoot: string; appRoot: string },
   args: ReplaceImportArgs,
 ): string {
+  assertSafeRelativePath(args.file, "replace-import: args.file");
   const base = args.base ?? "app";
   if (base.startsWith("package:")) {
-    return path.join(ctx.projectRoot, "packages", base.slice("package:".length), args.file);
+    const dir = base.slice("package:".length);
+    assertSafeRelativePath(dir, "replace-import: args.base package dir");
+    return path.join(ctx.projectRoot, "packages", dir, args.file);
   }
   return path.join(base === "repo" ? ctx.projectRoot : ctx.appRoot, args.file);
 }

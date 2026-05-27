@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
+
 import type { Codemod } from "../index";
 
 /** Comment-line shape used to wrap inserted blocks for idempotency + revert. */
@@ -148,6 +150,7 @@ function prependBlock(current: string, block: string, trailingBlank: boolean): s
 }
 
 function resolve(ctx: Parameters<Codemod<AppendToFileArgs>["apply"]>[0], args: AppendToFileArgs) {
+  assertSafeRelativePath(args.file, "append-to-file: args.file");
   const baseAbs = baseDir(ctx, args);
   const fileAbs = path.join(baseAbs, args.file);
   const fileRel = path.relative(ctx.projectRoot, fileAbs);
@@ -160,7 +163,9 @@ function baseDir(
   args: AppendToFileArgs,
 ): string {
   if (args.base && args.base.startsWith("package:")) {
-    return path.join(ctx.projectRoot, "packages", args.base.slice("package:".length));
+    const dir = args.base.slice("package:".length);
+    assertSafeRelativePath(dir, "append-to-file: args.base package dir");
+    return path.join(ctx.projectRoot, "packages", dir);
   }
   const scope = args.scope ?? "app";
   return scope === "repo" ? ctx.projectRoot : ctx.appRoot;

@@ -129,7 +129,7 @@ templates: [
 | `"repo"`          | The monorepo root.                                                                |
 | `"package"`       | `packages/<dir>/` where `<dir>` is the category's `home.dir` (package-home only). |
 
-Set `template: true` to run the file through Handlebars before writing. The render context is:
+Set `template: true` to run the file through [Handlebars](https://handlebarsjs.com/) before writing. The render context is:
 
 | Token                                         | Value                                                                               |
 | --------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -141,7 +141,7 @@ Set `template: true` to run the file through Handlebars before writing. The rend
 | `{{pm}}`                                      | The project's package manager (`pnpm` \| `bun` \| `npm`).                           |
 | `{{env}}`                                     | Sorted list of every env var name declared so far.                                  |
 
-Conditional blocks use Handlebars' built-ins plus an `eq` helper:
+Conditional blocks use Handlebars' [built-ins](https://handlebarsjs.com/guide/builtin-helpers.html) plus an `eq` helper:
 
 ```hbs
 {{#if (eq peers.framework "next")}}
@@ -257,7 +257,7 @@ Drop these next to `module.ts`:
 | File                               | What it does                                                                                                    |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `logo.svg`                         | Theme-agnostic SVG, inlined onto `mod.logo`. Used by the web builder and module cards.                          |
-| `logo-light.svg` + `logo-dark.svg` | Theme pair — inlined as `mod.logo = { light, dark }`. Take precedence over `logo.svg`.                          |
+| `logo-light.svg` + `logo-dark.svg` | Theme pair — inlined as `mod.logo = { light, dark }`. Takes precedence over a single `logo.svg`.                |
 | `readme.md`                        | Markdown contribution to the generated project's README. Renders with the same Handlebars context as templates. |
 
 The build runs SVGO on logos and prefixes every `id` so multiple module logos on the same page can't collide. First-party logos generally come from [svgl.app](https://svgl.app).

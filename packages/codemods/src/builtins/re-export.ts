@@ -1,5 +1,7 @@
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
+
 import {
   type Codemod,
   type ExportDeclaration,
@@ -114,8 +116,10 @@ function resolveBase(
   ctx: Parameters<Codemod<ReExportArgs>["apply"]>[0],
   args: ReExportArgs,
 ): string {
+  assertSafeRelativePath(args.file, "re-export: args.file");
   if (args.base && args.base.startsWith("package:")) {
     const dir = args.base.slice("package:".length);
+    assertSafeRelativePath(dir, "re-export: args.base package dir");
     return path.join(ctx.projectRoot, "packages", dir, args.file);
   }
   return path.join(ctx.appRoot, args.file);

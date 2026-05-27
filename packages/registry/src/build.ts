@@ -29,7 +29,11 @@ const registryDir = path.join(outBase, "registry");
 await main();
 
 async function main() {
-  fs.mkdirSync(path.join(registryDir, "modules"), { recursive: true });
+  // Wipe + recreate so a renamed module's stale JSON doesn't linger and
+  // ghost-serve from the CDN.
+  const modulesOut = path.join(registryDir, "modules");
+  fs.rmSync(modulesOut, { recursive: true, force: true });
+  fs.mkdirSync(modulesOut, { recursive: true });
 
   const dirs = fs
     .readdirSync(modulesDir, { withFileTypes: true })
@@ -128,7 +132,13 @@ function readLogo(moduleDir: string, slug: string): Logo | undefined {
 function optimizeLogo(svg: string, prefix: string): string {
   return optimize(svg, {
     multipass: true,
-    plugins: ["preset-default", { name: "prefixIds", params: { prefix, delim: "-" } }],
+    plugins: [
+      "preset-default",
+      { name: "prefixIds", params: { prefix, delim: "-" } },
+      // Strip every `on*` event handler so we can render via dangerouslySetInnerHTML
+      // without smuggling JS through a hostile (third-party) logo.
+      { name: "removeAttrs", params: { attrs: "on[a-zA-Z]+" } },
+    ],
   }).data;
 }
 

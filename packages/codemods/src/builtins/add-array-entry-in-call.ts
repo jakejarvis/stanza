@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
 import type { ArrayLiteralExpression, CallExpression, ObjectLiteralExpression } from "ts-morph";
 
 import {
@@ -142,9 +143,12 @@ function resolveFilePath(
   ctx: { projectRoot: string; appRoot: string },
   args: AddArrayEntryInCallArgs,
 ): string {
+  assertSafeRelativePath(args.file, "add-array-entry-in-call: args.file");
   const base = args.base ?? "app";
   if (base.startsWith("package:")) {
-    return path.join(ctx.projectRoot, "packages", base.slice("package:".length), args.file);
+    const dir = base.slice("package:".length);
+    assertSafeRelativePath(dir, "add-array-entry-in-call: args.base package dir");
+    return path.join(ctx.projectRoot, "packages", dir, args.file);
   }
   return path.join(base === "repo" ? ctx.projectRoot : ctx.appRoot, args.file);
 }
@@ -204,29 +208,48 @@ function findArray(sf: SourceFile, args: AddArrayEntryInCallArgs): ArrayLiteral 
 
 /** Same as `findArray` but creates missing intermediates and the terminal array. */
 function getOrCreateArray(sf: SourceFile, args: AddArrayEntryInCallArgs): ArrayLiteral {
-  const call = findCalleeCall(sf, args.callee);
-  if (!call) {
-    throw new Error(
-      `add-array-entry-in-call: ${sf.getBaseName()} has no \`${args.callee}(...)\` call.`,
-    );
-  }
+  const segments = parsePath(args.property);
   const argIndex = args.argIndex ?? 0;
-  const arg = call.getArguments()[argIndex]?.asKind(SyntaxKind.ObjectLiteralExpression);
-  if (!arg) {
-    throw new Error(
-      `add-array-entry-in-call: ${sf.getBaseName()}'s \`${args.callee}\` call needs an ` +
-        `object-literal at argument ${argIndex}.`,
-    );
+
+  // Re-walk from the call expression each time we need a fresh handle.
+  // ts-morph forgets nodes adjacent to text inserts, so we can't cache obj
+  // across mutations — but re-walking by callee + segment path stays scoped
+  // to the right call expression (vs a file-wide property search).
+  const walkTo = (depth: number): ObjectLiteral => {
+    const call = findCalleeCall(sf, args.callee);
+    if (!call) {
+      throw new Error(
+        `add-array-entry-in-call: ${sf.getBaseName()} has no \`${args.callee}(...)\` call.`,
+      );
+    }
+    const arg = call.getArguments()[argIndex]?.asKind(SyntaxKind.ObjectLiteralExpression);
+    if (!arg) {
+      throw new Error(
+        `add-array-entry-in-call: ${sf.getBaseName()}'s \`${args.callee}\` call needs an ` +
+          `object-literal at argument ${argIndex}.`,
+      );
+    }
+    let obj: ObjectLiteral = arg;
+    for (let i = 0; i < depth; i += 1) {
+      const next = descend(obj, segments[i]!);
+      if (!next) {
+        throw new Error(
+          `add-array-entry-in-call: failed to materialize segment "${segments[i]!.name}".`,
+        );
+      }
+      obj = next;
+    }
+    return obj;
+  };
+
+  for (let i = 0; i < segments.length - 1; i += 1) {
+    const obj = walkTo(i);
+    const seg = segments[i]!;
+    if (descend(obj, seg)) continue;
+    addObjectProperty(sf, obj, seg.name, seg.call ? "() => ({})" : "{}");
   }
 
-  const segments = parsePath(args.property);
-  // Walk/create intermediates.
-  let obj: ObjectLiteral = arg;
-  for (let i = 0; i < segments.length - 1; i += 1) {
-    obj = ensureIntermediate(sf, obj, segments[i]!);
-  }
-  // Terminal segment must resolve (or be created) as an array.
-  return ensureTerminalArray(sf, obj, segments[segments.length - 1]!);
+  return ensureTerminalArray(walkTo(segments.length - 1), segments[segments.length - 1]!);
 }
 
 /** Descend a single segment; returns `null` if the property doesn't match. */
@@ -258,20 +281,8 @@ function descend(obj: ObjectLiteral, seg: PathSegment): ObjectLiteral | null {
   return body.asKind(SyntaxKind.ObjectLiteralExpression) ?? null;
 }
 
-/** Ensure `obj.<seg>` (or `obj.<seg>()`) is an object literal we can descend into. */
-function ensureIntermediate(sf: SourceFile, obj: ObjectLiteral, seg: PathSegment): ObjectLiteral {
-  const existing = descend(obj, seg);
-  if (existing) return existing;
-
-  // Create the property in the form the segment demands.
-  const init = seg.call ? "() => ({})" : "{}";
-  addObjectProperty(sf, obj, seg.name, init);
-  // Re-traverse — the inserted text invalidates the previous handle.
-  return findOrThrowAfterInsert(sf, seg);
-}
-
 /** Ensure the terminal segment resolves to an array literal; create if missing. */
-function ensureTerminalArray(sf: SourceFile, obj: ObjectLiteral, seg: PathSegment): ArrayLiteral {
+function ensureTerminalArray(obj: ObjectLiteral, seg: PathSegment): ArrayLiteral {
   // Reject `()` on the terminal — arrays don't return from a call.
   if (seg.call) {
     throw new Error(
@@ -279,9 +290,9 @@ function ensureTerminalArray(sf: SourceFile, obj: ObjectLiteral, seg: PathSegmen
         `drop the parentheses (the leaf must be an array property).`,
     );
   }
-  const prop = obj.getProperty(seg.name)?.asKind(SyntaxKind.PropertyAssignment);
-  if (prop) {
-    const arr = prop.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+  const existing = obj.getProperty(seg.name)?.asKind(SyntaxKind.PropertyAssignment);
+  if (existing) {
+    const arr = existing.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
     if (!arr) {
       throw new Error(
         `add-array-entry-in-call: \`${seg.name}\` already exists but isn't an array literal — ` +
@@ -290,12 +301,10 @@ function ensureTerminalArray(sf: SourceFile, obj: ObjectLiteral, seg: PathSegmen
     }
     return arr;
   }
-  addObjectProperty(sf, obj, seg.name, "[]");
-  // Re-find — the cached `obj` handle is now stale.
-  const refreshed = sf
-    .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
-    .findLast((p) => p.getName() === seg.name);
-  const arr = refreshed?.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+  // Use AST mutation (not text-insert) so the parent stays valid and we can
+  // pull the new property out via `addPropertyAssignment`'s return value.
+  const inserted = obj.addPropertyAssignment({ name: seg.name, initializer: "[]" });
+  const arr = inserted.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
   if (!arr) {
     throw new Error(`add-array-entry-in-call: failed to create \`${seg.name}: []\`.`);
   }
@@ -313,39 +322,6 @@ function addObjectProperty(sf: SourceFile, obj: ObjectLiteral, name: string, ini
   } else {
     obj.addPropertyAssignment({ name, initializer: init });
   }
-}
-
-/** After a text insert, re-find the segment's object/arrow value or throw. */
-function findOrThrowAfterInsert(sf: SourceFile, seg: PathSegment): ObjectLiteral {
-  const prop = sf
-    .getDescendantsOfKind(SyntaxKind.PropertyAssignment)
-    .findLast((p) => p.getName() === seg.name);
-  if (!prop) {
-    throw new Error(`add-array-entry-in-call: failed to materialize property \`${seg.name}\`.`);
-  }
-  const init = prop.getInitializer();
-  if (!init) {
-    throw new Error(`add-array-entry-in-call: \`${seg.name}\` has no initializer after insert.`);
-  }
-  if (!seg.call) {
-    const obj = init.asKind(SyntaxKind.ObjectLiteralExpression);
-    if (!obj) {
-      throw new Error(
-        `add-array-entry-in-call: \`${seg.name}\` initializer isn't an object after insert.`,
-      );
-    }
-    return obj;
-  }
-  const arrow = init.asKind(SyntaxKind.ArrowFunction);
-  const body = arrow?.getBody();
-  const paren = body?.asKind(SyntaxKind.ParenthesizedExpression);
-  const obj = paren?.getExpression().asKind(SyntaxKind.ObjectLiteralExpression);
-  if (!obj) {
-    throw new Error(
-      `add-array-entry-in-call: \`${seg.name}\` arrow-returned object missing after insert.`,
-    );
-  }
-  return obj;
 }
 
 /** Text-edit insertion so we keep the array's existing indent (ts-morph

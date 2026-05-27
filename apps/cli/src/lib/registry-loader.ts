@@ -18,6 +18,18 @@ import {
  */
 const DEFAULT_REGISTRY_URL = "https://stanza.tools/registry";
 
+// Cap every fetch so a slow/hung third-party registry can't stall the CLI
+// (or block CI). Overridable for slow links + testing.
+function defaultTimeoutMs(): number {
+  const env = process.env.STANZA_HTTP_TIMEOUT_MS;
+  const parsed = env ? Number.parseInt(env, 10) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15_000;
+}
+
+function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(defaultTimeoutMs()) });
+}
+
 /**
  * Multi-namespace registry surface used by every CLI command. The default
  * `@stanza` namespace is always present (resolved through the env-var →
@@ -66,16 +78,25 @@ export async function loadRegistries(manifest?: StanzaManifest): Promise<Registr
     // shadow the default.
     ([ns]) => ns !== DEFAULT_NAMESPACE,
   );
-  // Build default + every custom loader in parallel — each one issues an
-  // independent index fetch and there's no ordering dependency between them.
-  const [defaultLoader, ...customLoaders] = await Promise.all([
+  // Default + every custom loader in parallel. The default is critical (most
+  // commands need it); custom loaders go through `Promise.allSettled` so one
+  // broken third-party registry doesn't take down the rest of the CLI.
+  const [defaultLoader, customResults] = await Promise.all([
     buildDefaultLoader(),
-    ...customEntries.map(([ns, cfg]) => buildCustomLoader(ns, cfg)),
+    Promise.allSettled(customEntries.map(([ns, cfg]) => buildCustomLoader(ns, cfg))),
   ]);
 
   const loaders = new Map<string, NamespaceLoader>();
   loaders.set(DEFAULT_NAMESPACE, defaultLoader);
-  customEntries.forEach(([ns], i) => loaders.set(ns, customLoaders[i]!));
+  customEntries.forEach(([ns], i) => {
+    const r = customResults[i]!;
+    if (r.status === "fulfilled") {
+      loaders.set(ns, r.value);
+    } else {
+      const detail = r.reason instanceof Error ? r.reason.message : String(r.reason);
+      console.warn(`Registry "${ns}" failed to initialize — skipping: ${detail}`);
+    }
+  });
 
   return {
     namespaces: () => [...loaders.keys()],
@@ -158,7 +179,7 @@ async function buildCustomLoader(namespace: string, cfg: RegistryConfig): Promis
     async loadModule(category, id) {
       const url = appendParams(renderModuleUrl(resolved, category, id), resolved.params);
       const init: RequestInit = { headers: buildHeaders(resolved.headers) };
-      const res = await fetch(url, init);
+      const res = await fetchWithTimeout(url, init);
       if (!res.ok) {
         throw new Error(`Module fetch failed: ${url} (${res.status} ${res.statusText})`);
       }
@@ -189,14 +210,22 @@ function renderModuleUrl(cfg: ResolvedConfig, category: string, id: string): str
   return cfg.url.replaceAll("{category}", category).replaceAll("{id}", id);
 }
 
+const warnedHeaders = new Set<string>();
+
 function buildHeaders(headers?: Record<string, string>): Record<string, string> {
   if (!headers) return {};
   const out: Record<string, string> = {};
   for (const [name, template] of Object.entries(headers)) {
     const value = expandEnv(template);
-    // Match shadcn: a header whose template references an unset env var is
-    // silently dropped (rather than sent literally as `Bearer ${TOKEN}`).
-    if (value !== null) out[name] = value;
+    if (value !== null) {
+      out[name] = value;
+    } else if (!warnedHeaders.has(name)) {
+      // shadcn-style: drop the header rather than ship `Bearer ${TOKEN}` with
+      // a literal placeholder. Warn once so it's debuggable when the registry
+      // then returns 401.
+      warnedHeaders.add(name);
+      console.warn(`Registry header "${name}" dropped — env var in "${template}" is unset.`);
+    }
   }
   return out;
 }
@@ -234,7 +263,7 @@ async function tryFetchIndex(
   }
   let res: Response;
   try {
-    res = await fetch(url, { headers: buildHeaders(cfg.headers) });
+    res = await fetchWithTimeout(url, { headers: buildHeaders(cfg.headers) });
   } catch {
     // Network failure (DNS, offline, etc.) — the namespace stays
     // fetch-by-name-only this run. Silent: typical when offline.
@@ -297,7 +326,7 @@ async function loadFsRegistry(rootDir: string): Promise<NamespaceLoader> {
 }
 
 async function loadHttpRegistry(baseUrl: string): Promise<NamespaceLoader> {
-  const indexRes = await fetch(`${baseUrl}/index.json`);
+  const indexRes = await fetchWithTimeout(`${baseUrl}/index.json`);
   if (!indexRes.ok) {
     throw new Error(`Failed to load Stanza registry from ${baseUrl}: ${indexRes.status}`);
   }
@@ -307,7 +336,7 @@ async function loadHttpRegistry(baseUrl: string): Promise<NamespaceLoader> {
     index,
     async loadModule(slot, id) {
       const url = `${baseUrl}/modules/${slot}-${id}.json`;
-      const res = await fetch(url);
+      const res = await fetchWithTimeout(url);
       if (!res.ok) throw new Error(`Module fetch failed: ${url} (${res.status})`);
       return ModuleSchema.parse(await res.json());
     },

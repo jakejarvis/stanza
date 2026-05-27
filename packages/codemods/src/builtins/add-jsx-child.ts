@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { assertSafeRelativePath } from "@stanza/registry";
+
 import {
   addDefaultImport,
   addNamedImport,
@@ -118,21 +120,18 @@ const addJsxChild: Codemod<AddJsxChildArgs> = {
     const sf = ctx.project().addSourceFileAtPath(abs);
     const target = normalize(args.element);
 
+    // Only remove an inserted element that's still a child of the parent we
+    // inserted into — a user-added clone elsewhere isn't our responsibility.
+    const parent = findFirstJsxElement(sf, args.parent);
     let changed = false;
-    for (const node of sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)) {
-      if (normalize(node.getText()) === target) {
-        node.replaceWithText("");
+    if (parent) {
+      for (const child of parent.getJsxChildren()) {
+        const kind = child.getKind();
+        if (kind !== SyntaxKind.JsxSelfClosingElement && kind !== SyntaxKind.JsxElement) continue;
+        if (normalize(child.getText()) !== target) continue;
+        removeWithSurroundingWhitespace(sf, child);
         changed = true;
         break;
-      }
-    }
-    if (!changed) {
-      for (const node of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
-        if (normalize(node.getText()) === target) {
-          node.replaceWithText("");
-          changed = true;
-          break;
-        }
       }
     }
 
@@ -148,13 +147,28 @@ const addJsxChild: Codemod<AddJsxChildArgs> = {
   },
 };
 
+// Replace a JSX child with empty text, also consuming the preceding newline
+// + indent so we don't leave a blank gap behind.
+function removeWithSurroundingWhitespace(sf: SourceFile, node: Node): void {
+  const full = sf.getFullText();
+  let start = node.getStart();
+  const end = node.getEnd();
+  // Walk back through inline whitespace, and at most one preceding newline.
+  while (start > 0 && (full[start - 1] === " " || full[start - 1] === "\t")) start -= 1;
+  if (start > 0 && full[start - 1] === "\n") start -= 1;
+  sf.replaceText([start, end], "");
+}
+
 function resolveFilePath(
   ctx: { projectRoot: string; appRoot: string },
   args: AddJsxChildArgs,
 ): string {
+  assertSafeRelativePath(args.file, "add-jsx-child: args.file");
   const base = args.base ?? "app";
   if (base.startsWith("package:")) {
-    return path.join(ctx.projectRoot, "packages", base.slice("package:".length), args.file);
+    const dir = base.slice("package:".length);
+    assertSafeRelativePath(dir, "add-jsx-child: args.base package dir");
+    return path.join(ctx.projectRoot, "packages", dir, args.file);
   }
   return path.join(base === "repo" ? ctx.projectRoot : ctx.appRoot, args.file);
 }

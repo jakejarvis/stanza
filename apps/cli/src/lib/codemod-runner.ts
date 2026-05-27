@@ -7,6 +7,7 @@ import type { CodemodContext, Project } from "@stanza/codemods";
 import { CODEMOD_CATALOG } from "@stanza/codemods/builtins";
 import type {
   AppSpec,
+  CategoryId,
   JsonValue,
   Module,
   ModuleAdapter,
@@ -16,6 +17,7 @@ import type {
 } from "@stanza/registry";
 import {
   activePeerIds,
+  assertSafeRelativePath,
   buildRenderContext,
   categoryHome,
   declaredEnvNames,
@@ -25,6 +27,7 @@ import {
   renderTemplate,
   slotPackageJsonBase,
 } from "@stanza/registry";
+import semver from "semver";
 
 import { writeManifest } from "./manifest";
 import { resolveRanges } from "./npm-version";
@@ -107,7 +110,14 @@ export async function applyModule(args: {
     );
   }
 
-  const owner = module.id;
+  // `home: app` records can coexist across apps for multi-cardinality
+  // categories (e.g. testing). Composite owner disambiguates so a remove on
+  // one app doesn't sweep another app's claims. Non-app homes stay on bare
+  // module id (their regions are project-wide).
+  const owner =
+    home.kind === "app" && targetApps.length === 1
+      ? `${module.id}@${targetApps[0]!.id}`
+      : module.id;
   // Module dirs are named `<category>-<id>` (e.g. `testing-vitest`). Only used
   // as a fallback when a template lacks inlined `content` — `readTemplateSource`
   // throws with a clear error if it's needed but the registry root is null
@@ -137,8 +147,11 @@ export async function applyModule(args: {
       Object.keys(installFields.scripts).length > 0);
 
   let bootstrappedPackage: { dir: string; name: string } | undefined;
+  // Slot-package bootstrap writes get deferred alongside everything else so a
+  // mid-flush throw leaves no on-disk state the manifest can't sweep.
+  const slotBootstrapWrites: Array<() => void> = [];
   if (needsPackage && packageDir && packageRoot) {
-    const created = ensureSlotPackage({
+    const { created, writes } = planSlotPackageBootstrap({
       projectRoot,
       consumingApps: targetApps,
       manifest,
@@ -146,9 +159,9 @@ export async function applyModule(args: {
       packageName,
       packageRoot,
       consumesPackages: module.consumesPackages ?? [],
-      dryRun,
     });
     if (created) bootstrappedPackage = { dir: packageDir, name: packageName };
+    if (!dryRun) slotBootstrapWrites.push(...writes);
   }
 
   // Pre-build a render context per targeted app. Each context binds `app.*` to
@@ -180,10 +193,14 @@ export async function applyModule(args: {
   // 1. Templates (claim regions per-template-file). App-scoped templates loop
   //    over `targetApps`; package/repo-scoped templates emit once.
   for (const tpl of adapter.templates ?? []) {
+    // Defense in depth — Zod rejects bad dest at parse; this catches anything
+    // that bypassed parse (in-memory mutation, stale manifest).
+    assertSafeRelativePath(tpl.dest, `${module.id} template dest`);
     if (tpl.scope === "app") {
       for (const app of targetApps) {
         const dest = path.join(projectRoot, app.dir, tpl.dest);
-        const rel = path.relative(projectRoot, dest);
+        // Forward-slash so the manifest stays portable across Windows + Unix.
+        const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
         manifest = claim(manifest, rel, "file", owner);
         if (!dryRun) {
           const source = readTemplateSource(tpl, moduleDir);
@@ -204,7 +221,7 @@ export async function applyModule(args: {
       packageRoot,
       category: module.category,
     });
-    const rel = path.relative(projectRoot, dest);
+    const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
     manifest = claim(manifest, rel, "file", owner);
     if (!dryRun) {
       const source = readTemplateSource(tpl, moduleDir);
@@ -228,7 +245,11 @@ export async function applyModule(args: {
     Object.keys(installFields.scripts).length > 0;
   if (hasInstall) {
     const installTargets = installPackageJsonTargets(module, targetApps);
+    // The slot's package.json may be deferred-bootstrapped by planSlotPackageBootstrap;
+    // that's fine — the file will exist by the time deferredWrites flush.
+    const slotBootstrapTarget = packageDir !== null ? `packages/${packageDir}/package.json` : null;
     for (const target of installTargets) {
+      if (target === slotBootstrapTarget) continue;
       const pkgJsonPath = path.join(projectRoot, target);
       if (!fs.existsSync(pkgJsonPath)) {
         throw new Error(
@@ -252,12 +273,13 @@ export async function applyModule(args: {
       const pkgJsonPath = path.join(projectRoot, target);
       for (const [name, range] of Object.entries(deps)) {
         manifest = claim(manifest, target, `dependencies.${name}`, owner);
-        if (!dryRun) deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range));
+        if (!dryRun)
+          deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, false));
       }
       for (const [name, range] of Object.entries(devDeps)) {
         manifest = claim(manifest, target, `devDependencies.${name}`, owner);
         if (!dryRun)
-          deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range, { dev: true }));
+          deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, true));
       }
       for (const [name, command] of Object.entries(installFields.scripts)) {
         manifest = claim(manifest, target, `scripts.${name}`, owner);
@@ -305,12 +327,13 @@ export async function applyModule(args: {
       const pkgJsonPath = path.join(projectRoot, target);
       for (const [name, range] of Object.entries(appDeps)) {
         manifest = claim(manifest, target, `app.dependencies.${name}`, owner);
-        if (!dryRun) deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range));
+        if (!dryRun)
+          deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, false));
       }
       for (const [name, range] of Object.entries(appDevDeps)) {
         manifest = claim(manifest, target, `app.devDependencies.${name}`, owner);
         if (!dryRun)
-          deferredWrites.push(() => addPackageDependency(pkgJsonPath, name, range, { dev: true }));
+          deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, true));
       }
       for (const [name, command] of Object.entries(appFields.scripts)) {
         manifest = claim(manifest, target, `app.scripts.${name}`, owner);
@@ -347,6 +370,7 @@ export async function applyModule(args: {
     };
     writeManifest(projectRoot, manifest);
 
+    for (const write of slotBootstrapWrites) write();
     for (const write of deferredWrites) write();
 
     // Codemods dispatch once per targeted app (or once with the seed app for
@@ -377,10 +401,13 @@ export async function applyModule(args: {
           const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
           const result = await fn.apply(ctx, renderedArgs);
           result.touchedFiles.forEach((f) => touchedFiles.add(f));
+          // Persist after every codemod so a later throw doesn't lose the
+          // already-claimed regions. Cheap (small JSON), and a partial-apply
+          // surfaces cleanly to `stanza remove`'s sweep.
+          writeManifest(projectRoot, manifest);
         }
         saves.push(() => project.save());
       }
-      writeManifest(projectRoot, manifest);
       for (const save of saves) await save();
     }
   }
@@ -388,12 +415,20 @@ export async function applyModule(args: {
   return { manifest, touchedFiles: [...touchedFiles], dryRun, bootstrappedPackage };
 }
 
-function recordFor(
+export function recordFor(
   module: Module,
   adapter: ModuleAdapter,
   targetApps: AppSpec[],
   namespace: string | undefined,
-): { id: string; version: string; adapter: string; apps?: string[]; namespace?: string } {
+): {
+  id: string;
+  version: string;
+  adapter: string;
+  apps?: string[];
+  namespace?: string;
+  codemods?: Array<{ id: string; args?: Record<string, unknown> }>;
+  consumesPackages?: string[];
+} {
   const home = categoryHome(module.category);
   const base: {
     id: string;
@@ -401,14 +436,20 @@ function recordFor(
     adapter: string;
     apps?: string[];
     namespace?: string;
+    codemods?: Array<{ id: string; args?: Record<string, unknown> }>;
+    consumesPackages?: string[];
   } = { id: module.id, version: module.version, adapter: adapter.key };
-  // Record the origin namespace so `remove` / `update` know which registry
-  // to refetch from. Omit when it's the default `@stanza` to keep manifests
-  // for first-party-only projects clean.
   if (namespace) base.namespace = namespace;
+  // Snapshot enough state for revert to run offline / after the upstream
+  // registry has renamed adapters or shuffled codemod ids.
+  if (adapter.codemods?.length) {
+    base.codemods = adapter.codemods.map((c) => ({
+      id: c.id,
+      ...(c.args ? { args: c.args } : {}),
+    }));
+  }
+  if (module.consumesPackages?.length) base.consumesPackages = [...module.consumesPackages];
   if (home.kind === "repo") return base;
-  // Both app-home and package-home tag with the consuming apps so `remove`
-  // can find them and so the schema stays well-formed.
   return { ...base, apps: targetApps.map((a) => a.id) };
 }
 
@@ -443,10 +484,10 @@ function resolveNonAppTemplateDest(args: {
 }
 
 /**
- * Create the slot's workspace package on first need and wire the workspace dep
- * into every *consuming* app's package.json. Idempotent: re-applying the same
- * module against the same apps is a no-op. Returns true when at least one file
- * was newly created (the signal `add.ts` uses to print a `pnpm install` hint).
+ * Plan the slot-package bootstrap as a list of write thunks. Returning thunks
+ * (vs writing inline) keeps the manifest-leads-disk contract: the caller
+ * queues these alongside template/dep writes, so a mid-apply throw never
+ * leaves orphan disk state the manifest can't sweep.
  *
  * The package's own `package.json` and `tsconfig.json` are NOT claimed as
  * regions: they're shared by every module that lives in the package (e.g. db
@@ -454,7 +495,7 @@ function resolveNonAppTemplateDest(args: {
  * deletes them only after every module has released its claims under
  * `packages/<dir>/`.
  */
-function ensureSlotPackage(args: {
+export function planSlotPackageBootstrap(args: {
   projectRoot: string;
   consumingApps: AppSpec[];
   manifest: StanzaManifest;
@@ -462,46 +503,27 @@ function ensureSlotPackage(args: {
   packageName: string;
   packageRoot: string;
   consumesPackages: string[];
-  dryRun: boolean;
-}): boolean {
-  const {
-    projectRoot,
-    consumingApps,
-    packageDir,
-    packageName,
-    packageRoot,
-    consumesPackages,
-    dryRun,
-  } = args;
+}): { created: boolean; writes: Array<() => void> } {
+  const { projectRoot, consumingApps, packageDir, packageName, packageRoot, consumesPackages } =
+    args;
   const pkgPath = path.join(packageRoot, "package.json");
   const tsconfigPath = path.join(packageRoot, "tsconfig.json");
 
+  const writes: Array<() => void> = [];
   let created = false;
 
-  if (!fs.existsSync(pkgPath)) {
-    created = true;
-    if (!dryRun) {
-      fs.mkdirSync(packageRoot, { recursive: true });
-      fs.writeFileSync(
-        pkgPath,
-        JSON.stringify(
-          slotPackageJsonBase({ name: args.manifest.name, dir: packageDir }),
-          null,
-          2,
-        ) + "\n",
-        "utf8",
-      );
-    }
-  }
+  // Build the slot's package.json in memory so consumesPackages wiring can
+  // mutate it alongside bootstrap. If it already exists on disk, we layer
+  // the cross-package deps via addPackageDependency at flush time.
+  const slotExists = fs.existsSync(pkgPath);
+  const slotPkg: { dependencies?: Record<string, string> } = slotExists
+    ? JSON.parse(fs.readFileSync(pkgPath, "utf8"))
+    : slotPackageJsonBase({ name: args.manifest.name, dir: packageDir });
+  if (!slotExists) created = true;
 
   if (!fs.existsSync(tsconfigPath)) {
     created = true;
-    if (!dryRun) {
-      // Self-contained tsconfig — generated projects don't share a base, so
-      // each app and package stands on its own. Mirrors the shape framework
-      // modules ship for app `tsconfig.json`. The `ui` package adds a path
-      // alias to its own `./src/*` so internal subpath self-imports
-      // (e.g. button.tsx → `@<name>/ui/lib/utils`) resolve at type-check time.
+    writes.push(() => {
       const compilerOptions: Record<string, unknown> = {
         target: "ES2022",
         lib: ["dom", "dom.iterable", "esnext"],
@@ -521,17 +543,17 @@ function ensureSlotPackage(args: {
         compilerOptions.baseUrl = ".";
         compilerOptions.paths = { [`${packageName}/*`]: ["./src/*"] };
       }
+      fs.mkdirSync(packageRoot, { recursive: true });
       fs.writeFileSync(
         tsconfigPath,
         JSON.stringify({ compilerOptions, include: ["src"], exclude: ["node_modules"] }, null, 2) +
           "\n",
         "utf8",
       );
-    }
+    });
   }
 
-  // Wire the workspace dep into *every consuming* app's package.json. Not
-  // region-tracked — the sweep cleans it up.
+  // Consuming apps: workspace dep wiring.
   for (const app of consumingApps) {
     const appPkgPath = path.join(projectRoot, app.dir, "package.json");
     if (!fs.existsSync(appPkgPath)) continue;
@@ -540,31 +562,43 @@ function ensureSlotPackage(args: {
     );
     if (appPkg.dependencies?.[packageName] !== "workspace:*") {
       created = true;
-      if (!dryRun) addPackageDependency(appPkgPath, packageName, "workspace:*");
+      writes.push(() => addPackageDependency(appPkgPath, packageName, "workspace:*"));
     }
   }
 
-  // Wire cross-package workspace deps so this package can import from its
-  // peers (e.g. better-auth's auth.ts importing `db` from `@<project>/db`).
-  // Skip self-references and unknown package dirs.
+  // consumesPackages: mutate slotPkg in memory; pending deps go through
+  // addPackageDependency at flush time when the slot already exists.
+  const pendingPeers: string[] = [];
   if (consumesPackages.length > 0) {
-    const ownPkgJson = path.join(packageRoot, "package.json");
+    slotPkg.dependencies = slotPkg.dependencies ?? {};
     for (const peer of consumesPackages) {
       if (peer === packageDir) continue;
       if (!PACKAGE_DIRS.has(peer)) continue;
       const peerName = `@${args.manifest.name}/${peer}`;
-      if (!fs.existsSync(ownPkgJson)) continue;
-      const pkg: { dependencies?: Record<string, string> } = JSON.parse(
-        fs.readFileSync(ownPkgJson, "utf8"),
-      );
-      if (pkg.dependencies?.[peerName] !== "workspace:*") {
+      if (slotPkg.dependencies[peerName] !== "workspace:*") {
+        slotPkg.dependencies[peerName] = "workspace:*";
         created = true;
-        if (!dryRun) addPackageDependency(ownPkgJson, peerName, "workspace:*");
+        if (slotExists) pendingPeers.push(peerName);
       }
     }
   }
 
-  return created;
+  // Write the slot's package.json: either a fresh bootstrap (carrying any
+  // consumesPackages deps we baked in) or layered updates onto an existing file.
+  if (!slotExists) {
+    writes.push(() => {
+      fs.mkdirSync(packageRoot, { recursive: true });
+      fs.writeFileSync(pkgPath, JSON.stringify(slotPkg, null, 2) + "\n", "utf8");
+    });
+  } else if (pendingPeers.length > 0) {
+    writes.push(() => {
+      for (const peerName of pendingPeers) {
+        addPackageDependency(pkgPath, peerName, "workspace:*");
+      }
+    });
+  }
+
+  return { created, writes };
 }
 
 /**
@@ -669,6 +703,34 @@ function buildContext(args: {
   };
 }
 
+function buildRevertContext(args: {
+  projectRoot: string;
+  app: AppSpec;
+  appRoot: string;
+  manifest: StanzaManifest;
+  category: CategoryId;
+  moduleId: string;
+  adapterKey: string;
+  project: () => Project;
+  touchedFiles: Set<string>;
+  dryRun: boolean;
+  onRelease?: (file: string, region: string) => void;
+}): CodemodContext {
+  return {
+    projectRoot: args.projectRoot,
+    app: args.app,
+    appRoot: args.appRoot,
+    project: args.project,
+    manifest: args.manifest,
+    owner: { category: args.category, module: args.moduleId },
+    adapter: args.adapterKey,
+    claimRegion() {},
+    releaseRegion(file, region) {
+      args.onRelease?.(file, region);
+    },
+  };
+}
+
 export type RevertResult = {
   manifest: StanzaManifest;
   touchedFiles: string[];
@@ -698,23 +760,33 @@ export type RevertResult = {
 export async function revertCodemods(args: {
   projectRoot: string;
   manifest: StanzaManifest;
-  module: Module;
-  adapter: ModuleAdapter;
+  /**
+   * Category + module id of the install being reverted. Used to bind the
+   * codemod context (`owner`) and to derive the `packages/<dir>` home for
+   * package-home categories.
+   */
+  category: CategoryId;
+  moduleId: string;
+  /** Adapter key recorded at install time — passed through for context only. */
+  adapterKey: string;
+  /** Codemod invocations to revert (snapshotted on the manifest record). */
+  codemods: Array<{ id: string; args?: Record<string, unknown> }>;
+  /** Persisted consumesPackages so the render context resolves correctly offline. */
+  consumesPackages?: string[];
   targetApps: AppSpec[];
   dryRun: boolean;
 }): Promise<RevertResult> {
-  const { projectRoot, module, adapter, targetApps, dryRun } = args;
+  const { projectRoot, category, moduleId, adapterKey, codemods, targetApps, dryRun } = args;
   let manifest = args.manifest;
   const touchedFiles = new Set<string>();
   const manualCleanup: string[] = [];
 
-  const codemods = adapter.codemods ?? [];
   if (codemods.length === 0) return { manifest, touchedFiles: [], dryRun, manualCleanup };
   if (targetApps.length === 0) {
     return { manifest, touchedFiles: [], dryRun, manualCleanup };
   }
 
-  const home = categoryHome(module.category);
+  const home = categoryHome(category);
   const packageName = home.kind === "package" ? `@${manifest.name}/${home.dir}` : "";
   const dispatchApps = home.kind === "repo" ? [targetApps[0]!] : targetApps;
 
@@ -726,16 +798,17 @@ export async function revertCodemods(args: {
       packageName,
       peers: activePeerIds(manifest, app.id),
       envNames: declaredEnvNames(manifest),
-      consumesPackages: module.consumesPackages,
+      consumesPackages: args.consumesPackages,
     });
     const project = lazyProject(appRoot);
-    const ctx = buildContext({
+    const ctx = buildRevertContext({
       projectRoot,
       app,
       appRoot,
       manifest,
-      module,
-      adapter,
+      category,
+      moduleId,
+      adapterKey,
       project: project.get,
       touchedFiles,
       dryRun,
@@ -753,7 +826,12 @@ export async function revertCodemods(args: {
       }
       if (dryRun) continue;
       try {
-        const renderedArgs = renderArgs(invocation.args ?? {}, renderContext);
+        // Persisted args' static type is `Record<string, unknown>` (Zod
+        // accepts hand-edited manifests), but at runtime they're always
+        // JSON-shaped because they came from the registry. Pass through.
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+        const rawArgs = (invocation.args ?? {}) as Record<string, JsonValue>;
+        const renderedArgs = renderArgs(rawArgs, renderContext);
         const result = await fn.revert(ctx, renderedArgs);
         result.touchedFiles.forEach((f) => touchedFiles.add(f));
       } catch {
@@ -771,3 +849,36 @@ export async function revertCodemods(args: {
 }
 
 export { RegionConflictError };
+
+// Avoid clobbering a user-pinned range with the module's declared one when
+// the user is already on a newer version. Both ranges go through
+// `semver.minVersion` and the higher pin wins; non-semver values
+// (workspace:*, link:, etc.) are preserved when present.
+export function writeDepKeepingHigher(
+  pkgJsonPath: string,
+  name: string,
+  incoming: string,
+  dev: boolean,
+): void {
+  const key = dev ? "devDependencies" : "dependencies";
+  const raw = fs.readFileSync(pkgJsonPath, "utf8");
+  const pkg: Record<string, Record<string, string> | undefined> = JSON.parse(raw);
+  const existing = pkg[key]?.[name];
+  if (existing && shouldKeepExisting(existing, incoming)) return;
+  addPackageDependency(pkgJsonPath, name, incoming, { dev });
+}
+
+function shouldKeepExisting(existing: string, incoming: string): boolean {
+  if (existing === incoming) return true;
+  // Preserve any non-semver pin (workspace:*, link:, git+…, file:, etc.).
+  if (!isSemverishRange(existing)) return true;
+  if (!isSemverishRange(incoming)) return false;
+  const a = semver.minVersion(existing);
+  const b = semver.minVersion(incoming);
+  if (!a || !b) return false;
+  return semver.gte(a, b);
+}
+
+function isSemverishRange(v: string): boolean {
+  return semver.validRange(v) !== null;
+}

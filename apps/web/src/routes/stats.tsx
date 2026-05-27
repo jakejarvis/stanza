@@ -59,9 +59,9 @@ function LastRefreshed({ iso }: { iso: string }) {
             />
           }
         >
-          Last refreshed {ago}
+          Last refreshed {ago}.
         </TooltipTrigger>
-        <TooltipContent>{formatGeneratedAt(iso)} UTC</TooltipContent>
+        <TooltipContent sideOffset={8}>{formatGeneratedAt(iso)} UTC</TooltipContent>
       </Tooltip>
     </p>
   );
@@ -102,7 +102,10 @@ function StatsPage() {
         <h1 className="mb-2 text-3xl font-semibold tracking-tight">Stats</h1>
         <p className="mb-4 text-pretty text-muted-foreground">
           What modules developers actually pick, aggregated from anonymous CLI telemetry —{" "}
-          <a href="#telemetry" className="text-primary underline underline-offset-3">
+          <a
+            href="#telemetry"
+            className="text-primary underline underline-offset-3 hover:text-primary/80"
+          >
             see exactly what&rsquo;s collected
           </a>
           .
@@ -248,7 +251,7 @@ function StatsPage() {
             to="/docs/$"
             params={{ _splat: "cli" }}
             hash="telemetry"
-            className="text-primary underline underline-offset-1"
+            className="text-primary underline underline-offset-1 hover:text-primary/80"
           >
             CLI docs
           </Link>{" "}
@@ -257,7 +260,7 @@ function StatsPage() {
             href="https://github.com/jakejarvis/stanza/blob/main/apps/cli/src/lib/telemetry.ts"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary underline underline-offset-1"
+            className="text-primary underline underline-offset-1 hover:text-primary/80"
           >
             audit the code
           </a>{" "}

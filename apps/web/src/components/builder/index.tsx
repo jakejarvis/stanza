@@ -1,13 +1,13 @@
 import type { CategoryId } from "@stanza/registry";
 import { isMulti } from "@stanza/registry";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { track } from "@vercel/analytics";
 import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
 import { ModuleCards } from "@/components/builder/module-cards";
 import { ProjectSetup } from "@/components/builder/project-setup";
 import { CommandPreview } from "@/components/command-preview";
-import { useAnalytics } from "@/lib/analytics";
 import type { PackageManager } from "@/lib/package-manager";
 import {
   type BuilderSearch,
@@ -21,7 +21,6 @@ import type { BuilderState } from "@/server/builder-state.functions";
 
 export function Builder({ state, search }: { state: BuilderState; search: BuilderSearch }) {
   const navigate = useNavigate({ from: "/" });
-  const capture = useAnalytics();
   // Same-pathname gate so navigations *away* from this route don't flash the
   // overlay before the page unmounts. `useRouterState` is the documented
   // primitive for router-wide pending state; FilePreview applies its own
@@ -90,14 +89,14 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         const nextIds = enabled ? [...current, id] : current.filter((x) => x !== id);
         if (nextIds.length > 0) draft[category] = nextIds;
         else delete draft[category];
-        capture("builder_addon_toggled", { category, addon: id, enabled });
+        track("builder_addon_toggled", { category, addon: id, enabled });
       } else if (current[0] === id) {
         // Clicking the selected single-choice module clears it.
         delete draft[category];
-        capture("builder_module_deselected", { category });
+        track("builder_module_deselected", { category });
       } else {
         draft[category] = [id];
-        capture("builder_module_selected", { category, module: id });
+        track("builder_module_selected", { category, module: id });
       }
       // Dropping a peer can strand its dependents (e.g. `db` → `orm`); prune.
       const next = pruneUnresolved(snapshot.modules, draft);
@@ -111,7 +110,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         });
       });
     },
-    [capture, navigate, setOptimistic],
+    [navigate, setOptimistic],
   );
 
   const commandBar = <ProjectSetup name={name} defaultName={DEFAULT_NAME} onNameChange={setName} />;

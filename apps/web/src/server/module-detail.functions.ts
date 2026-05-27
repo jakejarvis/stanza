@@ -7,7 +7,15 @@ import type {
   PeerRequirement,
   RegistryIndex,
 } from "@stanza/registry";
-import { emptyManifest, KNOWN_CATEGORIES, PEER_CATEGORIES, resolveAdapter } from "@stanza/registry";
+import {
+  emptyManifest,
+  isCategoryId,
+  isValidModuleId,
+  KNOWN_CATEGORIES,
+  mergeInstallFields,
+  PEER_CATEGORIES,
+  resolveAdapter,
+} from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 
 import type { Preview } from "@/server/highlighter";
@@ -58,7 +66,18 @@ export type ModuleDetail = {
 };
 
 export const getModuleDetail = createServerFn({ method: "GET" })
-  .inputValidator((data: ModuleDetailInput) => data)
+  .inputValidator((data: ModuleDetailInput) => {
+    // category and id flow into `loadRegistryFile(modules/${category}-${id}.json)`
+    // which, in dev, calls path.resolve — unvalidated `..` segments could
+    // escape the asset root. Constrain to the known shape.
+    if (typeof data.category !== "string" || !isCategoryId(data.category)) {
+      throw new Error(`Unknown category "${String(data.category)}".`);
+    }
+    if (typeof data.id !== "string" || !isValidModuleId(data.id)) {
+      throw new Error(`Invalid module id "${data.id}".`);
+    }
+    return data;
+  })
   .handler(async ({ data }): Promise<ModuleDetail | null> => {
     const index = await loadRegistryFile<RegistryIndex>("index.json");
 
@@ -70,7 +89,7 @@ export const getModuleDetail = createServerFn({ method: "GET" })
     const peerOptions = computePeerOptions(module, index);
     const resolvedPeers = applyAutoDefaults(module, data.peers, peerOptions);
     const adapter = pickAdapter(module, resolvedPeers);
-    const effective = mergeInstallFields(module, adapter);
+    const effective = effectiveInstallFields(module, adapter);
 
     const previewEntries = await Promise.all(
       (adapter.templates ?? []).map(async (tpl) => {
@@ -202,32 +221,18 @@ function pickAdapter(module: Module, peers: Partial<Record<CategoryId, string>>)
   return fallback;
 }
 
-/**
- * Adapter-wins merge of install fields. Matches the runner's behavior:
- *  - `dependencies` / `devDependencies` / `scripts` merge per-key
- *  - `env` merges by `name` (adapter overrides module)
- */
-function mergeInstallFields(module: Module, adapter: ModuleAdapter): EffectiveInstallFields {
-  const dependencies: Record<string, string> = {
-    ...module.dependencies,
-    ...adapter.dependencies,
-  };
-  const devDependencies: Record<string, string> = {
-    ...module.devDependencies,
-    ...adapter.devDependencies,
-  };
-  const scripts: Record<string, string> = {
-    ...module.scripts,
-    ...adapter.scripts,
-  };
+// Union of primary + `app` overlay — the CLI routes them to different
+// package.jsons, but the detail page shows what the module installs total.
+function effectiveInstallFields(module: Module, adapter: ModuleAdapter): EffectiveInstallFields {
+  const merged = mergeInstallFields(module, adapter);
   const envByName = new Map<string, EnvVar>();
-  for (const e of module.env ?? []) envByName.set(e.name, e);
-  for (const e of adapter.env ?? []) envByName.set(e.name, e);
+  for (const v of merged.env) envByName.set(v.name, v);
+  for (const v of merged.app.env) envByName.set(v.name, v);
   return {
-    dependencies,
-    devDependencies,
+    dependencies: { ...merged.dependencies, ...merged.app.dependencies },
+    devDependencies: { ...merged.devDependencies, ...merged.app.devDependencies },
+    scripts: { ...merged.scripts, ...merged.app.scripts },
     env: [...envByName.values()],
-    scripts,
   };
 }
 

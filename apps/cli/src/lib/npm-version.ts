@@ -29,8 +29,9 @@ async function fetchVersions(name: string): Promise<string[] | null> {
   if (cached !== undefined) return cached;
   try {
     const res = await fetch(`${NPM_REGISTRY}/${encodeName(name)}`, {
-      // Abbreviated packument — smaller payload, version keys are all we need.
       headers: { accept: "application/vnd.npm.install-v1+json" },
+      // Bound the slow path (offline, captive portal) so init/add doesn't hang.
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
       cache.set(name, null);

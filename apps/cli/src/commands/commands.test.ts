@@ -182,6 +182,46 @@ describe("cmdRemove", () => {
     await cmdRemove(args({ slot: "nonsense" }));
     expect(process.exitCode).toBe(1);
   });
+
+  it("refuses to sweep a slot package that's still consumed via consumesPackages", async () => {
+    // better-auth declares `consumesPackages: ["db"]`.
+    await cmdAdd(args({ slot: "auth", moduleId: "better-auth" }));
+    expect(process.exitCode).toBeFalsy();
+
+    await cmdRemove(args({ slot: "orm" }));
+    await cmdRemove(args({ slot: "db" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.db).toBeUndefined();
+    expect(manifest.modules.orm).toBeUndefined();
+    expect(manifest.modules.auth[0].id).toBe("better-auth");
+
+    expect(fs.existsSync("packages/db/package.json")).toBe(true);
+    const appPkg = JSON.parse(fs.readFileSync("apps/web/package.json", "utf8"));
+    expect(appPkg.dependencies?.["@app/db"]).toBe("workspace:*");
+
+    // Removing auth releases the protection — next sweep runs clean.
+    await cmdRemove(args({ slot: "auth" }));
+    expect(fs.existsSync("packages/db")).toBe(false);
+  });
+
+  it("refuses to sweep a slot package that contains user-authored files", async () => {
+    fs.writeFileSync("packages/db/.env.local", "USER_SECRET=hunter2\n");
+    fs.mkdirSync("packages/db/scratch", { recursive: true });
+    fs.writeFileSync("packages/db/scratch/notes.md", "# my notes\n");
+
+    await cmdRemove(args({ slot: "orm" }));
+    await cmdRemove(args({ slot: "db" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.db).toBeUndefined();
+    expect(manifest.modules.orm).toBeUndefined();
+    expect(fs.existsSync("packages/db")).toBe(true);
+    expect(fs.readFileSync("packages/db/.env.local", "utf8")).toContain("USER_SECRET=hunter2");
+    expect(fs.existsSync("packages/db/scratch/notes.md")).toBe(true);
+  });
 });
 
 describe("add-ons (multi-choice testing slot)", () => {

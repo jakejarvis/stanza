@@ -13,5 +13,5 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 app_dir="$(cd "$here/.." && pwd)"
 repo_root="$(cd "$app_dir/../.." && pwd)"
 
-(cd "$repo_root" && npx jiti packages/registry/src/build.ts "$app_dir/public")
+(cd "$repo_root" && pnpm exec jiti packages/registry/src/build.ts "$app_dir/public")
 echo "[prepare-registry] → ${app_dir#"$repo_root/"}/public/{registry/,schema.json}"

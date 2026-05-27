@@ -3,7 +3,6 @@ import { createFromSource } from "fumadocs-core/search/server";
 import { cache } from "react";
 
 import { source } from "@/lib/source";
-import { reportServerError } from "@/server/posthog.server";
 
 // React `cache()` memoizes the SearchAPI per server request so any
 // concurrent callers in the same render tree share one instance. The
@@ -23,7 +22,7 @@ export const Route = createFileRoute("/api/search/docs")({
         try {
           return await getSearchServer().GET(request);
         } catch (error) {
-          reportServerError(error, { source: "/api/search/docs" });
+          console.error("[server-error]", error, { source: "/api/search/docs" });
           return Response.json(
             { error: "Search failed", code: "DOCS_SEARCH_FAILED" },
             { status: 500 },

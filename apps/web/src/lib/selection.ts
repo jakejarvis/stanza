@@ -29,11 +29,15 @@ const SEARCH_KEYS = ["name", "pm", ...KNOWN_CATEGORIES] as const;
  * Shared by the route's `validateSearch` and the server function's
  * `inputValidator` so direct HTTP calls can't bypass the allow-list.
  */
+// Cap to keep a hostile URL from cramming thousands of comma-joined ids into
+// any single search param. Well above any legitimate selection.
+const MAX_SEARCH_PARAM_LEN = 512;
+
 export function validateBuilderSearch(input: Record<string, unknown>): BuilderSearch {
   const out: BuilderSearch = {};
   for (const key of SEARCH_KEYS) {
     const v = input[key];
-    if (typeof v === "string" && v.length > 0) out[key] = v;
+    if (typeof v === "string" && v.length > 0 && v.length <= MAX_SEARCH_PARAM_LEN) out[key] = v;
   }
   return out;
 }

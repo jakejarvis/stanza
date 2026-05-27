@@ -137,6 +137,39 @@ export default defineConfig({
     expect(text).toContain('deps: ["foo"]');
   });
 
+  it("targets the right call when a file has two createRootRoute() calls", () => {
+    const TWO_CALLS = `import { createRootRoute } from "@tanstack/react-router";
+
+export const RouteA = createRootRoute({
+  head: () => ({
+    links: [{ rel: "icon", href: "/a.ico" }],
+  }),
+});
+
+export const RouteB = createRootRoute({
+  head: () => ({
+    links: [{ rel: "icon", href: "/b.ico" }],
+  }),
+});
+`;
+    const { ctx, abs, project } = setup("src/routes/__root.tsx", TWO_CALLS);
+    addArrayEntryInCall.apply(ctx, {
+      file: "src/routes/__root.tsx",
+      callee: "createRootRoute",
+      property: "head().links",
+      entry: '{ rel: "stylesheet", href: appCss }',
+      imports: [{ from: "@acme/ui/globals.css?url", default: "appCss" }],
+    });
+    project.saveSync();
+    const text = fs.readFileSync(abs, "utf8");
+    // The inserted entry lands in RouteA's links (the first call), and RouteB
+    // stays intact — confirmation we're not crossing into the wrong call.
+    const routeA = text.slice(text.indexOf("RouteA"), text.indexOf("RouteB"));
+    const routeB = text.slice(text.indexOf("RouteB"));
+    expect(routeA).toContain("appCss");
+    expect(routeB).not.toContain("appCss");
+  });
+
   it("revert removes the entry and import", () => {
     const { ctx, abs, project } = setup("src/routes/__root.tsx", ROOT_WITH_HEAD);
     addArrayEntryInCall.apply(ctx, {

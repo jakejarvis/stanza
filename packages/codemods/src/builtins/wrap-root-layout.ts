@@ -7,6 +7,7 @@ import {
   addNamedImport,
   type Codemod,
   type ImportDeclaration,
+  type SourceFile,
   SyntaxKind,
 } from "../index";
 
@@ -53,8 +54,13 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
     const layoutRel = path.relative(ctx.projectRoot, layoutAbs);
     const sf = ctx.project().addSourceFileAtPath(layoutAbs);
 
-    // Idempotency: if the provider is already present, treat as no-op.
-    if (sf.getText().includes(args.providerName)) return { touchedFiles: [] };
+    // Idempotency: structural match on the provider's JSX tag, not raw text —
+    // a mention in a comment or unrelated identifier shouldn't skip the wrap.
+    if (hasJsxTag(sf, args.providerName)) {
+      ctx.claimRegion(layoutRel, `imports.${args.providerName}`);
+      ctx.claimRegion(layoutRel, `providers.${args.providerName}`);
+      return { touchedFiles: [] };
+    }
 
     if (args.importKind === "default") {
       addDefaultImport(sf, args.providerImport, args.providerName);
@@ -98,12 +104,25 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
     );
     importDecl?.remove();
 
-    const wrapped = `<${args.providerName}>${target.childrenMarker}</${args.providerName}>`;
-    for (const node of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
-      if (normalize(node.getText()) === normalize(wrapped)) {
-        node.replaceWithText(target.childrenMarker);
-        break;
+    // Find the provider element structurally. Only unwrap if it has no
+    // attributes and its body is exactly the original marker — otherwise the
+    // user customized inside the provider and we shouldn't touch it.
+    const wrapper = sf
+      .getDescendantsOfKind(SyntaxKind.JsxElement)
+      .find((el) => el.getOpeningElement().getTagNameNode().getText() === args.providerName);
+    if (wrapper) {
+      const hasAttrs = wrapper.getOpeningElement().getAttributes().length > 0;
+      const innerText = wrapper
+        .getJsxChildren()
+        .map((c) => c.getText())
+        .join("")
+        .trim();
+      if (hasAttrs || innerText !== target.childrenMarker) {
+        throw new Error(
+          `wrap-root-layout: <${args.providerName}> in ${layoutRel} has user edits — unwrap manually.`,
+        );
       }
+      wrapper.replaceWithText(target.childrenMarker);
     }
 
     ctx.releaseRegion(layoutRel, `imports.${args.providerName}`);
@@ -112,6 +131,16 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
     return { touchedFiles: [layoutRel] };
   },
 };
+
+function hasJsxTag(sf: SourceFile, tag: string): boolean {
+  for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement)) {
+    if (el.getTagNameNode().getText() === tag) return true;
+  }
+  for (const el of sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)) {
+    if (el.getTagNameNode().getText() === tag) return true;
+  }
+  return false;
+}
 
 function frameworkTarget(frameworkId: string | undefined): FrameworkTarget | undefined {
   switch (frameworkId) {
