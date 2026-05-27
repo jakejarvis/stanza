@@ -43,6 +43,7 @@ export type {
 export {
   StanzaManifestSchema,
   CURRENT_MANIFEST_VERSION,
+  SUPPORTED_MANIFEST_VERSIONS,
   MANIFEST_SCHEMA_URL,
   declaredEnvNames,
   defaultWebApp,
@@ -58,7 +59,9 @@ export type { RegistryConfig } from "./registry-config";
 export {
   DEFAULT_NAMESPACE,
   expandEnv,
+  isLikelyNamespaceTypo,
   isNamespace,
+  isValidModuleId,
   parseModuleSpec,
   RegistriesSchema,
   RegistryConfigSchema,

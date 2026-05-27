@@ -3,7 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_NAMESPACE,
   expandEnv,
+  isLikelyNamespaceTypo,
   isNamespace,
+  isValidModuleId,
   parseModuleSpec,
   RegistriesSchema,
   RegistryConfigSchema,
@@ -22,9 +24,60 @@ describe("parseModuleSpec", () => {
     expect(parseModuleSpec("@acme/foo/bar")).toEqual({ namespace: "@acme", id: "foo/bar" });
   });
 
-  it("rejects an unscoped @ id (no slash)", () => {
-    // No slash → treated as a bare id (whoever consumes it will fail on the `@`).
+  it("preserves the lenient behavior for an unscoped @ id (no slash)", () => {
+    // parseModuleSpec stays lenient — callers wanting strictness should
+    // check isLikelyNamespaceTypo first.
     expect(parseModuleSpec("@bare")).toEqual({ id: "@bare" });
+  });
+});
+
+describe("isLikelyNamespaceTypo", () => {
+  it("flags a leading-@ input with no slash", () => {
+    expect(isLikelyNamespaceTypo("@bare")).toBe(true);
+    expect(isLikelyNamespaceTypo("@acme")).toBe(true);
+  });
+
+  it("accepts well-formed @ns/id specs", () => {
+    expect(isLikelyNamespaceTypo("@acme/foo")).toBe(false);
+    expect(isLikelyNamespaceTypo("@acme/foo/bar")).toBe(false);
+  });
+
+  it("accepts bare ids", () => {
+    expect(isLikelyNamespaceTypo("vitest")).toBe(false);
+    expect(isLikelyNamespaceTypo("better-auth")).toBe(false);
+  });
+});
+
+describe("isValidModuleId", () => {
+  it("accepts single-segment ids", () => {
+    expect(isValidModuleId("vitest")).toBe(true);
+    expect(isValidModuleId("better-auth")).toBe(true);
+    expect(isValidModuleId("a1")).toBe(true);
+  });
+
+  it("accepts nested segments", () => {
+    expect(isValidModuleId("foo/bar")).toBe(true);
+    expect(isValidModuleId("a/b/c")).toBe(true);
+  });
+
+  it("rejects path traversal and url-injection patterns", () => {
+    expect(isValidModuleId("..")).toBe(false);
+    expect(isValidModuleId("foo/..")).toBe(false);
+    expect(isValidModuleId("../etc")).toBe(false);
+    expect(isValidModuleId("foo?x=1")).toBe(false);
+    expect(isValidModuleId("foo#frag")).toBe(false);
+    expect(isValidModuleId("foo%20bar")).toBe(false);
+    expect(isValidModuleId("foo bar")).toBe(false);
+  });
+
+  it("rejects leading/trailing/double slashes", () => {
+    expect(isValidModuleId("/foo")).toBe(false);
+    expect(isValidModuleId("foo/")).toBe(false);
+    expect(isValidModuleId("foo//bar")).toBe(false);
+  });
+
+  it("rejects empty input", () => {
+    expect(isValidModuleId("")).toBe(false);
   });
 });
 
@@ -51,6 +104,12 @@ describe("expandEnv", () => {
 
   it("returns null when any var is unset", () => {
     expect(expandEnv("a=${A} b=${B}", { A: "1" })).toBeNull();
+  });
+
+  it("returns null when a var is set to the empty string", () => {
+    // Otherwise `Authorization: Bearer ${TOKEN}` with TOKEN="" produces
+    // a literal `Bearer ` header with a trailing space.
+    expect(expandEnv("Bearer ${TOKEN}", { TOKEN: "" })).toBeNull();
   });
 
   it("passes input through when there are no tokens", () => {

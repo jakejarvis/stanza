@@ -9,7 +9,9 @@ import {
   categoryHome,
   DEFAULT_NAMESPACE,
   isCategoryId,
+  isLikelyNamespaceTypo,
   isMulti,
+  isValidModuleId,
   PACKAGE_DIRS,
   parseModuleSpec,
   selectedAll,
@@ -59,7 +61,23 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   // Accept `@ns/id` so users can disambiguate when two registries ship a
   // module under the same id. We match against `record.id` (the namespace
   // hint is informational + persisted on the record on install).
+  if (rawModuleId && isLikelyNamespaceTypo(rawModuleId)) {
+    p.log.error(
+      `"${rawModuleId}" looks like a namespace but is missing the module id. ` +
+        `Did you mean \`${rawModuleId}/<id>\`?`,
+    );
+    process.exitCode = 1;
+    return;
+  }
   const moduleId = rawModuleId ? parseModuleSpec(rawModuleId).id : undefined;
+  if (moduleId !== undefined && !isValidModuleId(moduleId)) {
+    p.log.error(
+      `Invalid module id "${moduleId}". Ids must be alphanumeric segments ` +
+        `(letters, digits, dashes, underscores) joined by "/".`,
+    );
+    process.exitCode = 1;
+    return;
+  }
   if (!isCategoryId(slot)) {
     p.log.error(`Unknown category: ${slot}`);
     process.exitCode = 1;
@@ -253,9 +271,10 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     p.log.warn("Skipped README.md refresh (user-modified). Delete the file to regenerate.");
   }
 
-  // Mirrors `add`: the namespace property lets the stats page bucket
-  // first-party vs third-party correctly without losing the aggregate count.
-  telemetry.capture("cli_module", {
+  // Mirrors `add`: `captureModule` redacts the module id for third-party
+  // namespaces so private/proprietary ids never leave the user's machine,
+  // while still bucketing aggregate counts per namespace.
+  telemetry.captureModule({
     action: "remove",
     group,
     module: installed.id,

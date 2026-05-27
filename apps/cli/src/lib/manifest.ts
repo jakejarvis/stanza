@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   type AppSpec,
+  CURRENT_MANIFEST_VERSION,
   emptyManifest,
   MANIFEST_SCHEMA_URL,
   StanzaManifestSchema,
@@ -28,7 +29,10 @@ export function readManifest(projectRoot: string): StanzaManifest {
         .join("\n")}`,
     );
   }
-  return parsed.data;
+  // Re-stamp the version so the in-memory object always reflects the current
+  // schema. Past-version manifests parsed via SUPPORTED_MANIFEST_VERSIONS get
+  // upgraded transparently; the next `writeManifest` persists it.
+  return { ...parsed.data, version: CURRENT_MANIFEST_VERSION };
 }
 
 export function writeManifest(projectRoot: string, manifest: StanzaManifest): void {

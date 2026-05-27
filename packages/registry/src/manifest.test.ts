@@ -136,6 +136,38 @@ describe("StanzaManifestSchema", () => {
   });
 });
 
+describe("version compatibility", () => {
+  it("accepts a manifest tagged with a prior schema version", () => {
+    // 0.3 is structurally a strict subset of 0.4 (the new fields are
+    // optional), so the schema should accept it. readManifest re-stamps
+    // to CURRENT_MANIFEST_VERSION on load so callers always see current.
+    const v03 = {
+      version: "0.3",
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "acme",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      modules: {},
+      regions: {},
+    };
+    const parsed = StanzaManifestSchema.parse(v03);
+    expect(parsed.version).toBe("0.3");
+  });
+
+  it("rejects an unknown schema version", () => {
+    const future = {
+      version: "9.9",
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "acme",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      modules: {},
+      regions: {},
+    };
+    expect(() => StanzaManifestSchema.parse(future)).toThrow(/version/i);
+  });
+});
+
 describe("third-party registries", () => {
   it("round-trips a manifest with a registries map and namespaced records", () => {
     const manifest = {

@@ -4,9 +4,11 @@ import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
-import { BarList } from "@/components/ui/bar-list";
+import { BarList } from "@/components/stats/bar-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTimeAgo } from "@/hooks/use-time-ago";
 import { buildHead } from "@/lib/seo";
 import { getStats, type Stats } from "@/server/stats.functions";
 
@@ -43,8 +45,26 @@ function formatGeneratedAt(iso: string): string {
   });
 }
 
-function moduleHref(category: CategoryId, id: string): string {
-  return `/registry/${category}/${id}`;
+function LastRefreshed({ iso }: { iso: string }) {
+  const ago = useTimeAgo(iso);
+  return (
+    <p>
+      <Tooltip>
+        <TooltipTrigger
+          nativeButton={false}
+          render={
+            <time
+              dateTime={iso}
+              className="cursor-help font-mono text-xs text-muted-foreground/70 tabular-nums"
+            />
+          }
+        >
+          Last refreshed {ago}
+        </TooltipTrigger>
+        <TooltipContent>{formatGeneratedAt(iso)} UTC</TooltipContent>
+      </Tooltip>
+    </p>
+  );
 }
 
 function StatsPage() {
@@ -79,21 +99,15 @@ function StatsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
       <header className="mb-8 max-w-2xl">
-        <h1 className="text-3xl font-semibold tracking-tight">Stats</h1>
-        <p className="mt-2 text-pretty text-muted-foreground">
+        <h1 className="mb-2 text-3xl font-semibold tracking-tight">Stats</h1>
+        <p className="mb-4 text-pretty text-muted-foreground">
           What modules developers actually pick, aggregated from anonymous CLI telemetry —{" "}
           <a href="#telemetry" className="text-primary underline underline-offset-3">
             see exactly what&rsquo;s collected
           </a>
           .
         </p>
-        {stats ? (
-          <p className="mt-4 font-mono text-xs text-muted-foreground/70 tabular-nums">
-            Last refreshed {formatGeneratedAt(stats.generatedAt)} UTC
-          </p>
-        ) : (
-          <Skeleton className="mt-4 h-4 w-72" />
-        )}
+        {stats ? <LastRefreshed iso={stats.generatedAt} /> : <Skeleton className="h-4 w-48" />}
       </header>
 
       <section className="mb-4 grid gap-4 sm:grid-cols-2">
@@ -179,7 +193,7 @@ function StatsPage() {
                         leading: <ModuleLogo logo={summary?.logo} label={label} size="sm" />,
                         trailingSecondary: numberFormatter.format(entry.count),
                         trailing: percentFormatter.format(entry.share),
-                        href: moduleHref(category, entry.id),
+                        href: `/registry/${category}/${entry.id}`,
                       };
                     })}
                   />

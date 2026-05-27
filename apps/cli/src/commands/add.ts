@@ -4,7 +4,9 @@ import {
   categoryHome,
   DEFAULT_NAMESPACE,
   isCategoryId,
+  isLikelyNamespaceTypo,
   isMulti,
+  isValidModuleId,
   KNOWN_CATEGORIES,
   parseModuleSpec,
   resolveAdapter,
@@ -52,9 +54,32 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   const category = slot;
   const group = category;
 
+  // Catch the `@bare` typo before parsing — without this, the spec falls
+  // through to a literal id of "@bare" and the registry returns an opaque
+  // 404. Explicit hint is friendlier.
+  if (isLikelyNamespaceTypo(rawModuleId)) {
+    p.log.error(
+      `"${rawModuleId}" looks like a namespace but is missing the module id. ` +
+        `Did you mean \`${rawModuleId}/<id>\`?`,
+    );
+    process.exitCode = 1;
+    return;
+  }
   // Split `@ns/id` into a namespace + id. Bare ids implicitly mean `@stanza`,
   // which we leave as `undefined` on the record (omitted = default).
   const { namespace, id: moduleId } = parseModuleSpec(rawModuleId);
+
+  // The id is about to be interpolated into a registry URL — reject anything
+  // that could escape its segment (path traversal, query strings, encoded
+  // bytes). See `isValidModuleId` in @stanza/registry for the exact shape.
+  if (!isValidModuleId(moduleId)) {
+    p.log.error(
+      `Invalid module id "${moduleId}". Ids must be alphanumeric segments ` +
+        `(letters, digits, dashes, underscores) joined by "/".`,
+    );
+    process.exitCode = 1;
+    return;
+  }
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -189,10 +214,10 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   }
 
   // Always counted in the aggregate install total; the `namespace` property
-  // lets the stats page exclude third-party modules from per-category
-  // leaderboards (where ranking private/proprietary ids alongside first-party
-  // ones would be misleading).
-  telemetry.capture("cli_module", {
+  // lets the stats page bucket per-namespace. `captureModule` redacts the
+  // module id for non-@stanza namespaces so private/proprietary ids never
+  // leave the user's machine.
+  telemetry.captureModule({
     action: "install",
     group,
     module: mod.id,

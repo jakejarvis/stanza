@@ -82,6 +82,19 @@ export async function applyModule(args: {
   let manifest = args.manifest;
   const touchedFiles = new Set<string>();
 
+  // Validate catalog ids before any disk writes — third-party modules may
+  // reference first-party codemod ids but can't ship new ones, and we don't
+  // want `ensureSlotPackage` (below) to bootstrap a slot package only to
+  // throw mid-flight and leave it orphaned. Runs on dry-run too, so users
+  // catch typos without --apply.
+  for (const invocation of adapter.codemods ?? []) {
+    if (!CODEMOD_CATALOG[invocation.id]) {
+      throw new Error(
+        `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
+      );
+    }
+  }
+
   const home = categoryHome(module.category);
   if (home.kind === "app" && targetApps.length !== 1) {
     throw new Error(
@@ -315,15 +328,6 @@ export async function applyModule(args: {
       if (!dryRun) deferredWrites.push(() => addEnvVar(envFile, v.name, v.example, v.description));
     }
     touchedFiles.add(".env.example");
-  }
-
-  // Validate up front so dry-run catches missing ids too.
-  for (const invocation of adapter.codemods ?? []) {
-    if (!CODEMOD_CATALOG[invocation.id]) {
-      throw new Error(
-        `Codemod "${invocation.id}" referenced by ${module.category}/${module.id} (adapter "${adapter.key}") is not in the catalog. Add it to packages/codemods/src/builtins/ and register in builtins/index.ts.`,
-      );
-    }
   }
 
   if (!dryRun) {

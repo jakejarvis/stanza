@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
+import { FILE_TREE_ICONS } from "@/components/builder/file-tree-icons";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
@@ -141,6 +142,7 @@ export function FilePreview({
     paths: filePaths,
     search: false,
     unsafeCSS: TRUNCATE_FIX_CSS,
+    icons: FILE_TREE_ICONS,
     onSelectionChange,
   });
   modelRef.current = model;

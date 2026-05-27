@@ -13,6 +13,15 @@ import { type RegistryConfig, RegistriesSchema } from "./registry-config";
 
 export const CURRENT_MANIFEST_VERSION = "0.4" as const;
 
+/**
+ * Past schema versions a new CLI can still read. Since each bump so far has
+ * only added optional fields, older manifests parse cleanly under the current
+ * schema — `readManifest` re-stamps the version to {@link CURRENT_MANIFEST_VERSION}
+ * on load so the in-memory object is always current, and the next write
+ * persists the upgrade. Add prior versions here as the schema evolves.
+ */
+export const SUPPORTED_MANIFEST_VERSIONS = ["0.3", "0.4"] as const;
+
 /** Canonical public URL of the published `stanza.json` JSON Schema. */
 export const MANIFEST_SCHEMA_URL = "https://stanza.tools/schema.json";
 
@@ -72,7 +81,13 @@ export type RegionOwnership = Record<string, RegionMap>;
 export type StanzaManifest = {
   /** Editor-facing pointer to the published JSON Schema. */
   $schema?: string;
-  version: typeof CURRENT_MANIFEST_VERSION;
+  /**
+   * Schema version of this manifest. Always {@link CURRENT_MANIFEST_VERSION}
+   * on write — {@link SUPPORTED_MANIFEST_VERSIONS} lists the prior versions
+   * the reader still accepts, which get re-stamped to the current version
+   * on the next save.
+   */
+  version: (typeof SUPPORTED_MANIFEST_VERSIONS)[number];
   projectShape: "monorepo";
   packageManager: "pnpm" | "bun" | "npm";
   /** Display name; usually the repo root name. */
@@ -117,7 +132,9 @@ const appSpecSchema = z.object({
 export const StanzaManifestSchema = z
   .object({
     $schema: z.string().optional(),
-    version: z.literal(CURRENT_MANIFEST_VERSION),
+    // Accept past versions on read (schema is purely additive so far); the
+    // CLI re-stamps to CURRENT_MANIFEST_VERSION on the next write.
+    version: z.enum(SUPPORTED_MANIFEST_VERSIONS),
     projectShape: z.literal("monorepo"),
     packageManager: z.enum(["pnpm", "bun", "npm"]),
     name: z.string(),

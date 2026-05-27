@@ -20,11 +20,39 @@ const SPEC_RE = /^(@[a-zA-Z0-9][a-zA-Z0-9-_]*[a-zA-Z0-9])\/(.+)$/;
  * Split a CLI module identifier. `"@acme/foo"` →
  * `{ namespace: "@acme", id: "foo" }`; a bare id → `{ id }` (default namespace
  * applies). The id portion may itself contain slashes.
+ *
+ * Lenient: a leading-`@` input with no slash (e.g. `"@bare"`) returns
+ * `{ id: "@bare" }`. Callers that require a real module spec should check
+ * {@link isLikelyNamespaceTypo} first and surface a clearer error.
  */
 export function parseModuleSpec(spec: string): { namespace?: string; id: string } {
   const m = SPEC_RE.exec(spec);
   if (m) return { namespace: m[1]!, id: m[2]! };
   return { id: spec };
+}
+
+/**
+ * Heuristic for "you typed a namespace but forgot the module id".
+ * `"@acme"` → true; `"@acme/foo"` → false; `"vitest"` → false.
+ * `add`/`remove` should reject these with a clear hint; `search` treats
+ * them as a literal search string and leaves them alone.
+ */
+export function isLikelyNamespaceTypo(spec: string): boolean {
+  return spec.startsWith("@") && !spec.includes("/");
+}
+
+/**
+ * Module ids are interpolated into registry URLs via `{id}` substitution.
+ * Restricting them to a strict, slash-segmented identifier shape closes off
+ * path traversal (`..`) and URL-injection (`?`, `#`, encoded chars) attacks
+ * via crafted CLI args or manifest entries. Each segment must start with an
+ * alphanumeric and contain only `[a-zA-Z0-9-_]`; nested segments use `/`.
+ */
+const MODULE_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9-_]*(?:\/[a-zA-Z0-9][a-zA-Z0-9-_]*)*$/;
+
+/** True when `id` is a syntactically safe module id. */
+export function isValidModuleId(id: string): boolean {
+  return MODULE_ID_RE.test(id);
 }
 
 /** True when `value` is a syntactically valid namespace key. */
@@ -34,14 +62,16 @@ export function isNamespace(value: string): boolean {
 
 /**
  * Replace `${VAR}` tokens with values from `env`. Returns `null` when any
- * referenced variable is unset, leaving the caller to react: header builders
- * drop the header (matches shadcn), URL builders treat it as an error.
+ * referenced variable is unset OR set to the empty string, leaving the caller
+ * to react: header builders drop the header, URL builders treat it as an
+ * error. Treating `""` as missing avoids sending a literal `Authorization:
+ * Bearer ` header with a trailing space when `TOKEN=""`.
  */
 export function expandEnv(input: string, env: NodeJS.ProcessEnv = process.env): string | null {
   let missing = false;
   const result = input.replace(/\$\{(\w+)\}/g, (_, name: string) => {
     const v = env[name];
-    if (v === undefined) {
+    if (v === undefined || v === "") {
       missing = true;
       return "";
     }

@@ -184,7 +184,7 @@ export async function cmdInit(args: CliArgs): Promise<void> {
         // Init always installs from the first-party `@stanza` registry.
         // Mirrors the event shape `add`/`remove` use so the stats query can
         // bucket on `properties.namespace` uniformly.
-        telemetry.capture("cli_module", {
+        telemetry.captureModule({
           action: "install",
           group: category,
           module: mod.id,

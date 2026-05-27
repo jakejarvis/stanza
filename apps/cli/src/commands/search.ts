@@ -1,4 +1,4 @@
-import { DEFAULT_NAMESPACE, parseModuleSpec } from "@stanza/registry";
+import { DEFAULT_NAMESPACE, parseModuleSpec, type StanzaManifest } from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -25,15 +25,14 @@ export async function cmdSearch(args: CliArgs): Promise<void> {
   // is searchable. A malformed manifest just disables the fan-out — don't
   // break `search` because of an unrelated parse error.
   const projectRoot = findProjectRoot();
-  const manifest = projectRoot
-    ? (() => {
-        try {
-          return readManifest(projectRoot);
-        } catch {
-          return undefined;
-        }
-      })()
-    : undefined;
+  let manifest: StanzaManifest | undefined;
+  if (projectRoot) {
+    try {
+      manifest = readManifest(projectRoot);
+    } catch {
+      // Leave `manifest` undefined — fan-out disabled, @stanza still works.
+    }
+  }
   const registry = await loadRegistries(manifest);
 
   const raw = typeof args.query === "string" ? args.query.trim() : "";
@@ -66,6 +65,15 @@ export async function cmdSearch(args: CliArgs): Promise<void> {
   if (hits.length === 0) {
     if (nsFilter && !registry.namespaces().includes(nsFilter)) {
       console.log(pc.dim(`Unknown registry "${nsFilter}". Add it to stanza.json.`));
+    } else if (nsFilter && !indices.some(({ namespace }) => namespace === nsFilter)) {
+      // Namespace IS configured but exposes no browsable index (no `indexUrl`,
+      // or it 404'd / parse-failed). Modules are still reachable by name.
+      console.log(
+        pc.dim(
+          `Registry "${nsFilter}" has no browsable index — use ` +
+            `\`stanza add <category> ${nsFilter}/<id>\` to fetch by name.`,
+        ),
+      );
     } else {
       console.log(pc.dim("No modules found."));
     }

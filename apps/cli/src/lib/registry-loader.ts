@@ -61,13 +61,21 @@ type NamespaceLoader = {
  * `stanza init` that only ever hit the default namespace.
  */
 export async function loadRegistries(manifest?: StanzaManifest): Promise<Registries> {
-  const loaders = new Map<string, NamespaceLoader>();
-  loaders.set(DEFAULT_NAMESPACE, await buildDefaultLoader());
+  const customEntries = Object.entries(manifest?.registries ?? {}).filter(
+    // Schema also forbids this; double-guard so a hand-edited manifest can't
+    // shadow the default.
+    ([ns]) => ns !== DEFAULT_NAMESPACE,
+  );
+  // Build default + every custom loader in parallel — each one issues an
+  // independent index fetch and there's no ordering dependency between them.
+  const [defaultLoader, ...customLoaders] = await Promise.all([
+    buildDefaultLoader(),
+    ...customEntries.map(([ns, cfg]) => buildCustomLoader(ns, cfg)),
+  ]);
 
-  for (const [ns, cfg] of Object.entries(manifest?.registries ?? {})) {
-    if (ns === DEFAULT_NAMESPACE) continue; // schema also forbids this; double-guard.
-    loaders.set(ns, await buildCustomLoader(cfg));
-  }
+  const loaders = new Map<string, NamespaceLoader>();
+  loaders.set(DEFAULT_NAMESPACE, defaultLoader);
+  customEntries.forEach(([ns], i) => loaders.set(ns, customLoaders[i]!));
 
   return {
     namespaces: () => [...loaders.keys()],
@@ -140,11 +148,11 @@ async function buildDefaultLoader(): Promise<NamespaceLoader> {
   return loadHttpRegistry(DEFAULT_REGISTRY_URL);
 }
 
-async function buildCustomLoader(cfg: RegistryConfig): Promise<NamespaceLoader> {
+async function buildCustomLoader(namespace: string, cfg: RegistryConfig): Promise<NamespaceLoader> {
   const resolved = resolveConfig(cfg);
   // Try to grab an index up front; absent or 404 just means the namespace is
   // fetch-by-name only (won't appear in `searchableIndices`).
-  const index = await tryFetchIndex(resolved);
+  const index = await tryFetchIndex(namespace, resolved);
   return {
     index,
     async loadModule(category, id) {
@@ -208,14 +216,44 @@ function appendParams(url: string, params?: Record<string, string>): string {
   return u.toString();
 }
 
-async function tryFetchIndex(cfg: ResolvedConfig): Promise<RegistryIndex | undefined> {
+async function tryFetchIndex(
+  namespace: string,
+  cfg: ResolvedConfig,
+): Promise<RegistryIndex | undefined> {
   if (!cfg.indexUrl) return undefined;
+  let url: string;
   try {
-    const url = appendParams(cfg.indexUrl, cfg.params);
-    const res = await fetch(url, { headers: buildHeaders(cfg.headers) });
-    if (!res.ok) return undefined;
-    return RegistryIndexSchema.parse(await res.json());
+    url = appendParams(cfg.indexUrl, cfg.params);
+  } catch (err) {
+    // appendParams throws on unset env vars — surface that since it's a
+    // config error the user can fix, not a missing-index condition.
+    console.warn(
+      `Registry "${namespace}" index skipped: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return undefined;
+  }
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: buildHeaders(cfg.headers) });
   } catch {
+    // Network failure (DNS, offline, etc.) — the namespace stays
+    // fetch-by-name-only this run. Silent: typical when offline.
+    return undefined;
+  }
+  // 404 means "no index advertised" — legitimate for fetch-by-name-only
+  // registries. Other non-OK statuses (401, 403, 5xx) likely indicate a
+  // misconfiguration the user should see.
+  if (res.status === 404) return undefined;
+  if (!res.ok) {
+    console.warn(`Registry "${namespace}" index returned ${res.status} ${res.statusText}.`);
+    return undefined;
+  }
+  try {
+    return RegistryIndexSchema.parse(await res.json());
+  } catch (err) {
+    // 200 but schema-invalid → config error worth telling the user about.
+    const detail = err instanceof Error ? err.message.split("\n")[0] : String(err);
+    console.warn(`Registry "${namespace}" index is malformed: ${detail}`);
     return undefined;
   }
 }

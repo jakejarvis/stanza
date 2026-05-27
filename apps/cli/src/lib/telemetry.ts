@@ -70,6 +70,30 @@ export function capture(event: string, properties: Record<string, unknown> = {})
   });
 }
 
+const DEFAULT_NAMESPACE = "@stanza";
+
+/**
+ * Module install/remove event with namespace-aware id redaction. The actual
+ * `module` string is only emitted for first-party `@stanza` installs;
+ * third-party module ids (potentially private/proprietary) are replaced with
+ * `"<redacted>"` so per-namespace install counts still aggregate without
+ * leaking customer-internal names to first-party analytics.
+ */
+export function captureModule(args: {
+  action: "install" | "remove";
+  group: string;
+  module: string;
+  namespace: string;
+}): void {
+  const isFirstParty = args.namespace === DEFAULT_NAMESPACE;
+  capture("cli_module", {
+    action: args.action,
+    group: args.group,
+    module: isFirstParty ? args.module : "<redacted>",
+    namespace: args.namespace,
+  });
+}
+
 export async function flush(): Promise<void> {
   if (disabled || queue.length === 0) return;
   const url = process.env.STANZA_TELEMETRY_URL ?? DEFAULT_TELEMETRY_URL;
