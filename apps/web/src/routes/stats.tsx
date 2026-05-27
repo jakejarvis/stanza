@@ -1,3 +1,4 @@
+import NumberFlow from "@number-flow/react";
 import type { CategoryId, ModuleMetadata } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
@@ -30,11 +31,6 @@ const percentFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-function formatCount(value: number): string {
-  if (value <= 0) return "—";
-  return numberFormatter.format(value);
-}
-
 function formatGeneratedAt(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
@@ -48,14 +44,14 @@ function formatGeneratedAt(iso: string): string {
 function LastRefreshed({ iso }: { iso: string }) {
   const ago = useTimeAgo(iso);
   return (
-    <p>
+    <p className="text-xs leading-4">
       <Tooltip>
         <TooltipTrigger
           nativeButton={false}
           render={
             <time
               dateTime={iso}
-              className="cursor-help font-mono text-xs text-muted-foreground/70 tabular-nums"
+              className="cursor-help font-mono text-muted-foreground/70 tabular-nums"
             />
           }
         >
@@ -122,7 +118,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent>
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {formatCount(stats?.projectsScaffolded ?? 0)}
+              {isLoading ? "—" : <NumberFlow value={stats.projectsScaffolded} locales="en-US" />}
             </p>
           </CardContent>
         </Card>
@@ -134,7 +130,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent>
             <p className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              {formatCount(stats?.modulesInstalled ?? 0)}
+              {isLoading ? "—" : <NumberFlow value={stats.modulesInstalled} locales="en-US" />}
             </p>
           </CardContent>
         </Card>

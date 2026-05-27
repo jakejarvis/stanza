@@ -15,6 +15,7 @@
     "@base-ui/react": "^1.5.0",
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
+    "@number-flow/react": "^0.6.0",
     "@orama/orama": "^3.1.18",
     "@pierre/trees": "1.0.0-beta.4",
     "@stanza/registry": "workspace:*",
