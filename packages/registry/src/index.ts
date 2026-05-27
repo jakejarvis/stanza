@@ -54,6 +54,16 @@ export {
   manifestJsonSchema,
 } from "./manifest";
 
+export type { RegistryConfig } from "./registry-config";
+export {
+  DEFAULT_NAMESPACE,
+  expandEnv,
+  isNamespace,
+  parseModuleSpec,
+  RegistriesSchema,
+  RegistryConfigSchema,
+} from "./registry-config";
+
 export type { ResolveContext, ResolveResult, ResolveError } from "./resolver";
 export { resolveAdapter, isCompatible, categoryOrder, activePeerIds } from "./resolver";
 

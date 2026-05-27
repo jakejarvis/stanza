@@ -12,7 +12,7 @@ import {
 } from "@stanza/registry";
 import pc from "picocolors";
 
-import type { Registry } from "./registry-loader";
+import type { Registries } from "./registry-loader";
 
 export type WizardResult = {
   name: string;
@@ -49,7 +49,7 @@ export type WizardOverrides = {
  * from `overrides`. Invalid picks log an error and return null.
  */
 export async function runInitWizard(args: {
-  registry: Registry;
+  registry: Registries;
   defaultName: string;
   overrides?: WizardOverrides;
 }): Promise<WizardResult | null> {
@@ -77,7 +77,7 @@ export async function runInitWizard(args: {
   const pending: Partial<Record<CategoryId, Module>> = {};
 
   for (const category of categoryOrder) {
-    const candidates = candidatesFor(registry.index, category, pending);
+    const candidates = candidatesFor(registry.defaultIndex(), category, pending);
     if (candidates.length === 0) continue;
 
     if (isMulti(category)) {
@@ -180,7 +180,7 @@ function peerCheckOk(
 }
 
 async function runNonInteractive(args: {
-  registry: Registry;
+  registry: Registries;
   defaultName: string;
   overrides: WizardOverrides;
 }): Promise<WizardResult | null> {

@@ -63,10 +63,22 @@ export async function applyModule(args: {
   module: Module;
   adapter: ModuleAdapter;
   targetApps: AppSpec[];
-  registryRoot: string;
+  /**
+   * Local registry root for sourcing template files when they aren't inlined
+   * on the module manifest. Third-party HTTP registries always inline
+   * `tpl.content`, so passing `null` is fine for those; the runner only
+   * touches disk when a template lacks `content`.
+   */
+  registryRoot: string | null;
+  /**
+   * Namespace the module was loaded from (e.g. `"@acme"`). Persisted on the
+   * `StanzaModuleRecord` so `remove`/`update` can refetch from the original
+   * registry. `undefined` (default) means the first-party `@stanza` registry.
+   */
+  namespace?: string;
   dryRun: boolean;
 }): Promise<RunResult> {
-  const { projectRoot, module, adapter, targetApps, registryRoot, dryRun } = args;
+  const { projectRoot, module, adapter, targetApps, namespace, registryRoot, dryRun } = args;
   let manifest = args.manifest;
   const touchedFiles = new Set<string>();
 
@@ -83,8 +95,14 @@ export async function applyModule(args: {
   }
 
   const owner = module.id;
-  // Module dirs are named `<category>-<id>` (e.g. `testing-vitest`).
-  const moduleDir = path.join(registryRoot, "modules", `${module.category}-${module.id}`);
+  // Module dirs are named `<category>-<id>` (e.g. `testing-vitest`). Only used
+  // as a fallback when a template lacks inlined `content` — `readTemplateSource`
+  // throws with a clear error if it's needed but the registry root is null
+  // (which is the typical published-CLI + third-party-registry case).
+  const moduleDir =
+    registryRoot !== null
+      ? path.join(registryRoot, "modules", `${module.category}-${module.id}`)
+      : null;
 
   // Module-level install fields (shared across adapters) are merged with the
   // adapter-level ones (variation per peer combination). Adapter wins per-key
@@ -309,7 +327,7 @@ export async function applyModule(args: {
   }
 
   if (!dryRun) {
-    const record = recordFor(module, adapter, targetApps);
+    const record = recordFor(module, adapter, targetApps, namespace);
     // Push into the category's array, replacing any same-(id, apps-key) record
     // so re-adds are idempotent. Single-choice categories with home:"app" are
     // kept to one record per app id by `add`/`init` validation; other homes
@@ -370,9 +388,20 @@ function recordFor(
   module: Module,
   adapter: ModuleAdapter,
   targetApps: AppSpec[],
-): { id: string; version: string; adapter: string; apps?: string[] } {
+  namespace: string | undefined,
+): { id: string; version: string; adapter: string; apps?: string[]; namespace?: string } {
   const home = categoryHome(module.category);
-  const base = { id: module.id, version: module.version, adapter: adapter.key };
+  const base: {
+    id: string;
+    version: string;
+    adapter: string;
+    apps?: string[];
+    namespace?: string;
+  } = { id: module.id, version: module.version, adapter: adapter.key };
+  // Record the origin namespace so `remove` / `update` know which registry
+  // to refetch from. Omit when it's the default `@stanza` to keep manifests
+  // for first-party-only projects clean.
+  if (namespace) base.namespace = namespace;
   if (home.kind === "repo") return base;
   // Both app-home and package-home tag with the consuming apps so `remove`
   // can find them and so the schema stays well-formed.
@@ -571,9 +600,20 @@ function renderArgs(
  * contents in `tpl.content` (the registry build step bakes them in). Local
  * dev (FS-based registry) leaves `content` undefined, so we fall back to
  * reading from the module's templates/ directory on disk.
+ *
+ * `moduleDir` is null when no local registry is reachable (published CLI
+ * fetching from the canonical URL, or any third-party namespace). In that
+ * case the loader guarantees `tpl.content` is set; if it isn't, the module
+ * is malformed and we error early.
  */
-function readTemplateSource(tpl: TemplateRef, moduleDir: string): string {
+function readTemplateSource(tpl: TemplateRef, moduleDir: string | null): string {
   if (tpl.content !== undefined) return tpl.content;
+  if (moduleDir === null) {
+    throw new Error(
+      `Template "${tpl.src}" has no inlined content and no local registry root is available. ` +
+        `Third-party modules must inline template content (run the registry build) before publishing.`,
+    );
+  }
   return fs.readFileSync(path.join(moduleDir, "templates", tpl.src), "utf8");
 }
 

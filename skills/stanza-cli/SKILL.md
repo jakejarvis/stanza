@@ -61,8 +61,8 @@ pnpm dev
 ## Commands
 
 - `stanza init [name] --yes ...` scaffolds a new project in a child directory of the current working directory. Today every `init` produces a single web app (`apps/web`, id `web`); multi-app init is planned but not yet exposed.
-- `stanza add <category> <module> [--app=<id>]` adds one module to an existing Stanza project. The `--app` flag picks which app receives an app-scoped module (`framework`/`testing`) or which app a package-scoped module's shims (e.g. Better Auth's route handler) target. Single-app projects auto-target. Multi-app projects auto-pick if `cwd` is inside an app's `dir`; otherwise the CLI prompts interactively on a TTY or errors out in non-interactive runs.
-- `stanza remove <category> [id] [--app=<id>]` removes a module. For single-choice categories the `id` is optional; for multi-choice categories it is required. `--app` scopes removal in projects with multiple apps.
+- `stanza add <category> [@<ns>/]<module> [--app=<id>]` adds one module to an existing Stanza project. The `--app` flag picks which app receives an app-scoped module (`framework`/`testing`) or which app a package-scoped module's shims (e.g. Better Auth's route handler) target. Single-app projects auto-target. Multi-app projects auto-pick if `cwd` is inside an app's `dir`; otherwise the CLI prompts interactively on a TTY or errors out in non-interactive runs. Prefix the id with `@<ns>/` to install from a third-party registry the project has declared under `registries` in `stanza.json`.
+- `stanza remove <category> [[@<ns>/]<id>] [--app=<id>]` removes a module. For single-choice categories the `id` is optional; for multi-choice categories it is required. `--app` scopes removal in projects with multiple apps. The `@<ns>/` prefix is accepted for readability but not required — `remove` matches against the stored `id`.
 - `stanza list` prints installed modules grouped by category from the nearest `stanza.json`.
 - `stanza search [query]` lists registry modules and their `category/id` pairs.
 
@@ -89,6 +89,7 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 - Use `--dry-run` before a mutating command when the user wants a preview. It writes nothing.
 - Mutating commands refuse to run in a dirty git worktree. Ask the user before using `--dangerously-allow-dirty`; it intentionally allows Stanza edits to mix with existing changes.
 - Use `STANZA_REGISTRY=<url-or-path>` only when the user asks for a custom/self-hosted registry or test fixture. Otherwise let the published CLI use its default registry.
+- For third-party modules from another publisher, declare the registry in `stanza.json` under `registries` (e.g. `"registries": { "@acme": "https://reg.acme.dev" }`) and install with `stanza add <category> @acme/<module>`. Unknown namespaces fail fast — there is no implicit fallback to the default registry.
 
 ## Telemetry
 

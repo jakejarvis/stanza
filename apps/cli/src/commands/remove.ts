@@ -7,9 +7,11 @@ import type { AppSpec, StanzaModuleRecord } from "@stanza/registry";
 import {
   appsForRecord,
   categoryHome,
+  DEFAULT_NAMESPACE,
   isCategoryId,
   isMulti,
   PACKAGE_DIRS,
+  parseModuleSpec,
   selectedAll,
 } from "@stanza/registry";
 import { defineCommand } from "citty";
@@ -20,7 +22,7 @@ import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
 import { regionsOwnedBy } from "../lib/region-tracker";
-import { loadRegistry } from "../lib/registry-loader";
+import { loadRegistries } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
 
@@ -47,13 +49,17 @@ export const remove = defineCommand({
 
 export async function cmdRemove(args: CliArgs): Promise<void> {
   const slot = typeof args.slot === "string" ? args.slot : undefined;
-  const moduleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
+  const rawModuleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
   const appFlag = typeof args.app === "string" ? args.app : undefined;
   if (!slot) {
-    p.log.error("Usage: stanza remove <category> [id]");
+    p.log.error("Usage: stanza remove <category> [[@<namespace>/]<id>]");
     process.exitCode = 1;
     return;
   }
+  // Accept `@ns/id` so users can disambiguate when two registries ship a
+  // module under the same id. We match against `record.id` (the namespace
+  // hint is informational + persisted on the record on install).
+  const moduleId = rawModuleId ? parseModuleSpec(rawModuleId).id : undefined;
   if (!isCategoryId(slot)) {
     p.log.error(`Unknown category: ${slot}`);
     process.exitCode = 1;
@@ -122,8 +128,8 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   // Step 1: revert imperative codemods first. They modify framework- or
   // peer-owned files (root layout, schema barrels, vite config) — reverts
   // need to see those files intact, before any template deletions below.
-  const registry = await loadRegistry();
-  const mod = await registry.loadModule(group, installed.id).catch(() => null);
+  const registry = await loadRegistries(manifest);
+  const mod = await registry.loadModule(group, installed.id, installed.namespace).catch(() => null);
   const adapter = mod?.adapters.find((a) => a.key === installed.adapter);
   if (mod && adapter) {
     const revertResult = await revertCodemods({
@@ -247,7 +253,14 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     p.log.warn("Skipped README.md refresh (user-modified). Delete the file to regenerate.");
   }
 
-  telemetry.capture("cli_module", { action: "remove", group, module: installed.id });
+  // Mirrors `add`: the namespace property lets the stats page bucket
+  // first-party vs third-party correctly without losing the aggregate count.
+  telemetry.capture("cli_module", {
+    action: "remove",
+    group,
+    module: installed.id,
+    namespace: installed.namespace ?? DEFAULT_NAMESPACE,
+  });
   p.log.success(`${pc.green("✓")} Removed ${installed.id} from ${group}`);
   if (sweptPackages.length > 0) {
     p.log.info(`Swept packages/${sweptPackages.join(", packages/")} (no remaining slot owns it).`);

@@ -1,0 +1,435 @@
+---
+title: Authoring
+description: Build your own Stanza modules and host them in a registry — first-party or third-party.
+---
+
+A **module** is a self-contained recipe for adding one piece of functionality to a Stanza project: templates, dependencies, env vars, scripts, and optional codemod invocations. A **registry** is a directory of modules served as static JSON.
+
+This page is for both kinds of authors:
+
+- **First-party contributors** working inside this repo (`registry/modules/<id>/`) — your modules ship under the default `@stanza` namespace.
+- **Third-party authors** publishing modules under your own `@scope` for users to pull in via [`registries` in `stanza.json`](/docs/registry#third-party-registries).
+
+The module surface is identical for both. Only distribution differs.
+
+## Module anatomy
+
+A module lives in a directory named `<category>-<id>/` and exports a default `defineModule({ … })` from `module.ts`:
+
+```ts
+// registry/modules/testing-vitest/module.ts
+import { defineModule } from "@stanza/registry";
+
+export default defineModule({
+  id: "vitest",
+  category: "testing",
+  label: "Vitest",
+  description: "Fast unit + integration test runner powered by Vite.",
+  version: "0.1.0",
+  homepage: "https://vitest.dev",
+
+  // Peers this module needs filled. The resolver uses these to pick an adapter
+  // and to refuse `add` when a required peer category is empty.
+  peers: { framework: ["next", "tanstack-start"] },
+
+  // Shared install fields — apply to every adapter unless overridden.
+  devDependencies: {
+    vitest: "^4.1.7",
+    jsdom: "^29.1.1",
+    "@testing-library/react": "^16.3.2",
+  },
+  scripts: {
+    test: "vitest run",
+    "test:watch": "vitest",
+  },
+
+  // One install recipe per peer combination. `match: {}` is the default.
+  adapters: [
+    {
+      key: "next",
+      match: { framework: "next" },
+      devDependencies: { "@vitejs/plugin-react": "^6.0.2" },
+      templates: [
+        { src: "vitest.config.ts", dest: "vitest.config.ts", scope: "app" },
+        { src: "example.test.ts", dest: "tests/example.test.ts", scope: "app" },
+      ],
+    },
+    {
+      key: "tanstack-start",
+      match: { framework: "tanstack-start" },
+      templates: [
+        { src: "vitest.config.ts", dest: "vitest.config.ts", scope: "app" },
+        { src: "example.test.ts", dest: "tests/example.test.ts", scope: "app" },
+      ],
+    },
+  ],
+});
+```
+
+The whole shape is typed and validated at runtime — `defineModule` throws on the structural rules TypeScript can't express (e.g. `app` install-field overlays on `home: "repo"` modules), and `ModuleSchema` parses the JSON form the CLI fetches.
+
+| Field                | Required | What it does                                                                                                         |
+| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
+| `id`                 | ✓        | Stable identifier within a category. Used in `stanza add <category> <id>`.                                           |
+| `category`           | ✓        | One of `KNOWN_CATEGORIES` — see [Categories](/docs/concepts#categories).                                             |
+| `label`              | ✓        | Display name for the wizard, search results, and the web builder.                                                    |
+| `description`        | ✓        | One-line summary. Surfaced in `stanza search` and module cards.                                                      |
+| `version`            | ✓        | Semver string. Pinned into `stanza.json` at install time so future `update`/`swap` can read it.                      |
+| `peers`              |          | `Partial<Record<CategoryId, ModuleId[] \| "any">>` — categories this module needs filled.                            |
+| `consumesPackages`   |          | Dirs of other internal packages this one imports from (see [Cross-package consumption](#cross-package-consumption)). |
+| `adapters`           | ✓        | At least one. Each carries its own install fields, templates, and codemods.                                          |
+| `appKind`            |          | `"web"` or `"native"`. The runner refuses to install into an incompatible app.                                       |
+| `homepage`, `author` |          | Surfaced in the web builder; otherwise informational.                                                                |
+
+Module-level install fields (`dependencies`, `devDependencies`, `env`, `scripts`) are merged into every adapter — adapter-level values override per key, and `env` merges by `name`. Hoist anything that doesn't vary across adapters.
+
+## Categories and homes
+
+Every module fills exactly one [category](/docs/concepts#categories). A category's **home** (`app`, `repo`, or `package`) decides where the module's output lands; it isn't something the module declares — it's a property of the category:
+
+- **`home: "app"`** (`framework`, `testing`) — templates land in `apps/<id>/`. Module records track which app(s) they installed into via the `apps` field.
+- **`home: "repo"`** (`tooling`, `monorepo`, `deploy`) — config + scripts land at the monorepo root.
+- **`home: "package"`** (`auth`, `db`, `orm`, `ui`, `api`, `ai`, `payments`, `email`) — the module installs into its own workspace package at `packages/<dir>/`, named `@<project>/<dir>`. Every consuming app gets a `workspace:*` dep.
+
+Template `scope` derives from this. For a package-home module, prefer `scope: "package"` for everything that can live inside the package, and reach for `scope: "app"` only when a framework convention forces a file to the app root (e.g. Next's `middleware.ts`).
+
+## Adapters and peer resolution
+
+When you `add` a module, Stanza picks the **most specific** adapter whose `match` is consistent with your current stack. Better Auth's adapter list has entries like `next+drizzle+postgres` and `tanstack-start+prisma+sqlite`; the resolver scores each adapter by the number of peers it matches and picks the highest.
+
+A module can pin a default adapter with `match: {}` (an empty match wins when no peer-specific adapter applies). If a module declares `peers` but no adapter matches the current selection, `add` fails with `no-adapter` — fall back to a more permissive `match: {}` adapter or narrow your `peers` to what's actually supported.
+
+```ts
+adapters: [
+  // Adapter for projects using Next + Drizzle + Postgres specifically.
+  {
+    key: "next+drizzle+postgres",
+    match: { framework: "next", orm: "drizzle", db: "postgres" },
+    templates: [/* … */],
+  },
+  // Catch-all when no peer-specific adapter applies (or as a fallback).
+  { key: "default", match: {} },
+],
+```
+
+## Templates
+
+Templates are files copied into the user's project. They live under `templates/` next to `module.ts` and are referenced by `src` (path under `templates/`) and `dest` (path in the generated project, resolved against `scope`):
+
+```ts
+templates: [
+  { src: "vitest.config.ts", dest: "vitest.config.ts", scope: "app" },
+  { src: "example.test.ts", dest: "tests/example.test.ts", scope: "app", template: true },
+],
+```
+
+| `scope` value     | Where `dest` resolves                                                             |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `"app"` (default) | Each targeted app's `dir` — emits once per consuming app.                         |
+| `"repo"`          | The monorepo root.                                                                |
+| `"package"`       | `packages/<dir>/` where `<dir>` is the category's `home.dir` (package-home only). |
+
+Set `template: true` to run the file through Handlebars before writing. The render context is:
+
+| Token                                         | Value                                                                               |
+| --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `{{project.name}}`                            | The manifest's `name` (npm-scope-style).                                            |
+| `{{app.id}}` / `{{app.dir}}` / `{{app.kind}}` | The active target app.                                                              |
+| `{{package.name}}`                            | The active module's own package (e.g. `@my-app/auth`); empty for non-package homes. |
+| `{{packages.<dir>.name}}`                     | Any other package by its dir, e.g. `{{packages.db.name}}` → `@my-app/db`.           |
+| `{{peers.<category>}}`                        | Id of the active one-cardinality pick in that category, e.g. `next`.                |
+| `{{pm}}`                                      | The project's package manager (`pnpm` \| `bun` \| `npm`).                           |
+| `{{env}}`                                     | Sorted list of every env var name declared so far.                                  |
+
+Conditional blocks use Handlebars' built-ins plus an `eq` helper:
+
+```hbs
+{{#if (eq peers.framework "next")}}
+  import { NextResponse } from "next/server";
+{{/if}}
+```
+
+The render context is rebound per target app, so a package-home module shipped into both a web and a native app renders each correctly.
+
+**Template bodies are inlined by the build.** [`packages/registry/src/build.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/registry/src/build.ts) reads every template file and bakes its contents onto `tpl.content` in the per-module JSON. HTTP-loaded modules are self-contained — the CLI never makes follow-up requests for template files.
+
+## Codemod invocations
+
+Modules can ask the runner to invoke a generic codemod from Stanza's built-in catalog with module-specific arguments:
+
+```ts
+adapters: [
+  {
+    key: "next",
+    match: { framework: "next" },
+    codemods: [
+      {
+        id: "wrap-root-layout",
+        args: {
+          providerImport: "{{package.name}}",
+          providerName: "ClerkProvider",
+        },
+      },
+    ],
+  },
+],
+```
+
+The catalog lives at [`packages/codemods/src/builtins/`](https://github.com/jakejarvis/stanza/tree/main/packages/codemods/src/builtins). Each codemod is parameterized by its own `args` type so the same generic transformation serves multiple modules (`wrap-root-layout` handles both Clerk and any future provider-style auth/state library).
+
+**Modules cannot ship codemod code** — the registry JSON carries data (`{ id, args }`), never executable code. This is enforced for first-party and third-party modules alike: the runner throws when an adapter references a codemod id that isn't in the catalog. If your module needs a transformation no existing codemod covers:
+
+- **First-party**: design a new generic codemod with the right argument surface and add it to the catalog ([packages/codemods/src/builtins/index.ts](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/index.ts)).
+- **Third-party**: open an issue or PR for the codemod you'd need. Per-registry codemod sandboxing isn't on the near-term roadmap.
+
+String values inside `args` go through the same mustache substitution as templates, so you can reference `{{package.name}}`, `{{packages.db.name}}`, etc.
+
+## Install fields
+
+`dependencies`, `devDependencies`, `env`, and `scripts` can sit at either the module level (shared across adapters) or the adapter level (variation per peer combination). Adapter wins per-key on conflicts; `env` merges by `name`.
+
+```ts
+defineModule({
+  // …
+  // Declared once — every adapter inherits these.
+  dependencies: { "better-auth": "^1.6.11" },
+  env: [
+    {
+      name: "BETTER_AUTH_SECRET",
+      example: "change-me-in-prod",
+      required: true,
+      description: "Better Auth signing secret.",
+    },
+  ],
+  adapters: [
+    {
+      key: "next+drizzle",
+      match: { framework: "next", orm: "drizzle" },
+      // Only this adapter ships the drizzle adapter package.
+      dependencies: { "better-auth-drizzle": "^1.0.0" },
+      // …
+    },
+  ],
+});
+```
+
+### The `app` overlay
+
+Package-home modules sometimes need to install a dep into the consuming app, not the package itself — e.g. shadcn's theme provider lives in `packages/ui/` but imports `next-themes` from `apps/web/`. Use the `app:` overlay for that:
+
+```ts
+defineModule({
+  category: "ui",
+  // …
+  app: {
+    dependencies: { "next-themes": "^0.3.0" },
+  },
+});
+```
+
+The runner routes overlay fields into every consuming app's `package.json` (vs the main fields, which route to `packages/<dir>/`). It's forbidden on `home: "repo"` modules — no app target to route to — and redundant on `home: "app"` modules.
+
+## Cross-package consumption
+
+If your module's source imports from another internal package (e.g. Better Auth's `auth.ts` reads `db` from the orm package), declare the dependency at the module level:
+
+```ts
+defineModule({
+  category: "auth",
+  consumesPackages: ["db"],
+  // …
+});
+```
+
+The runner adds `@<project>/db: workspace:*` to this module's own `package.json`. Use the substitution token in templates:
+
+```ts
+// templates/auth.drizzle.ts
+import { db } from "{{packages.db.name}}";
+```
+
+Module-level, not adapter-level: source imports are shared infrastructure that doesn't vary across adapters.
+
+## Sidecar files
+
+Drop these next to `module.ts`:
+
+| File                               | What it does                                                                                                    |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `logo.svg`                         | Theme-agnostic SVG, inlined onto `mod.logo`. Used by the web builder and module cards.                          |
+| `logo-light.svg` + `logo-dark.svg` | Theme pair — inlined as `mod.logo = { light, dark }`. Take precedence over `logo.svg`.                          |
+| `readme.md`                        | Markdown contribution to the generated project's README. Renders with the same Handlebars context as templates. |
+
+The build runs SVGO on logos and prefixes every `id` so multiple module logos on the same page can't collide. First-party logos generally come from [svgl.app](https://svgl.app).
+
+## Validating
+
+Module authors don't run a separate validation step — the same Zod schemas the CLI uses are the source of truth:
+
+- `defineModule` (in [`packages/registry/src/module.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/registry/src/module.ts)) throws at runtime on illegal field combinations.
+- `ModuleSchema.parse` runs on every HTTP fetch and rejects malformed manifests with structured errors.
+- `vp test` runs the whole repo's schema + resolver tests; add a fixture under `registry/modules/<your-id>/` and the existing suite picks it up.
+- `vp check` does a type-aware lint pass that catches most authoring mistakes statically.
+
+For a third-party registry, the same `ModuleSchema` ships from `@stanza/registry`. The simplest test loop is to point the consumer's `STANZA_REGISTRY` at a local directory (`STANZA_REGISTRY=./path/to/your/registry stanza search`) and watch for parse errors.
+
+## Building a registry
+
+The build script ([`packages/registry/src/build.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/registry/src/build.ts)) scans `registry/modules/*` and emits:
+
+```
+<out>/
+├── registry/
+│   ├── index.json                # categories + per-module summaries
+│   └── modules/
+│       ├── <category>-<id>.json  # one file per module, templates inlined
+│       └── …
+└── schema.json                   # JSON Schema for stanza.json
+```
+
+Each per-module JSON is self-contained: template bodies, deps, env vars, codemod invocations, the optimized logo SVG, and the rendered readme are all in one document. The CLI never makes follow-up requests for module assets.
+
+To run the build:
+
+```sh
+# Default output: <repoRoot>/dist
+jiti packages/registry/src/build.ts
+
+# Or point it elsewhere (this is what the web app's prebuild does):
+jiti packages/registry/src/build.ts apps/web/public
+```
+
+For a third-party registry, fork the build script (or call it as a library) against your own `registry/modules/` tree. The output shape is identical.
+
+## Hosting a registry
+
+A registry is plain static JSON — host it anywhere that serves files: a CDN, Vercel/Netlify/Cloudflare Pages, GitHub Pages, S3 + CloudFront, your own Nginx, etc. No runtime, no DB, no SSR. The two URL shapes Stanza understands:
+
+**Canonical layout** (string shorthand in `stanza.json`):
+
+```
+https://reg.acme.dev/
+├── index.json
+└── modules/
+    ├── testing-cosmos.json
+    └── auth-something.json
+```
+
+Declared as:
+
+```jsonc
+{ "registries": { "@acme": "https://reg.acme.dev" } }
+```
+
+**Custom layout** (object form with URL template):
+
+```jsonc
+{
+  "registries": {
+    "@acme": {
+      "url": "https://api.acme.dev/r/{category}/{id}.json",
+      "indexUrl": "https://api.acme.dev/r/index.json",
+      "headers": { "Authorization": "Bearer ${ACME_TOKEN}" },
+      "params": { "version": "stable" },
+    },
+  },
+}
+```
+
+`{category}` and `{id}` are both required placeholders; `indexUrl` is optional (without it the registry is fetch-by-name only — modules still install, but `stanza search` skips that namespace). Headers and params support `${ENV_VAR}` expansion against `process.env`; a header whose template references an unset variable is silently dropped, while an unset variable in `params` is a hard error.
+
+## Publishing under your own namespace
+
+There's no central registry to list with. Pick an `@scope` (the naming rule is the same as npm scopes — `/^@[a-zA-Z0-9][a-zA-Z0-9-_]*[a-zA-Z0-9]$/`), publish your `registry/` to a URL, and document how to consume it:
+
+```jsonc
+// users add to their stanza.json
+{
+  "registries": {
+    "@acme": "https://reg.acme.dev",
+  },
+}
+```
+
+```sh
+# then install with the @scope/id syntax
+stanza add testing @acme/cosmos
+```
+
+Unknown namespaces fail fast — there's no implicit fallback to `@stanza`, so a typo can't leak a private module name to the public registry. The chosen namespace is recorded on the manifest module record (`stanza remove` knows where to refetch from).
+
+`@stanza` is reserved. Declaring it under `registries` is a schema error; to override its URL (for a fully-mirrored self-hosted registry or to pin a fixture in CI), set the `STANZA_REGISTRY` env var.
+
+## What third-party modules can do
+
+The full module surface, with one exception:
+
+- ✓ Ship any combination of templates, deps (`dependencies`, `devDependencies`), env vars, and scripts.
+- ✓ Declare `peers` and ship multiple adapters keyed to the host's stack.
+- ✓ Invoke any codemod from Stanza's built-in catalog with custom args.
+- ✓ Ship logos, READMEs, and the `app:` overlay.
+- ✓ Declare `consumesPackages` to import from other internal packages.
+- ✗ Ship new codemod code. The catalog is the only execution surface — adapters that reference an unknown codemod id are rejected at install time.
+
+A third-party `payments` module that needs to wrap the root layout uses `wrap-root-layout` with its own provider name; one that needs to extend a barrel uses `re-export`; one that needs to register a Vite plugin uses `add-plugin-to-call`. If a real need surfaces a catalog gap, the right fix is to land the new generic codemod upstream — not to grant arbitrary code execution to fetched JSON.
+
+## Worked example: `@acme/cosmos`
+
+A minimal third-party module from scratch.
+
+**1. Author `module.ts`** at `registry/modules/testing-cosmos/module.ts` in your registry repo:
+
+```ts
+import { defineModule } from "@stanza/registry";
+
+export default defineModule({
+  id: "cosmos",
+  category: "testing",
+  label: "Cosmos",
+  description: "Visual component sandbox.",
+  version: "1.0.0",
+  homepage: "https://reactcosmos.org",
+  devDependencies: { "react-cosmos": "^7.0.0" },
+  scripts: { cosmos: "cosmos" },
+  adapters: [{ key: "default", match: {} }],
+});
+```
+
+**2. Build the registry** with the script above. Output:
+
+```
+out/registry/
+├── index.json
+└── modules/
+    └── testing-cosmos.json
+```
+
+**3. Host it.** Push `out/registry/` (or its parent) to wherever you serve static files. Say it ends up at `https://reg.acme.dev/`.
+
+**4. Tell users how to install.** Their `stanza.json`:
+
+```jsonc
+{
+  "registries": {
+    "@acme": "https://reg.acme.dev",
+  },
+}
+```
+
+Then:
+
+```sh
+stanza add testing @acme/cosmos
+```
+
+The manifest records the install with `namespace: "@acme"` so `stanza remove` refetches from the right registry on rollback.
+
+## Conventions
+
+A few things experienced authors follow to keep registries consistent:
+
+- **Hoist shared install fields** to the module level. Better Auth's `dependencies: { "better-auth": "^1.6.11" }` and its env vars are declared once; only the per-(framework, orm) templates and codemods sit in the adapter blocks.
+- **Don't ship a `package.json` template.** Let the runner merge deps into the host's `package.json` (for app/repo homes) or bootstrap the slot package itself (for package homes). Hand-rolled `package.json` templates collide with `addPackageDependency`.
+- **Multi-cardinality categories need disjoint regions.** Vitest claims `scripts.test`, Playwright claims `scripts.test:e2e` — both can install into the same `package.json` because their region claims don't overlap.
+- **Bump `version` on schema-affecting changes** (new templates, dep upgrades). The upcoming `swap`/`update` verbs read it.
+- **Codemod catalog ids are part of the public contract.** Renaming a builtin codemod id breaks every third-party manifest that references it — treat them like npm package names.

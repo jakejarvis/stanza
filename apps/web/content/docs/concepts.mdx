@@ -75,7 +75,7 @@ The `stanza.json` file at your repo root is the source of truth for what's insta
 ```json
 {
   "$schema": "https://stanza.tools/schema.json",
-  "version": "0.3",
+  "version": "0.4",
   "projectShape": "monorepo",
   "packageManager": "pnpm",
   "name": "acme",
@@ -108,4 +108,4 @@ A **region** is a claim on a file (or a section of one) by a specific module. Th
 
 ## Open registry
 
-A registry is just static JSON: an index plus one file per module, each carrying its templates, dependencies, env vars, and codemod invocations. The CLI ships with a default registry, but you can point it anywhere — a URL or a local path — with `STANZA_REGISTRY`. That's the hook for self-hosting your own modules or pinning a fixture in CI.
+A registry is just static JSON: an index plus one file per module, each carrying its templates, dependencies, env vars, and codemod invocations. The CLI ships with a default registry under the `@stanza` namespace, and you can publish your own modules under any `@scope` you want and consume them alongside the first-party ones — see [Third-party registries](/docs/registry#third-party-registries) for the manifest field and the `@ns/id` CLI syntax. The full module + registry surface is documented in the [Authoring manual](/docs/authoring).

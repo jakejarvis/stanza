@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import { categoryOrder, isMulti, selectedAll } from "@stanza/registry";
+import { categoryOrder, DEFAULT_NAMESPACE, isMulti, selectedAll } from "@stanza/registry";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -30,8 +30,11 @@ export async function cmdList(): Promise<void> {
       continue;
     }
     for (const m of records) {
+      // Show the namespace prefix only for third-party records; first-party
+      // (`@stanza`, or absent) keeps the listing terse.
+      const nsTag = m.namespace && m.namespace !== DEFAULT_NAMESPACE ? `${m.namespace}/` : "";
       rows.push(
-        `${pc.cyan(category.padEnd(10))} ${m.id} ${pc.dim(`@${m.version}`)} ${pc.dim(`[${m.adapter}]`)}`,
+        `${pc.cyan(category.padEnd(10))} ${nsTag}${m.id} ${pc.dim(`@${m.version}`)} ${pc.dim(`[${m.adapter}]`)}`,
       );
     }
   }

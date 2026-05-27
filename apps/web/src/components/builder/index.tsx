@@ -55,6 +55,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           pm: latest.current.pm,
           selections: latest.current.optimistic,
         }),
+        hash: true,
         replace: true,
         resetScroll: false,
       });
@@ -70,6 +71,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
           pm: next,
           selections: latest.current.optimistic,
         }),
+        hash: true,
         replace: true,
         resetScroll: false,
       });
@@ -103,6 +105,7 @@ export function Builder({ state, search }: { state: BuilderState; search: Builde
         setOptimistic(next);
         await navigate({
           search: toSearchParams({ name: snapshot.name, pm: snapshot.pm, selections: next }),
+          hash: true,
           replace: true,
           resetScroll: false,
         });

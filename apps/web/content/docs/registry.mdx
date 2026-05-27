@@ -3,7 +3,7 @@ title: Registry
 description: The roadmap of first-party modules Stanza ships — what's available today and what's planned.
 ---
 
-Every module fills exactly one **category**. This page is the canonical roadmap of the first-party modules Stanza ships: what's available today, and what's on the way. Self-hosted registries can add their own modules — see [the open registry](/docs/concepts#open-registry).
+Every module fills exactly one **category**. This page is the canonical roadmap of the first-party modules Stanza ships: what's available today, and what's on the way. Third parties can publish their own modules under any `@scope` and have users pull them in alongside these — see the [Authoring manual](/docs/authoring) for the full surface, or jump to [Third-party modules](#third-party-modules) below for a pointer.
 
 ## Categories
 
@@ -166,3 +166,15 @@ Not a category — a top-level field in `stanza.json` (`packageManager: "pnpm" |
 | bun     | 🟢&nbsp;Available           |
 | npm     | 🟢&nbsp;Available           |
 | yarn    | 🛑&nbsp;Not Planned         |
+
+## Third-party modules
+
+The categories above are first-party — Stanza ships them under the default `@stanza` namespace. Anyone can publish additional modules under their own `@scope` and have users install them with `stanza add <category> @scope/<id>`. The category taxonomy itself stays first-party (third-party registries can't redefine it).
+
+For consumers, declaring a registry is a few lines in `stanza.json`:
+
+```jsonc
+{ "registries": { "@acme": "https://reg.acme.dev" } }
+```
+
+For authors, the full module surface — `defineModule`, templates, codemods, the build pipeline, hosting, namespace conventions, and a worked example — lives in the [Authoring manual](/docs/authoring).

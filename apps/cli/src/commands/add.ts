@@ -2,9 +2,11 @@ import * as p from "@clack/prompts";
 import type { AppSpec, StanzaManifest } from "@stanza/registry";
 import {
   categoryHome,
+  DEFAULT_NAMESPACE,
   isCategoryId,
   isMulti,
   KNOWN_CATEGORIES,
+  parseModuleSpec,
   resolveAdapter,
   selectedAll,
 } from "@stanza/registry";
@@ -15,7 +17,7 @@ import { applyModule } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
-import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
+import { loadRegistries, pickRegistryRoot } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
 
@@ -35,9 +37,9 @@ export const add = defineCommand({
 
 export async function cmdAdd(args: CliArgs): Promise<void> {
   const slot = typeof args.slot === "string" ? args.slot : undefined;
-  const moduleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
-  if (!slot || !moduleId) {
-    p.log.error("Usage: stanza add <category> <module>");
+  const rawModuleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
+  if (!slot || !rawModuleId) {
+    p.log.error("Usage: stanza add <category> [@<namespace>/]<module>");
     process.exitCode = 1;
     return;
   }
@@ -49,6 +51,10 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   }
   const category = slot;
   const group = category;
+
+  // Split `@ns/id` into a namespace + id. Bare ids implicitly mean `@stanza`,
+  // which we leave as `undefined` on the record (omitted = default).
+  const { namespace, id: moduleId } = parseModuleSpec(rawModuleId);
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -129,10 +135,15 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     return;
   }
 
-  const registry = await loadRegistry();
-  const mod = await registry.loadModule(group, moduleId).catch(() => null);
-  if (!mod) {
-    p.log.error(`Module not found: ${group}/${moduleId}`);
+  const registry = await loadRegistries(manifest);
+  let mod;
+  try {
+    mod = await registry.loadModule(group, moduleId, namespace);
+  } catch (err) {
+    const where = namespace ? `${namespace}/` : "";
+    p.log.error(
+      `Could not load ${group}/${where}${moduleId}: ${err instanceof Error ? err.message : String(err)}`,
+    );
     process.exitCode = 1;
     return;
   }
@@ -156,7 +167,10 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   const spinner = p.spinner();
   spinner.start(`Adding ${mod.label}`);
 
-  const registryRoot = pickRegistryRoot();
+  // Third-party modules ship templates inlined and don't need a local
+  // registry root. For @stanza we still surface the local FS path so dev-mode
+  // (FS) registry runs can read template files that aren't inlined yet.
+  const registryRoot = pickRegistryRoot(namespace ?? DEFAULT_NAMESPACE);
   let result;
   try {
     result = await applyModule({
@@ -167,13 +181,23 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
       targetApps,
       registryRoot,
       dryRun,
+      namespace,
     });
   } catch (err) {
     spinner.stop(`${mod.label} ${pc.red("failed")}`);
     throw err;
   }
 
-  telemetry.capture("cli_module", { action: "install", group, module: mod.id });
+  // Always counted in the aggregate install total; the `namespace` property
+  // lets the stats page exclude third-party modules from per-category
+  // leaderboards (where ranking private/proprietary ids alongside first-party
+  // ones would be misleading).
+  telemetry.capture("cli_module", {
+    action: "install",
+    group,
+    module: mod.id,
+    namespace: namespace ?? DEFAULT_NAMESPACE,
+  });
   spinner.stop(`${pc.green("✓")} ${mod.label} added`);
   if (result.bootstrappedPackage) {
     const { name } = result.bootstrappedPackage;

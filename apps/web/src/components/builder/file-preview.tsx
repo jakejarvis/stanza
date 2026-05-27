@@ -45,6 +45,23 @@ function defaultPathFor(filePaths: string[]): string | undefined {
   return filePaths.includes("package.json") ? "package.json" : filePaths[0];
 }
 
+// `@pierre/trees`' public `item.select()` is additive (it calls
+// `selectPath` on the controller, not `selectOnlyPath`). To get
+// single-select semantics from the React surface, drop sibling selections
+// first.
+function selectOnly(
+  model: {
+    getSelectedPaths(): readonly string[];
+    getItem(path: string): { select(): void; deselect(): void } | null;
+  },
+  path: string,
+): void {
+  for (const selected of model.getSelectedPaths()) {
+    if (selected !== path) model.getItem(selected)?.deselect();
+  }
+  model.getItem(path)?.select();
+}
+
 // "a/b/c.ts" → ["a", "a/b"].
 function directoryPaths(paths: readonly string[]): string[] {
   const dirs = new Set<string>();
@@ -129,8 +146,10 @@ export function FilePreview({
   modelRef.current = model;
 
   // Re-seed the model when `filePaths` changes. `resetPaths` collapses
-  // everything and clears selection, so we replay both manually. Tree → URL
-  // sync happens automatically via `onSelectionChange` when we call `select()`.
+  // everything, so we replay expansion manually; it preserves selection for
+  // surviving paths, but we still pin selection to `next` via `selectOnly`
+  // so a transiently-empty hash (during a parent navigate) can't bleed the
+  // default into the selection alongside the open file.
   const prevPathsRef = useRef(filePaths);
   useEffect(() => {
     const expandedSet = new Set(
@@ -163,7 +182,7 @@ export function FilePreview({
       ...new Set([...preservedExpansion, ...(next ? directoryPaths([next]) : [])]),
     ].toSorted();
     model.resetPaths(filePaths, { initialExpandedPaths: expanded });
-    if (next) model.getItem(next)?.select();
+    if (next) selectOnly(model, next);
     prevPathsRef.current = filePaths;
   }, [model, filePaths, defaultPath]);
 
@@ -178,7 +197,7 @@ export function FilePreview({
       const item = model.getItem(dir);
       if (item && "expand" in item) item.expand();
     }
-    model.getItem(hash)?.select();
+    selectOnly(model, hash);
   }, [hash, filePaths, model]);
 
   // Drive the tree's palette from the app theme; otherwise it auto-detects via

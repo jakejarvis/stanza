@@ -6,6 +6,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { ModuleLogo } from "@/components/module-logo";
 import { BarList } from "@/components/ui/bar-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buildHead } from "@/lib/seo";
 import { getStats, type Stats } from "@/server/stats.functions";
 
@@ -90,7 +91,9 @@ function StatsPage() {
           <p className="mt-4 font-mono text-xs text-muted-foreground/70 tabular-nums">
             Last refreshed {formatGeneratedAt(stats.generatedAt)} UTC
           </p>
-        ) : null}
+        ) : (
+          <Skeleton className="mt-4 h-4 w-72" />
+        )}
       </header>
 
       <section className="mb-4 grid gap-4 sm:grid-cols-2">

@@ -136,6 +136,55 @@ describe("StanzaManifestSchema", () => {
   });
 });
 
+describe("third-party registries", () => {
+  it("round-trips a manifest with a registries map and namespaced records", () => {
+    const manifest = {
+      ...emptyManifest({ name: "acme" }),
+      modules: {
+        framework: [{ id: "next", version: "0.1.0", adapter: "default", apps: ["web"] }],
+        testing: [
+          {
+            id: "cosmos",
+            version: "1.0.0",
+            adapter: "default",
+            apps: ["web"],
+            namespace: "@thirdparty",
+          },
+        ],
+      },
+      registries: {
+        "@thirdparty": "https://reg.thirdparty.dev",
+        "@private": {
+          url: "https://reg.private.io/{category}/{id}.json",
+          headers: { Authorization: "Bearer ${TOKEN}" },
+        },
+      },
+    };
+    const parsed = StanzaManifestSchema.parse(manifest);
+    expect(parsed.modules.testing?.[0]?.namespace).toBe("@thirdparty");
+    expect(parsed.registries?.["@thirdparty"]).toBe("https://reg.thirdparty.dev");
+    expect(JSON.parse(JSON.stringify(parsed))).toEqual(manifest);
+  });
+
+  it("rejects @stanza as a user-declared registry", () => {
+    const result = StanzaManifestSchema.safeParse({
+      ...emptyManifest({ name: "acme" }),
+      registries: { "@stanza": "https://example.invalid" },
+    });
+    expect(result.success).toBe(false);
+    const issues = result.success ? [] : result.error.issues;
+    expect(issues.some((i) => /reserved/.test(i.message))).toBe(true);
+  });
+
+  it("rejects malformed namespace keys", () => {
+    const result = StanzaManifestSchema.safeParse({
+      ...emptyManifest({ name: "acme" }),
+      registries: { acme: "https://example.invalid" },
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
 describe("app-aware selectors", () => {
   const base = emptyManifest({
     name: "acme",

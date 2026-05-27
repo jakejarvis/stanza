@@ -83,7 +83,7 @@ These apply to the mutating verbs (`init`, `add`, `remove`):
 
 ## Environment variables
 
-- `STANZA_REGISTRY=<url-or-path>` — use a custom or self-hosted registry (HTTP URL or filesystem path) instead of the default.
+- `STANZA_REGISTRY=<url-or-path>` — override the `@stanza` default namespace's URL (or filesystem path). For per-namespace third-party registries, use the `registries` field in `stanza.json` instead — see [Third-party registries](/docs/registry#third-party-registries).
 - `STANZA_NO_NPM_LOOKUP=1` — skip npm version lookups and write dependency ranges verbatim.
 - `STANZA_NPM_REGISTRY=<url>` — override the npm registry used for version lookups.
 - `STANZA_TELEMETRY=0` / `DO_NOT_TRACK=1` — disable telemetry persistently. Telemetry is also auto-skipped in CI.
@@ -97,8 +97,12 @@ Stanza captures a small set of anonymous events to help us see which modules peo
 
 - The command name (`init`, `add`, `remove`, `list`, `search`), its duration in milliseconds, and whether it succeeded.
 - CLI version, Node version, OS, and architecture.
-- For installs and removes: the module id and its category.
+- For installs and removes: the module id, its category, and the namespace it came from (e.g. `@stanza` or `@acme`).
 - An ephemeral UUID generated per process so events from the same run can be grouped. It's regenerated next time and never persisted.
+
+**Third-party modules**
+
+Third-party module installs are counted in the aggregate totals at the top of the [Stats page](/stats) (so adoption of Stanza-as-a-platform shows up), but they're filtered out of the per-category leaderboards underneath. A private `@acme/auth-internal` doesn't outrank `@stanza/better-auth` in a public ranking.
 
 **What's never sent**
 

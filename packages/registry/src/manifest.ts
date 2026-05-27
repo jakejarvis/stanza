@@ -9,8 +9,9 @@ import {
   KNOWN_CATEGORIES,
   type ModuleId,
 } from "./module";
+import { type RegistryConfig, RegistriesSchema } from "./registry-config";
 
-export const CURRENT_MANIFEST_VERSION = "0.3" as const;
+export const CURRENT_MANIFEST_VERSION = "0.4" as const;
 
 /** Canonical public URL of the published `stanza.json` JSON Schema. */
 export const MANIFEST_SCHEMA_URL = "https://stanza.tools/schema.json";
@@ -49,6 +50,13 @@ export type StanzaModuleRecord = {
    *  - `home: "repo"`    — must be omitted. Repo-home modules are project-wide.
    */
   apps?: string[];
+  /**
+   * Namespace this module was installed from, e.g. `"@acme"`. Omitted means
+   * the default first-party namespace (`"@stanza"`). `stanza remove` and the
+   * upcoming `update`/`swap` verbs read this to refetch from the original
+   * registry.
+   */
+  namespace?: string;
 };
 
 /**
@@ -83,6 +91,15 @@ export type StanzaManifest = {
   modules: Partial<Record<CategoryId, StanzaModuleRecord[]>>;
   regions: RegionOwnership;
   /**
+   * Third-party module registries. Keys are namespace strings (e.g. `"@acme"`);
+   * values are either a URL prefix (Stanza's default layout) or a full
+   * `RegistryConfig` with URL template, headers, and params. Modules from
+   * these registries are addressed as `<category> @<ns>/<id>` on the CLI;
+   * the `@stanza` default namespace is bundled in the CLI and cannot be
+   * redeclared here (override its URL via the `STANZA_REGISTRY` env var).
+   */
+  registries?: Record<string, RegistryConfig>;
+  /**
    * SHA-256 of the README.md Stanza last wrote. When `stanza add`/`remove`
    * regenerate the README they compare the current file's hash against this
    * value — a mismatch means the user edited it, and the refresh is skipped.
@@ -115,10 +132,12 @@ export const StanzaManifestSchema = z
           version: z.string(),
           adapter: z.string(),
           apps: z.array(z.string()).optional(),
+          namespace: z.string().optional(),
         }),
       ),
     ),
     regions: z.record(z.string(), z.record(z.string(), z.string())),
+    registries: RegistriesSchema.optional(),
     readmeChecksum: z.string().optional(),
   })
   .superRefine((m, ctx) => {

@@ -7,6 +7,7 @@ import {
   appPackageJsonBase,
   categoryHome,
   categoryOrder,
+  DEFAULT_NAMESPACE,
   ENV_EXAMPLE_HEADER,
   KNOWN_CATEGORIES,
   PEER_CATEGORIES,
@@ -24,7 +25,7 @@ import { ensureCleanWorktree } from "../lib/git";
 import { initManifest, writeManifest } from "../lib/manifest";
 import { resolveExactVersion } from "../lib/npm-version";
 import { writeFreshReadme } from "../lib/readme";
-import { loadRegistry, pickRegistryRoot } from "../lib/registry-loader";
+import { loadRegistries, pickRegistryRoot } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
 import { commonArgs, type CliArgs } from "./_args";
@@ -57,7 +58,10 @@ export const init = defineCommand({
 
 export async function cmdInit(args: CliArgs): Promise<void> {
   const name = typeof args.name === "string" ? args.name : undefined;
-  const registry = await loadRegistry();
+  // Init only ever uses the default `@stanza` namespace — third-party
+  // registries are declared in the project's stanza.json, which doesn't
+  // exist yet at init time.
+  const registry = await loadRegistries();
   const defaultName = name ?? path.basename(process.cwd());
 
   const dryRun = Boolean(args["dry-run"]);
@@ -100,6 +104,10 @@ export async function cmdInit(args: CliArgs): Promise<void> {
     packageManager: result.packageManager,
   });
 
+  // Init always uses the first-party @stanza registry, so the FS root chain
+  // (env override → local monorepo → null) applies. `null` is fine — every
+  // first-party module's templates are also inlined in the registry build,
+  // so the runner doesn't read from disk when there's no local root.
   const registryRoot = pickRegistryRoot();
 
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files will be written"));
@@ -173,7 +181,15 @@ export async function cmdInit(args: CliArgs): Promise<void> {
           adapter: adapter.adapter,
         } satisfies ResolvedEntry);
         applied.push(`${category}/${mod.id}`);
-        telemetry.capture("cli_module", { action: "install", group: category, module: mod.id });
+        // Init always installs from the first-party `@stanza` registry.
+        // Mirrors the event shape `add`/`remove` use so the stats query can
+        // bucket on `properties.namespace` uniformly.
+        telemetry.capture("cli_module", {
+          action: "install",
+          group: category,
+          module: mod.id,
+          namespace: DEFAULT_NAMESPACE,
+        });
         spinner.stop(`${pc.green("✓")} ${mod.label}`);
       }
     }

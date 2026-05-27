@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
 
@@ -416,5 +417,181 @@ describe("tooling-eslint-prettier — framework-conditional rendering", () => {
     expect(rootPkg.devDependencies["eslint-plugin-react"]).toBeTruthy();
     expect(rootPkg.devDependencies["eslint-plugin-react-hooks"]).toBeTruthy();
     expect(rootPkg.devDependencies["@next/eslint-plugin-next"]).toBeUndefined();
+  });
+});
+
+// Minimal, schema-valid module fixture for the third-party registry tests.
+// Multi-cardinality `testing` category so it never collides with first-party
+// single-choice slots, and no peer constraints so it installs against any
+// framework (or none).
+function cosmosModule(extra: Record<string, unknown> = {}) {
+  return {
+    category: "testing",
+    id: "cosmos",
+    label: "Cosmos",
+    description: "Component sandbox.",
+    version: "1.0.0",
+    devDependencies: { "react-cosmos": "^7.0.0" },
+    scripts: { cosmos: "cosmos" },
+    adapters: [{ key: "default", match: {} }],
+    ...extra,
+  };
+}
+
+describe("third-party registries", () => {
+  // Spin up a stub HTTP registry per test so we can verify namespace-aware
+  // module resolution, header auth, and codemod-catalog enforcement end-to-end.
+  // Modules are hand-crafted JSON; the registry build pipeline isn't involved.
+  type Fixture = {
+    modules: Record<string, unknown>;
+    onRequest?: (req: {
+      url: string;
+      headers: Record<string, string | string[] | undefined>;
+    }) => void;
+  };
+  let server: Server;
+  let baseUrl: string;
+  let fixture: Fixture;
+
+  beforeEach(async () => {
+    fixture = { modules: {} };
+    server = createServer((req, res) => {
+      const url = req.url ?? "";
+      fixture.onRequest?.({ url, headers: req.headers });
+      // Map `/modules/<category>-<id>.json` → fixture.modules[<category>-<id>].
+      // `/index.json` is intentionally 404 — we exercise fetch-by-name only.
+      const match = /^\/modules\/(.+)\.json$/.exec(url);
+      if (!match) {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
+      const payload = fixture.modules[match[1]!];
+      if (!payload) {
+        res.statusCode = 404;
+        res.end();
+        return;
+      }
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify(payload));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = (server.address() as { port: number }).port;
+    baseUrl = `http://127.0.0.1:${port}`;
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  function writeStanza(projectRoot: string, registries: Record<string, unknown>) {
+    const file = path.join(projectRoot, "stanza.json");
+    const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+    manifest.registries = registries;
+    fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
+  }
+
+  it("installs a module from a third-party namespace and records its origin", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    fixture.modules["testing-cosmos"] = cosmosModule();
+
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toHaveLength(1);
+    expect(manifest.modules.testing[0]).toMatchObject({
+      id: "cosmos",
+      namespace: "@fixture",
+    });
+    // The devDep + script landed on the app's package.json.
+    const appPkg = JSON.parse(fs.readFileSync("apps/web/package.json", "utf8"));
+    expect(appPkg.devDependencies["react-cosmos"]).toBe("^7.0.0");
+    expect(appPkg.scripts.cosmos).toBe("cosmos");
+  });
+
+  it("rejects an unknown namespace with a clear error", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    // No `registries` field at all — `@nope` is undeclared.
+    await cmdAdd(args({ slot: "testing", moduleId: "@nope/cosmos" }));
+    expect(process.exitCode).toBe(1);
+    // Manifest unchanged.
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toBeUndefined();
+  });
+
+  it("refetches from the original namespace on remove", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    fixture.modules["testing-cosmos"] = cosmosModule();
+
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+
+    // Track requests during the remove so we can assert the namespace was honored.
+    const requests: string[] = [];
+    fixture.onRequest = ({ url }) => requests.push(url);
+
+    await cmdRemove(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+    expect(process.exitCode).toBeFalsy();
+    expect(requests).toContain("/modules/testing-cosmos.json");
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toBeUndefined();
+    const appPkg = JSON.parse(fs.readFileSync("apps/web/package.json", "utf8"));
+    expect(appPkg.devDependencies?.["react-cosmos"]).toBeUndefined();
+    expect(appPkg.scripts?.cosmos).toBeUndefined();
+  });
+
+  it("expands ${ENV_VAR} tokens in headers and drops the header when unset", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), {
+      "@fixture": {
+        url: `${baseUrl}/modules/{category}-{id}.json`,
+        headers: {
+          Authorization: "Bearer ${STANZA_TEST_TOKEN}",
+          "X-Missing": "Bearer ${STANZA_UNSET_TOKEN}",
+        },
+      },
+    });
+    fixture.modules["testing-cosmos"] = cosmosModule();
+
+    let captured: Record<string, string | string[] | undefined> | undefined;
+    fixture.onRequest = ({ url, headers }) => {
+      if (url === "/modules/testing-cosmos.json") captured = headers;
+    };
+
+    process.env.STANZA_TEST_TOKEN = "secret-xyz";
+    try {
+      await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+    } finally {
+      delete process.env.STANZA_TEST_TOKEN;
+    }
+    expect(process.exitCode).toBeFalsy();
+    expect(captured?.authorization).toBe("Bearer secret-xyz");
+    // Headers whose template references an unset env var are dropped silently.
+    expect(captured?.["x-missing"]).toBeUndefined();
+  });
+
+  it("rejects a third-party module that invokes an unknown codemod", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    fixture.modules["testing-cosmos"] = cosmosModule({
+      adapters: [{ key: "default", match: {}, codemods: [{ id: "not-a-real-codemod" }] }],
+    });
+
+    // The runner validates codemod ids against the first-party catalog up
+    // front, so this throws before any files change.
+    await expect(cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }))).rejects.toThrow(
+      /not-a-real-codemod/,
+    );
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toBeUndefined();
   });
 });

@@ -5,7 +5,7 @@ import path from "node:path";
 import type { Resolved, ResolvedEntry, StanzaManifest } from "@stanza/registry";
 import { activePeerIds, categoryOrder, synthesizeReadme } from "@stanza/registry";
 
-import type { Registry } from "./registry-loader";
+import type { Registries } from "./registry-loader";
 
 const README_FILENAME = "README.md";
 
@@ -58,7 +58,7 @@ export type ReadmeRegenStatus = "written" | "skipped" | "dry-run";
 export async function regenerateReadmeIfUnmodified(args: {
   projectRoot: string;
   manifest: StanzaManifest;
-  registry: Registry;
+  registry: Registries;
   dryRun: boolean;
 }): Promise<{ manifest: StanzaManifest; status: ReadmeRegenStatus }> {
   if (userModifiedReadme(args.projectRoot, args.manifest)) {
@@ -71,7 +71,9 @@ export async function regenerateReadmeIfUnmodified(args: {
     if (records.length === 0) continue;
     const entries: ResolvedEntry[] = [];
     for (const record of records) {
-      const mod = await args.registry.loadModule(category, record.id).catch(() => null);
+      const mod = await args.registry
+        .loadModule(category, record.id, record.namespace)
+        .catch(() => null);
       if (!mod) continue;
       const adapter = mod.adapters.find((a) => a.key === record.adapter) ?? mod.adapters[0];
       if (!adapter) continue;

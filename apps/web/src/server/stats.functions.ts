@@ -93,10 +93,19 @@ async function fetchStats(): Promise<{ stats: Stats; ok: boolean }> {
       config,
     ),
     // One query for all categories — group by both and bucket client-side.
+    // The namespace filter excludes third-party module installs from the
+    // per-category leaderboard (private/proprietary ids shouldn't outrank
+    // first-party ones in a public ranking). Aggregate counts above still
+    // include every install, regardless of namespace. The `IS NULL OR = ''`
+    // pair handles events from before the CLI started emitting
+    // `properties.namespace` — those are first-party by definition.
     runQuery(
       `SELECT properties.group AS group, properties.module AS module, count() AS c
        FROM events
        WHERE event = 'cli_module' AND properties.action = 'install'
+         AND (properties.namespace IS NULL
+              OR properties.namespace = ''
+              OR properties.namespace = '@stanza')
        GROUP BY group, module
        ORDER BY c DESC`,
       config,
