@@ -50,6 +50,19 @@ export default defineConfig({
   ssr: {
     external: ["@takumi-rs/image-response", "@vercel/functions"],
   },
+  run: {
+    tasks: {
+      "compile-registry": {
+        cwd: "../..",
+        command: "jiti packages/registry/src/build.ts apps/web/public",
+        input: [
+          { pattern: "registry/modules/**", base: "workspace" },
+          { pattern: "packages/registry/src/**", base: "workspace" },
+        ],
+        output: ["apps/web/public/registry/**", "apps/web/public/schema.json"],
+      },
+    },
+  },
   optimizeDeps: {
     include: [
       "@base-ui/react/button",

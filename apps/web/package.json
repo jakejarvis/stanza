@@ -5,10 +5,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "build": "vp build",
-    "dev": "vp dev",
-    "prebuild": "./scripts/prepare-registry.sh",
-    "predev": "./scripts/prepare-registry.sh",
+    "build": "vp run compile-registry && vp build",
+    "dev": "vp run compile-registry && vp dev",
     "start": "node .output/server/index.mjs"
   },
   "dependencies": {
