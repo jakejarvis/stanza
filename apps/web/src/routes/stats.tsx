@@ -105,9 +105,9 @@ function StatsPage() {
       </header>
 
       <section className="mb-4 grid gap-4 sm:grid-cols-2">
-        <Card className="gap-2 pb-2">
+        <Card size="sm" className="gap-2! pb-2!">
           <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
+            <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
               Projects scaffolded
             </CardTitle>
           </CardHeader>
@@ -117,9 +117,9 @@ function StatsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="gap-2 pb-2">
+        <Card size="sm" className="gap-2! pb-2!">
           <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
+            <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
               Modules installed
             </CardTitle>
           </CardHeader>
@@ -132,9 +132,9 @@ function StatsPage() {
       </section>
 
       <section className="mb-8">
-        <Card className="gap-2 pb-2">
+        <Card size="sm" className="gap-2! pb-2!">
           <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
+            <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
               CLI runs{" "}
               <span className="text-muted-foreground">&middot; last&nbsp;30&nbsp;days</span>
             </CardTitle>
@@ -148,7 +148,7 @@ function StatsPage() {
               ) : null}
             </CardAction>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-1!">
             <Suspense fallback={<div aria-hidden="true" className="h-24 w-full" />}>
               <ActivityChart activity30d={stats?.activity30d ?? []} isLoading={stats === null} />
             </Suspense>
@@ -166,7 +166,7 @@ function StatsPage() {
             const totalInCategory = entries.reduce((acc, entry) => acc + entry.count, 0);
             return (
               <Card size="sm" key={category}>
-                <CardHeader className="pb-1">
+                <CardHeader>
                   <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
                     {categoryLabel(category)}
                   </CardTitle>
@@ -200,8 +200,8 @@ function StatsPage() {
       <section id="telemetry" className="scroll-mt-20">
         <h2 className="mb-4 text-lg font-medium tracking-tight text-balance">Telemetry policy</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card size="sm">
-            <CardHeader className="pb-1">
+          <Card size="sm" className="gap-2.5!">
+            <CardHeader>
               <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
                 What we save
               </CardTitle>
@@ -215,8 +215,8 @@ function StatsPage() {
               </ul>
             </CardContent>
           </Card>
-          <Card size="sm">
-            <CardHeader className="pb-1">
+          <Card size="sm" className="gap-2.5!">
+            <CardHeader>
               <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
                 What we don&rsquo;t
               </CardTitle>

@@ -54,8 +54,6 @@ export default function ActivityChart({ activity30d, isLoading }: ActivityChartP
         data={data}
         config={activityConfig}
         className="aspect-auto h-24 w-full"
-        curveType="monotone"
-        animationType="left-to-right"
         isLoading={isLoading}
       >
         <XAxis dataKey="day" hide />
