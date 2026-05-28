@@ -41,7 +41,7 @@ function Page() {
           <Link
             to="/docs/$"
             params={{ _splat: "" }}
-            className="text-primary underline underline-offset-3 hover:text-primary/80"
+            className="text-sm text-primary underline underline-offset-3 hover:text-primary/80"
           >
             Learn more…
           </Link>

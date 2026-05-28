@@ -68,18 +68,18 @@ export default defineModule({
 
 The whole shape is typed and validated at runtime — `defineModule` throws on the structural rules TypeScript can't express (e.g. `app` install-field overlays on `home: "repo"` modules), and `ModuleSchema` parses the JSON form the CLI fetches.
 
-| Field                | Required | What it does                                                                                                         |
-| -------------------- | -------- | -------------------------------------------------------------------------------------------------------------------- |
-| `id`                 | ✓        | Stable identifier within a category. Used in `stanza add <category> <id>`.                                           |
-| `category`           | ✓        | One of `KNOWN_CATEGORIES` — see [Categories](/docs/concepts#categories).                                             |
-| `label`              | ✓        | Display name for the wizard, search results, and the web builder.                                                    |
-| `description`        | ✓        | One-line summary. Surfaced in `stanza search` and module cards.                                                      |
-| `version`            | ✓        | Semver string. Pinned into `stanza.json` at install time so future `update`/`swap` can read it.                      |
-| `peers`              |          | `Partial<Record<CategoryId, ModuleId[] \| "any">>` — categories this module needs filled.                            |
-| `consumesPackages`   |          | Dirs of other internal packages this one imports from (see [Cross-package consumption](#cross-package-consumption)). |
-| `adapters`           | ✓        | At least one. Each carries its own install fields, templates, and codemods.                                          |
-| `appKind`            |          | `"web"` or `"native"`. The runner refuses to install into an incompatible app.                                       |
-| `homepage`, `author` |          | Surfaced in the web builder; otherwise informational.                                                                |
+| Field                | Required | What it does                                                                                                                        |
+| -------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                 | ✓        | Stable identifier within a category. Used in `stanza add <category> <id>`.                                                          |
+| `category`           | ✓        | One of `KNOWN_CATEGORIES` — see [Categories](/docs/concepts#categories).                                                            |
+| `label`              | ✓        | Display name for the wizard, search results, and the web builder.                                                                   |
+| `description`        | ✓        | One-line summary. Surfaced in `stanza search` and module cards.                                                                     |
+| `version`            | ✓        | Semver string. Pinned into `stanza.json` at install time so future `update`/`swap` can read it.                                     |
+| `peers`              |          | `Partial<Record<CategoryId, ModuleId[] \| "any">>` — categories this module needs filled.                                           |
+| `consumesPackages`   |          | Dirs of other internal packages this one imports from (see [Cross-package consumption](/docs/authoring#cross-package-consumption)). |
+| `adapters`           | ✓        | At least one. Each carries its own install fields, templates, and codemods.                                                         |
+| `appKind`            |          | `"web"` or `"native"`. The runner refuses to install into an incompatible app.                                                      |
+| `homepage`, `author` |          | Surfaced in the web builder; otherwise informational.                                                                               |
 
 Module-level install fields (`dependencies`, `devDependencies`, `env`, `scripts`) are merged into every adapter — adapter-level values override per key, and `env` merges by `name`. Hoist anything that doesn't vary across adapters.
 
@@ -231,7 +231,7 @@ The runner routes overlay fields into every consuming app's `package.json` (vs t
 
 ## Cross-package consumption
 
-If your module's source imports from another internal package (e.g. Better Auth's `auth.ts` reads `db` from the orm package), declare the dependency at the module level:
+If your module's source imports from another internal package (e.g. Better Auth's `auth.ts` reads `db` from the ORM package for its database schema), declare the dependency at the module level:
 
 ```ts
 defineModule({

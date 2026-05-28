@@ -6,7 +6,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";
 import { BarList } from "@/components/stats/bar-list";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTimeAgo } from "@/hooks/use-time-ago";
@@ -44,7 +44,7 @@ function formatGeneratedAt(iso: string): string {
 function LastRefreshed({ iso }: { iso: string }) {
   const ago = useTimeAgo(iso);
   return (
-    <p className="font-mono text-xs leading-4 text-muted-foreground/70">
+    <p className="font-mono text-xs leading-4 text-muted-foreground/85">
       Last refreshed{" "}
       <Tooltip>
         <TooltipTrigger
@@ -105,9 +105,9 @@ function StatsPage() {
       </header>
 
       <section className="mb-4 grid gap-4 sm:grid-cols-2">
-        <Card>
+        <Card className="gap-2 pb-2">
           <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+            <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
               Projects scaffolded
             </CardTitle>
           </CardHeader>
@@ -117,9 +117,9 @@ function StatsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="gap-2 pb-2">
           <CardHeader>
-            <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+            <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
               Modules installed
             </CardTitle>
           </CardHeader>
@@ -132,12 +132,12 @@ function StatsPage() {
       </section>
 
       <section className="mb-8">
-        <Card>
+        <Card className="gap-2 pb-2">
           <CardHeader>
-            <div className="flex items-baseline justify-between gap-4">
-              <CardTitle className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                CLI runs &middot; last 30 days
-              </CardTitle>
+            <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
+              CLI runs <span className="text-muted-foreground">&middot; last 30 days</span>
+            </CardTitle>
+            <CardAction className="font-mono text-xs text-muted-foreground tabular-nums">
               {stats ? (
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">
                   {activitySum > 0
@@ -145,9 +145,9 @@ function StatsPage() {
                     : "No runs yet."}
                 </span>
               ) : null}
-            </div>
+            </CardAction>
           </CardHeader>
-          <CardContent className="pb-1">
+          <CardContent>
             <Suspense fallback={<div aria-hidden className="h-24 w-full" />}>
               <ActivityChart activity30d={stats?.activity30d ?? []} isLoading={stats === null} />
             </Suspense>
@@ -162,18 +162,14 @@ function StatsPage() {
             const entries = stats?.perCategory[category] ?? [];
             const totalInCategory = entries.reduce((acc, entry) => acc + entry.count, 0);
             return (
-              <Card key={category}>
-                <CardHeader>
-                  <div className="flex items-baseline justify-between gap-3">
-                    <CardTitle className="text-xs font-medium tracking-wider text-foreground/85 uppercase">
-                      {categoryLabel(category)}
-                    </CardTitle>
-                    {totalInCategory > 0 ? (
-                      <span className="font-mono text-xs text-muted-foreground tabular-nums">
-                        {numberFormatter.format(totalInCategory)}
-                      </span>
-                    ) : null}
-                  </div>
+              <Card size="sm" key={category}>
+                <CardHeader className="pb-1">
+                  <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
+                    {categoryLabel(category)}
+                  </CardTitle>
+                  <CardAction className="font-mono text-xs text-muted-foreground tabular-nums">
+                    {totalInCategory > 0 ? numberFormatter.format(totalInCategory) : null}
+                  </CardAction>
                 </CardHeader>
                 <CardContent>
                   <BarList
@@ -201,9 +197,9 @@ function StatsPage() {
       <section id="telemetry" className="scroll-mt-20">
         <h2 className="mb-4 text-lg font-medium tracking-tight">Telemetry policy</h2>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xs font-medium tracking-wider text-foreground/85 uppercase">
+          <Card size="sm">
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
                 What we save
               </CardTitle>
             </CardHeader>
@@ -216,9 +212,9 @@ function StatsPage() {
               </ul>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xs font-medium tracking-wider text-foreground/85 uppercase">
+          <Card size="sm">
+            <CardHeader className="pb-1">
+              <CardTitle className="text-xs! font-medium tracking-wider text-foreground/80 uppercase">
                 What we don&rsquo;t
               </CardTitle>
             </CardHeader>

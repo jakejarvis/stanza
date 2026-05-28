@@ -49,7 +49,7 @@ export function AdapterSwitcher({
         const active = resolvedPeers[slot];
         return (
           <div key={slot} className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-xs font-medium text-muted-foreground">
+            <span className="w-20 shrink-0 text-[13px] font-medium tracking-tight text-muted-foreground">
               {categoryLabel(slot)}
             </span>
             <ToggleGroup

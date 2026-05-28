@@ -202,7 +202,9 @@ const ModuleCard = memo(function ModuleCard({
                 <TooltipContent sideOffset={8}>View details</TooltipContent>
               </Tooltip>
             </div>
-            {selected && <IconCheck className="size-4 shrink-0 text-foreground" aria-hidden />}
+            {selected && (
+              <IconCheck className="mr-0.5 size-4 shrink-0 text-foreground" aria-hidden />
+            )}
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
         </div>

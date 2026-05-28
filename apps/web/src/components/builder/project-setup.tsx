@@ -48,7 +48,10 @@ export function ProjectSetup({
 
   return (
     <Card className="gap-0 px-3 py-3.5">
-      <Label htmlFor={inputId} className="mb-1.5 text-[13px] font-medium text-muted-foreground">
+      <Label
+        htmlFor={inputId}
+        className="mb-2 text-[13px] leading-none font-medium text-muted-foreground"
+      >
         Project name
       </Label>
       <Field data-invalid={showError || undefined}>

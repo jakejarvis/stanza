@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { LRUCache } from "lru-cache";
 import {
   createHighlighter,
@@ -27,6 +29,7 @@ const LANGS = [
   "shell",
   "prisma",
   "sql",
+  "dotenv",
 ] as const satisfies readonly BundledLanguage[];
 
 const THEMES = ["github-light", "github-dark"] as const satisfies readonly BundledTheme[];
@@ -67,12 +70,15 @@ const EXT_TO_LANG: Record<string, BundledLanguage> = {
   bash: "bash",
   prisma: "prisma",
   sql: "sql",
+  env: "dotenv",
   // anything else returns undefined → highlighter renders as plaintext
 };
 
-export function langForPath(path: string): BundledLanguage | undefined {
-  const ext = path.split(".").pop()?.toLowerCase() ?? "";
-  return EXT_TO_LANG[ext];
+export function langForPath(filePath: string): BundledLanguage | undefined {
+  const base = path.basename(filePath);
+  if (base.startsWith(".env")) return "dotenv";
+  const ext = path.extname(filePath).toLowerCase();
+  return EXT_TO_LANG[ext.slice(1)];
 }
 
 /**

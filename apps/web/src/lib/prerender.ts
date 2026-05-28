@@ -46,6 +46,7 @@ function listRegistryPaths(): string[] {
       { cause: error },
     );
   }
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
   const index = JSON.parse(raw) as {
     categories: Array<{ id: string }>;
     modules: Array<{ category: string; id: string }>;
@@ -55,10 +56,6 @@ function listRegistryPaths(): string[] {
   return [...categoryPaths, ...modulePaths].toSorted((a, b) => a.localeCompare(b));
 }
 
-// OG image routes are deliberately not prerendered — they're rendered at
-// request time by takumi-rs (kept warm in the server bundle) and the binary
-// outputs collide with sibling subdirs at the filesystem level (e.g. `/og`
-// as a file vs `og/registry/...` as a directory).
 export function listPrerenderPages() {
   const docs = listDocsPaths();
   const registry = listRegistryPaths();

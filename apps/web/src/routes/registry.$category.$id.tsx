@@ -115,7 +115,7 @@ function ModuleDetailPage() {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-medium tracking-tight">{module.label}</h1>
-            <Badge variant="outline">{categoryLabel(module.category)}</Badge>
+            <Badge variant="default">{categoryLabel(module.category)}</Badge>
           </div>
           <p className="mt-1.5 text-sm text-muted-foreground">{module.description}</p>
           <div className="mt-3 flex flex-wrap gap-3 text-xs">

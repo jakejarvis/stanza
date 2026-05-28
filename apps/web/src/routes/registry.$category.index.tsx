@@ -86,7 +86,7 @@ function CategoryLandingPage() {
                 <Link
                   to="/registry/$category/$id"
                   params={{ category: m.category, id: m.id }}
-                  className="flex items-start gap-3 px-3 py-3 transition-colors hover:bg-muted/50"
+                  className="flex items-start gap-3 p-3 transition-colors hover:bg-muted/50"
                 >
                   <ModuleLogo logo={m.logo} label={m.label} />
                   <div className="min-w-0 flex-1">
