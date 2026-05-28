@@ -29,10 +29,12 @@ function listDocsPaths(): string[] {
   return out.toSorted();
 }
 
-// Read modules from the on-disk registry (populated by the `prebuild` script
-// before vite runs). We avoid `@/server/registry-base.server` because it goes
-// through Nitro's `useStorage`, which only exists at request time.
-function listModulePaths(): string[] {
+// Read the registry from disk (populated by the `prebuild` script before vite
+// runs). We avoid `@/server/registry-base.server` because it goes through
+// Nitro's `useStorage`, which only exists at request time. Returns both the
+// category landing pages (`/registry/<cat>`) and per-module detail pages
+// (`/registry/<cat>/<id>`) so every public registry URL prerenders.
+function listRegistryPaths(): string[] {
   const registryPath = resolve(appRoot, "public/registry/index.json");
   let raw: string;
   try {
@@ -44,11 +46,13 @@ function listModulePaths(): string[] {
       { cause: error },
     );
   }
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-  const index = JSON.parse(raw) as { modules: Array<{ category: string; id: string }> };
-  return index.modules
-    .map((m) => `/registry/${m.category}/${m.id}`)
-    .toSorted((a, b) => a.localeCompare(b));
+  const index = JSON.parse(raw) as {
+    categories: Array<{ id: string }>;
+    modules: Array<{ category: string; id: string }>;
+  };
+  const categoryPaths = index.categories.map((c) => `/registry/${c.id}`);
+  const modulePaths = index.modules.map((m) => `/registry/${m.category}/${m.id}`);
+  return [...categoryPaths, ...modulePaths].toSorted((a, b) => a.localeCompare(b));
 }
 
 // OG image routes are deliberately not prerendered — they're rendered at
@@ -57,14 +61,14 @@ function listModulePaths(): string[] {
 // as a file vs `og/registry/...` as a directory).
 export function listPrerenderPages() {
   const docs = listDocsPaths();
-  const modules = listModulePaths();
+  const registry = listRegistryPaths();
   const paths = [
     "/",
     ...docs,
     ...docs.map((p) => `${p}.md`),
     "/docs/llms.txt",
     "/docs/llms-full.txt",
-    ...modules,
+    ...registry,
     "/stats",
   ];
   return paths.map((path) => ({ path, prerender: { enabled: true } }));

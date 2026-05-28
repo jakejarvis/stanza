@@ -18,6 +18,7 @@ import { Route as DocsLlmsDottxtRouteImport } from './routes/docs.llms[.]txt'
 import { Route as DocsLlmsFullDottxtRouteImport } from './routes/docs.llms-full[.]txt'
 import { Route as DocsSplatRouteImport } from './routes/docs.$'
 import { Route as ApiEventsRouteImport } from './routes/api.events'
+import { Route as RegistryCategoryIndexRouteImport } from './routes/registry.$category.index'
 import { Route as RegistryCategoryIdRouteImport } from './routes/registry.$category.$id'
 import { Route as OgDocsSplatRouteImport } from './routes/og.docs.$'
 import { Route as ApiSearchModulesRouteImport } from './routes/api.search.modules'
@@ -69,6 +70,11 @@ const ApiEventsRoute = ApiEventsRouteImport.update({
   path: '/api/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegistryCategoryIndexRoute = RegistryCategoryIndexRouteImport.update({
+  id: '/registry/$category/',
+  path: '/registry/$category/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegistryCategoryIdRoute = RegistryCategoryIdRouteImport.update({
   id: '/registry/$category/$id',
   path: '/registry/$category/$id',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/api/search/modules': typeof ApiSearchModulesRoute
   '/og/docs/$': typeof OgDocsSplatRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
+  '/registry/$category/': typeof RegistryCategoryIndexRoute
   '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/api/search/modules': typeof ApiSearchModulesRoute
   '/og/docs/$': typeof OgDocsSplatRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
+  '/registry/$category': typeof RegistryCategoryIndexRoute
   '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
 }
 export interface FileRoutesById {
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/api/search/modules': typeof ApiSearchModulesRoute
   '/og/docs/$': typeof OgDocsSplatRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
+  '/registry/$category/': typeof RegistryCategoryIndexRoute
   '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/search/modules'
     | '/og/docs/$'
     | '/registry/$category/$id'
+    | '/registry/$category/'
     | '/og/registry/$category/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/api/search/modules'
     | '/og/docs/$'
     | '/registry/$category/$id'
+    | '/registry/$category'
     | '/og/registry/$category/$id'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/api/search/modules'
     | '/og/docs/$'
     | '/registry/$category/$id'
+    | '/registry/$category/'
     | '/og/registry/$category/$id'
   fileRoutesById: FileRoutesById
 }
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   ApiSearchModulesRoute: typeof ApiSearchModulesRoute
   OgDocsSplatRoute: typeof OgDocsSplatRoute
   RegistryCategoryIdRoute: typeof RegistryCategoryIdRoute
+  RegistryCategoryIndexRoute: typeof RegistryCategoryIndexRoute
   OgRegistryCategoryIdRoute: typeof OgRegistryCategoryIdRoute
 }
 
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/registry/$category/': {
+      id: '/registry/$category/'
+      path: '/registry/$category'
+      fullPath: '/registry/$category/'
+      preLoaderRoute: typeof RegistryCategoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/registry/$category/$id': {
       id: '/registry/$category/$id'
       path: '/registry/$category/$id'
@@ -329,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSearchModulesRoute: ApiSearchModulesRoute,
   OgDocsSplatRoute: OgDocsSplatRoute,
   RegistryCategoryIdRoute: RegistryCategoryIdRoute,
+  RegistryCategoryIndexRoute: RegistryCategoryIndexRoute,
   OgRegistryCategoryIdRoute: OgRegistryCategoryIdRoute,
 }
 export const routeTree = rootRouteImport

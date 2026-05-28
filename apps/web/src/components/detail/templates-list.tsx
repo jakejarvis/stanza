@@ -18,7 +18,7 @@ export function TemplatesList({
 }) {
   if (templates.length === 0) return null;
   return (
-    <Section title="Templates">
+    <Section title="Templates" count={templates.length}>
       <SectionList>
         {templates.map((tpl) => (
           <TemplateRow key={tpl.dest} template={tpl} preview={previews[tpl.dest]} />

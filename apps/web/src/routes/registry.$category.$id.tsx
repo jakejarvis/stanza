@@ -5,9 +5,8 @@ import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-ro
 import { useCallback, useMemo } from "react";
 
 import { AdapterSwitcher } from "@/components/detail/adapter-switcher";
-import { DepsTable } from "@/components/detail/deps-table";
-import { EnvTable } from "@/components/detail/env-table";
 import { Install } from "@/components/detail/install";
+import { DepsTable, ScriptsTable, EnvTable } from "@/components/detail/tables";
 import { TemplatesList } from "@/components/detail/templates-list";
 import { ModuleLogo } from "@/components/module-logo";
 import { Badge } from "@/components/ui/badge";
@@ -153,7 +152,7 @@ function ModuleDetailPage() {
         <DepsTable title="Dependencies" entries={effective.dependencies} />
         <DepsTable title="Dev dependencies" entries={effective.devDependencies} />
         <EnvTable env={effective.env} />
-        <DepsTable title="Scripts" entries={effective.scripts} />
+        <ScriptsTable entries={effective.scripts} />
         <TemplatesList templates={templates} previews={previews} />
         <Install name="my-app" selections={selections} />
       </div>
