@@ -217,7 +217,7 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
         aria-label="Open search dialog"
         className="gap-2 bg-background px-2 text-muted-foreground hover:bg-muted hover:text-foreground sm:min-w-[180px] sm:px-2.5"
       >
-        <IconSearch data-icon="inline-start" aria-hidden />
+        <IconSearch data-icon="inline-start" aria-hidden="true" />
         <span className="hidden flex-1 text-left text-[13px] font-normal sm:inline">Search…</span>
         <Kbd className="ml-2 hidden sm:inline">{hotkeyLabel}</Kbd>
       </Button>
@@ -230,7 +230,7 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center gap-2 border-b px-3">
-            <IconSearch className="size-4 shrink-0 opacity-50" aria-hidden />
+            <IconSearch className="size-4 shrink-0 opacity-50" aria-hidden="true" />
             <input
               autoFocus={!isTouchDevice}
               type="search"
@@ -241,34 +241,62 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
               aria-label="Search docs and modules"
               autoComplete="off"
               spellCheck={false}
+              inputMode="search"
+              enterKeyHint="search"
+              role="combobox"
+              aria-expanded
+              aria-controls="site-search-listbox"
+              aria-autocomplete="list"
+              aria-activedescendant={
+                flat.length > 0 ? `site-search-option-${activeIndex}` : undefined
+              }
               className="h-10 w-full bg-transparent text-xs outline-none placeholder:text-muted-foreground"
             />
           </div>
           <div
             ref={listRef}
+            id="site-search-listbox"
+            role="listbox"
+            aria-label="Search results"
             className="max-h-72 overflow-x-hidden overflow-y-auto overscroll-contain p-1"
           >
             {flat.length === 0 ? (
-              <div className="py-6 text-center text-xs text-muted-foreground">No results.</div>
+              <div
+                role="status"
+                aria-live="polite"
+                className="py-6 text-center text-xs text-muted-foreground"
+              >
+                No results.
+              </div>
             ) : (
-              groups.map((group) => (
-                <div key={group.key} className="overflow-hidden">
-                  <div className="px-2 py-1.5 text-xs text-muted-foreground">{group.label}</div>
-                  {group.hits.map((hit) => {
-                    const i = flatIndex++;
-                    return (
-                      <SearchRow
-                        key={hitKey(hit, i)}
-                        hit={hit}
-                        index={i}
-                        active={i === activeIndex}
-                        onSelect={select}
-                        onActivate={setActiveIndex}
-                      />
-                    );
-                  })}
-                </div>
-              ))
+              groups.map((group) => {
+                const groupHeadingId = `site-search-group-${group.key}`;
+                return (
+                  <div
+                    key={group.key}
+                    role="group"
+                    aria-labelledby={groupHeadingId}
+                    className="overflow-hidden"
+                  >
+                    <div id={groupHeadingId} className="px-2 py-1.5 text-xs text-muted-foreground">
+                      {group.label}
+                    </div>
+                    {group.hits.map((hit) => {
+                      const i = flatIndex++;
+                      return (
+                        <SearchRow
+                          key={hitKey(hit, i)}
+                          hit={hit}
+                          index={i}
+                          active={i === activeIndex}
+                          onSelect={select}
+                          onActivate={setActiveIndex}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })
             )}
           </div>
         </DialogContent>
@@ -343,6 +371,9 @@ function SearchRow({
     <button
       type="button"
       tabIndex={-1}
+      id={`site-search-option-${index}`}
+      role="option"
+      aria-selected={active}
       data-index={index}
       data-selected={active || undefined}
       onClick={handleSelect}
@@ -369,7 +400,7 @@ function RowContent({ hit }: { hit: Hit }) {
   return (
     <>
       <span
-        aria-hidden
+        aria-hidden="true"
         className="flex size-5 shrink-0 items-center justify-center text-muted-foreground"
       >
         <IconBookmark className="size-3.5" />
@@ -379,7 +410,6 @@ function RowContent({ hit }: { hit: Hit }) {
         {hit.item.excerptHtml ? (
           <div
             className="truncate text-[11px] text-muted-foreground [&_mark]:bg-yellow-200/60 [&_mark]:px-0.5 [&_mark]:text-foreground dark:[&_mark]:bg-yellow-500/30"
-            // oxlint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: hit.item.excerptHtml }}
           />
         ) : hit.item.description ? (

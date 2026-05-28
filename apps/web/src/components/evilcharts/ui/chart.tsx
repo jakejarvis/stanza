@@ -3,6 +3,7 @@
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -138,10 +139,14 @@ function LoadingIndicator({ isLoading }: { isLoading: boolean }) {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+    >
       <div className="flex items-center justify-center gap-2 rounded-md border bg-background px-2 py-0.5 text-sm text-primary">
-        <div className="h-3 w-3 animate-spin rounded-full border border-border border-t-primary" />
-        <span>Loading</span>
+        <Spinner className="size-3" aria-hidden="true" />
+        <span>Loading…</span>
       </div>
     </div>
   );
@@ -243,8 +248,12 @@ export function getPayloadConfigFromPayload(config: ChartConfig, payload: unknow
 }
 
 // Format values to percent for expanded charts
+const percentFormatter = new Intl.NumberFormat(undefined, {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
 function axisValueToPercentFormatter(value: number) {
-  return `${Math.round(value * 100).toFixed(0)}%`;
+  return percentFormatter.format(value);
 }
 
 // Pick the first string/number candidate as a series key, falling back to "value".

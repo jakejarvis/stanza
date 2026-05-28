@@ -3,18 +3,20 @@ import {
   IconInfoCircle,
   IconAlertTriangle,
   IconAlertOctagon,
-  IconLoader,
+  IconLoader2,
 } from "@tabler/icons-react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 import { useTheme } from "@/components/theme-provider";
 
 const ICONS = {
-  success: <IconCircleCheck className="size-4" />,
-  info: <IconInfoCircle className="size-4" />,
-  warning: <IconAlertTriangle className="size-4" />,
-  error: <IconAlertOctagon className="size-4" />,
-  loading: <IconLoader className="size-4 animate-spin" />,
+  success: <IconCircleCheck aria-hidden="true" className="size-4" />,
+  info: <IconInfoCircle aria-hidden="true" className="size-4" />,
+  warning: <IconAlertTriangle aria-hidden="true" className="size-4" />,
+  error: <IconAlertOctagon aria-hidden="true" className="size-4" />,
+  loading: (
+    <IconLoader2 aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" />
+  ),
 };
 
 // CSS custom properties aren't representable in React.CSSProperties (csstype

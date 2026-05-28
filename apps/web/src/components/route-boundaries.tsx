@@ -50,11 +50,11 @@ export function RouteErrorBoundary({ error }: ErrorComponentProps) {
           variant="default"
           size="sm"
         >
-          <IconRefresh data-icon="inline-start" />
+          <IconRefresh aria-hidden="true" data-icon="inline-start" />
           Try again
         </Button>
         <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
-          <IconHome data-icon="inline-start" />
+          <IconHome aria-hidden="true" data-icon="inline-start" />
           Return home
         </Button>
       </CenteredMessage>
@@ -74,7 +74,7 @@ export function RouteNotFoundBoundary() {
       description="We couldn’t find that page. It may have moved, or the URL might be wrong."
     >
       <Button render={<Link to="/" />} nativeButton={false} variant="outline" size="sm">
-        <IconHome data-icon="inline-start" />
+        <IconHome aria-hidden="true" data-icon="inline-start" />
         Return home
       </Button>
     </CenteredMessage>

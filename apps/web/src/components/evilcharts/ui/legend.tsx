@@ -74,25 +74,36 @@ function ChartLegendContent({
           // Get colors count for this item to determine gradient vs solid
           const colorsCount = itemConfig ? getColorsCount(itemConfig) : 1;
 
+          const itemClassName = cn(
+            "flex items-center gap-1.5 transition-opacity motion-reduce:transition-none [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
+            !isSelected && "opacity-30",
+          );
+          const indicator =
+            itemConfig?.icon && !hideIcon ? (
+              <itemConfig.icon />
+            ) : (
+              <LegendIndicator variant={variant} dataKey={key} colorsCount={colorsCount} />
+            );
+          if (isClickable) {
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={selected === key}
+                onClick={() => onSelectChange?.(selected === key ? null : key)}
+                className={cn(
+                  itemClassName,
+                  "cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                )}
+              >
+                {indicator}
+                {itemConfig?.label}
+              </button>
+            );
+          }
           return (
-            <div
-              key={key}
-              className={cn(
-                "flex items-center gap-1.5 transition-opacity [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
-                !isSelected && "opacity-30",
-                isClickable && "cursor-pointer",
-              )}
-              onClick={() => {
-                if (!isClickable) return;
-
-                onSelectChange?.(selected === key ? null : key);
-              }}
-            >
-              {itemConfig?.icon && !hideIcon ? (
-                <itemConfig.icon />
-              ) : (
-                <LegendIndicator variant={variant} dataKey={key} colorsCount={colorsCount} />
-              )}
+            <div key={key} className={itemClassName}>
+              {indicator}
               {itemConfig?.label}
             </div>
           );
@@ -120,26 +131,44 @@ function LegendIndicator({
 
   switch (variant) {
     case "square":
-      return <div className="h-2 w-2 shrink-0" style={fillStyle} />;
+      return <div aria-hidden="true" className="h-2 w-2 shrink-0" style={fillStyle} />;
 
     case "circle":
-      return <div className="h-2 w-2 shrink-0 rounded-full" style={fillStyle} />;
+      return <div aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={fillStyle} />;
 
     case "circle-outline":
-      return <div className="h-2.5 w-2.5 shrink-0 rounded-full p-[1.5px]" style={outlineStyle} />;
+      return (
+        <div
+          aria-hidden="true"
+          className="h-2.5 w-2.5 shrink-0 rounded-full p-[1.5px]"
+          style={outlineStyle}
+        />
+      );
 
     case "vertical-bar":
-      return <div className="h-3 w-1 shrink-0 rounded-[2px]" style={fillStyle} />;
+      return (
+        <div aria-hidden="true" className="h-3 w-1 shrink-0 rounded-[2px]" style={fillStyle} />
+      );
 
     case "horizontal-bar":
-      return <div className="h-1 w-3 shrink-0 rounded-[2px]" style={fillStyle} />;
+      return (
+        <div aria-hidden="true" className="h-1 w-3 shrink-0 rounded-[2px]" style={fillStyle} />
+      );
 
     case "rounded-square-outline":
-      return <div className="h-2.5 w-2.5 shrink-0 rounded-[3px] p-[1.5px]" style={outlineStyle} />;
+      return (
+        <div
+          aria-hidden="true"
+          className="h-2.5 w-2.5 shrink-0 rounded-[3px] p-[1.5px]"
+          style={outlineStyle}
+        />
+      );
 
     case "rounded-square":
     default:
-      return <div className="h-2 w-2 shrink-0 rounded-[2px]" style={fillStyle} />;
+      return (
+        <div aria-hidden="true" className="h-2 w-2 shrink-0 rounded-[2px]" style={fillStyle} />
+      );
   }
 }
 

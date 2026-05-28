@@ -17,7 +17,7 @@ export function Footer() {
           </a>
           .
         </p>
-        <nav className="flex items-center gap-5">
+        <nav aria-label="Footer" className="flex items-center gap-5">
           <span>v{__APP_VERSION__ ?? "0.0.0"}</span>
           <Link to="/docs/$" params={{ _splat: "" }} className="hover:text-foreground">
             Docs
@@ -32,7 +32,7 @@ export function Footer() {
             rel="noopener noreferrer"
           >
             GitHub
-            <IconExternalLink className="size-3" aria-hidden />
+            <IconExternalLink className="size-3" aria-hidden="true" />
           </a>
         </nav>
       </div>

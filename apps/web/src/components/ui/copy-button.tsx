@@ -69,25 +69,30 @@ function CopyButton({
   );
 
   return (
-    <Button
-      type="button"
-      variant={variant}
-      size={buttonSize}
-      disabled={disabled}
-      aria-label={copied ? copiedLabel : copyLabel}
-      className={cn("shrink-0", copied && "cursor-default", className)}
-      onClick={(event) => {
-        void handleClick(event);
-      }}
-      {...props}
-    >
-      {copied ? (
-        <IconCheck aria-hidden="true" data-icon={showLabel ? "inline-start" : undefined} />
-      ) : (
-        <IconCopy aria-hidden="true" data-icon={showLabel ? "inline-start" : undefined} />
-      )}
-      {showLabel && <span>{copied ? copiedLabel : copyLabel}</span>}
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant={variant}
+        size={buttonSize}
+        disabled={disabled}
+        aria-label={copied ? copiedLabel : copyLabel}
+        className={cn("shrink-0", copied && "cursor-default", className)}
+        onClick={(event) => {
+          void handleClick(event);
+        }}
+        {...props}
+      >
+        {copied ? (
+          <IconCheck aria-hidden="true" data-icon={showLabel ? "inline-start" : undefined} />
+        ) : (
+          <IconCopy aria-hidden="true" data-icon={showLabel ? "inline-start" : undefined} />
+        )}
+        {showLabel && <span>{copied ? copiedLabel : copyLabel}</span>}
+      </Button>
+      <span aria-live="polite" className="sr-only">
+        {copied ? copiedLabel : ""}
+      </span>
+    </>
   );
 }
 

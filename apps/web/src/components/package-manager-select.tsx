@@ -13,7 +13,7 @@ import { isPackageManager, PACKAGE_MANAGERS, type PackageManager } from "@/lib/p
 
 function NpmLogo(props: ComponentProps<"svg">) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden {...props}>
+    <svg viewBox="0 0 32 32" aria-hidden="true" {...props}>
       <path fill="#e53935" d="M4 4v24h24V4Zm20 20h-4V12h-4v12H8V8h16Z" />
     </svg>
   );
@@ -21,7 +21,7 @@ function NpmLogo(props: ComponentProps<"svg">) {
 
 function PnpmLogo(props: ComponentProps<"svg">) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden {...props}>
+    <svg viewBox="0 0 32 32" aria-hidden="true" {...props}>
       <path
         fill="#757575"
         d="M2 22h8v8H2zm10 0h8v8h-8zm10 0h8v8h-8zM12 12h8v8h-8z"
@@ -34,7 +34,7 @@ function PnpmLogo(props: ComponentProps<"svg">) {
 
 function BunLogo(props: ComponentProps<"svg">) {
   return (
-    <svg viewBox="0 0 32 32" aria-hidden {...props}>
+    <svg viewBox="0 0 32 32" aria-hidden="true" {...props}>
       <path
         fill="#fff8e1"
         d="M15.696 27.002a13.73 13.73 0 0 1-9.071-3.062a8.86 8.86 0 0 1-3.6-6.505c-.252-5.091 3.813-7.747 8.748-10.455c.28-.165.537-.322.793-.48a7.8 7.8 0 0 1 3.52-1.5a2 2 0 0 1 .695.118a14.8 14.8 0 0 1 2.95 1.576c.972.6 2.182 1.348 3.707 2.173a10.14 10.14 0 0 1 5.274 6.147A8.8 8.8 0 0 1 29 17.035a8.15 8.15 0 0 1-2.525 5.959a15.6 15.6 0 0 1-10.778 4.008Z"
@@ -72,13 +72,14 @@ export function PackageManagerSelect({
   value: PackageManager;
   onValueChange: (pm: PackageManager) => void;
 }) {
+  const activeLabel = PACKAGE_MANAGERS.find((pm) => pm.id === value)?.label ?? value;
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" aria-label="Package manager">
+          <Button variant="outline" aria-label={`Package manager: ${activeLabel}`}>
             {PM_LOGOS[value]}
-            <IconChevronDown className="size-3 opacity-60" aria-hidden />
+            <IconChevronDown className="size-3 opacity-60" aria-hidden="true" />
           </Button>
         }
       />

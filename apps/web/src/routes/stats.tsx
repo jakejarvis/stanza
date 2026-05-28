@@ -25,8 +25,8 @@ export const Route = createFileRoute("/stats")({
   component: StatsPage,
 });
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-const percentFormatter = new Intl.NumberFormat("en-US", {
+const numberFormatter = new Intl.NumberFormat();
+const percentFormatter = new Intl.NumberFormat(undefined, {
   style: "percent",
   maximumFractionDigits: 0,
 });
@@ -34,7 +34,7 @@ const percentFormatter = new Intl.NumberFormat("en-US", {
 function formatGeneratedAt(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString("en-US", {
+  return date.toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: "UTC",
@@ -113,7 +113,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent>
             <div className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              <NumberFlow value={stats?.projectsScaffolded ?? 0} locales="en-US" />
+              <NumberFlow value={stats?.projectsScaffolded ?? 0} />
             </div>
           </CardContent>
         </Card>
@@ -125,7 +125,7 @@ function StatsPage() {
           </CardHeader>
           <CardContent>
             <div className="font-mono text-4xl font-medium tracking-tight tabular-nums">
-              <NumberFlow value={stats?.modulesInstalled ?? 0} locales="en-US" />
+              <NumberFlow value={stats?.modulesInstalled ?? 0} />
             </div>
           </CardContent>
         </Card>
@@ -135,20 +135,21 @@ function StatsPage() {
         <Card className="gap-2 pb-2">
           <CardHeader>
             <CardTitle className="text-xs font-medium tracking-wider text-foreground/80 uppercase">
-              CLI runs <span className="text-muted-foreground">&middot; last 30 days</span>
+              CLI runs{" "}
+              <span className="text-muted-foreground">&middot; last&nbsp;30&nbsp;days</span>
             </CardTitle>
             <CardAction className="font-mono text-xs text-muted-foreground tabular-nums">
               {stats ? (
                 <span className="font-mono text-xs text-muted-foreground tabular-nums">
                   {activitySum > 0
-                    ? `${numberFormatter.format(activitySum)} total`
+                    ? `${numberFormatter.format(activitySum)} total`
                     : "No runs yet."}
                 </span>
               ) : null}
             </CardAction>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<div aria-hidden className="h-24 w-full" />}>
+            <Suspense fallback={<div aria-hidden="true" className="h-24 w-full" />}>
               <ActivityChart activity30d={stats?.activity30d ?? []} isLoading={stats === null} />
             </Suspense>
           </CardContent>
@@ -156,7 +157,9 @@ function StatsPage() {
       </section>
 
       <section className="mb-8">
-        <h2 className="mb-4 text-lg font-medium tracking-tight">Popular modules by category</h2>
+        <h2 className="mb-4 text-lg font-medium tracking-tight text-balance">
+          Popular modules by category
+        </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {KNOWN_CATEGORIES.map((category) => {
             const entries = stats?.perCategory[category] ?? [];
@@ -195,7 +198,7 @@ function StatsPage() {
       </section>
 
       <section id="telemetry" className="scroll-mt-20">
-        <h2 className="mb-4 text-lg font-medium tracking-tight">Telemetry policy</h2>
+        <h2 className="mb-4 text-lg font-medium tracking-tight text-balance">Telemetry policy</h2>
         <div className="grid gap-4 sm:grid-cols-2">
           <Card size="sm">
             <CardHeader className="pb-1">
@@ -224,7 +227,8 @@ function StatsPage() {
                 <li>Your IP address (PostHog ingest is server-proxied).</li>
                 <li>Any persistent identifier — the process UUID is discarded on exit.</li>
                 <li>
-                  Anything from CI runs (telemetry auto-skips when <code>CI</code> is set).
+                  Anything from CI runs (telemetry auto-skips when <code translate="no">CI</code> is
+                  set).
                 </li>
               </ul>
             </CardContent>
@@ -232,8 +236,9 @@ function StatsPage() {
         </div>
         <p className="mt-4 text-xs leading-5 text-muted-foreground">
           <strong className="font-medium text-foreground">Opt out</strong> per-invocation with{" "}
-          <code>--no-telemetry</code>, or permanently with <code>STANZA_TELEMETRY=0</code> or{" "}
-          <code>DO_NOT_TRACK=1</code>. Learn more in the{" "}
+          <code translate="no">--no-telemetry</code>, or permanently with{" "}
+          <code translate="no">STANZA_TELEMETRY=0</code> or{" "}
+          <code translate="no">DO_NOT_TRACK=1</code>. Learn more in the{" "}
           <Link
             to="/docs/$"
             params={{ _splat: "cli" }}

@@ -110,7 +110,7 @@ function ModuleSection({
           const result = resolveAdapter(m, { manifest: RESOLVER_MANIFEST, pending });
           const disabled = !result.ok;
           const selected = Boolean(selectedIds?.includes(m.id));
-          const reason = !result.ok ? describeError(result.error) : undefined;
+          const reason = !result.ok ? describeError(result.error, pending) : undefined;
           return (
             <ModuleCard
               key={m.id}
@@ -197,13 +197,13 @@ const ModuleCard = memo(function ModuleCard({
                     />
                   }
                 >
-                  <IconInfoCircle className="size-3.5" aria-hidden />
+                  <IconInfoCircle className="size-3.5" aria-hidden="true" />
                 </TooltipTrigger>
                 <TooltipContent sideOffset={8}>View details</TooltipContent>
               </Tooltip>
             </div>
             {selected && (
-              <IconCheck className="mr-0.5 size-4 shrink-0 text-foreground" aria-hidden />
+              <IconCheck className="mr-0.5 size-4 shrink-0 text-foreground" aria-hidden="true" />
             )}
           </div>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{m.description}</p>
@@ -227,12 +227,17 @@ const ModuleCard = memo(function ModuleCard({
   );
 });
 
-function describeError(error: ResolveError): string {
+function describeError(
+  error: ResolveError,
+  pending: Partial<Record<CategoryId, ModuleMetadata>>,
+): string {
   switch (error.kind) {
     case "missing-peer":
       return `Pick a ${categoryLabel(error.category)} module first.`;
-    case "incompatible-peer":
-      return `Not compatible with ${error.peer} (${categoryLabel(error.category)}).`;
+    case "incompatible-peer": {
+      const peerLabel = pending[error.category]?.label ?? error.peer;
+      return `Not compatible with ${peerLabel} (${categoryLabel(error.category)}).`;
+    }
     case "no-adapter":
       return "Not compatible with your current stack.";
     default:

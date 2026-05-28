@@ -14,7 +14,7 @@ type ActivityChartProps = {
   isLoading: boolean;
 };
 
-const dayLabelFormatter = new Intl.DateTimeFormat("en-US", {
+const dayLabelFormatter = new Intl.DateTimeFormat(undefined, {
   month: "short",
   day: "numeric",
   timeZone: "UTC",
@@ -49,19 +49,21 @@ export default function ActivityChart({ activity30d, isLoading }: ActivityChartP
   }));
 
   return (
-    <EvilAreaChart
-      data={data}
-      config={activityConfig}
-      className="aspect-auto h-24 w-full"
-      curveType="monotone"
-      animationType="left-to-right"
-      isLoading={isLoading}
-    >
-      <XAxis dataKey="day" hide />
-      <Tooltip cursor={false} />
-      <Area dataKey="count" variant="gradient" strokeVariant="solid">
-        <ActiveDot variant="colored-border" />
-      </Area>
-    </EvilAreaChart>
+    <div role="img" aria-label="CLI runs per day over the last 30 days">
+      <EvilAreaChart
+        data={data}
+        config={activityConfig}
+        className="aspect-auto h-24 w-full"
+        curveType="monotone"
+        animationType="left-to-right"
+        isLoading={isLoading}
+      >
+        <XAxis dataKey="day" hide />
+        <Tooltip cursor={false} />
+        <Area dataKey="count" variant="gradient" strokeVariant="solid">
+          <ActiveDot variant="colored-border" />
+        </Area>
+      </EvilAreaChart>
+    </div>
   );
 }

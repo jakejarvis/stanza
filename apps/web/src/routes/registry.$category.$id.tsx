@@ -1,6 +1,6 @@
 import type { CategoryId } from "@stanza/registry";
 import { categoryLabel, KNOWN_CATEGORIES, PEER_CATEGORIES } from "@stanza/registry";
-import { IconExternalLink } from "@tabler/icons-react";
+import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo } from "react";
 
@@ -104,9 +104,10 @@ function ModuleDetailPage() {
       <div className="mb-6">
         <Link
           to="/"
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          ← Back to builder
+          <IconArrowLeft className="size-3" aria-hidden="true" />
+          Back to builder
         </Link>
       </div>
 
@@ -114,23 +115,30 @@ function ModuleDetailPage() {
         <ModuleLogo logo={module.logo} label={module.label} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-medium tracking-tight">{module.label}</h1>
+            <h1 className="text-2xl font-medium tracking-tight text-balance" translate="no">
+              {module.label}
+            </h1>
             <Badge variant="default">{categoryLabel(module.category)}</Badge>
           </div>
-          <p className="mt-1.5 text-sm text-muted-foreground">{module.description}</p>
+          <p className="mt-1.5 text-sm text-pretty text-muted-foreground">{module.description}</p>
           <div className="mt-3 flex flex-wrap gap-3 text-xs">
             {module.homepage && (
               <a
                 href={module.homepage}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="Website (opens in new tab)"
                 className="inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 Website
-                <IconExternalLink className="size-3" aria-hidden />
+                <IconExternalLink className="size-3" aria-hidden="true" />
               </a>
             )}
-            {module.author && <span className="text-muted-foreground">by {module.author}</span>}
+            {module.author && (
+              <span className="text-muted-foreground">
+                by <span translate="no">{module.author}</span>
+              </span>
+            )}
           </div>
         </div>
       </header>
@@ -150,7 +158,7 @@ function ModuleDetailPage() {
       <div className="space-y-8">
         <h2 className="sr-only">Module details</h2>
         <DepsTable title="Dependencies" entries={effective.dependencies} />
-        <DepsTable title="Dev dependencies" entries={effective.devDependencies} />
+        <DepsTable title="Dev Dependencies" entries={effective.devDependencies} />
         <EnvTable env={effective.env} />
         <ScriptsTable entries={effective.scripts} />
         <TemplatesList templates={templates} previews={previews} />

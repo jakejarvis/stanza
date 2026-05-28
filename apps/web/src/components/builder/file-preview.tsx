@@ -1,6 +1,5 @@
 import { themeToTreeStyles } from "@pierre/trees";
 import { FileTree, useFileTree } from "@pierre/trees/react";
-import { IconLoader2 } from "@tabler/icons-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -9,6 +8,7 @@ import { FILE_TREE_ICONS } from "@/components/builder/file-tree-icons";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "@/components/ui/card";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Spinner } from "@/components/ui/spinner";
 import { useGracePeriod } from "@/hooks/use-grace-period";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Preview } from "@/server/highlighter";
@@ -243,9 +243,9 @@ export function FilePreview({
           <div
             role="status"
             aria-live="polite"
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/50 backdrop-blur-[1px] transition-opacity duration-150"
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-card/50 backdrop-blur-[1px]"
           >
-            <IconLoader2 className="size-5 animate-spin text-muted-foreground" aria-hidden />
+            <Spinner className="size-5 text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">Loading…</span>
           </div>
         ) : null}
@@ -278,14 +278,14 @@ function PreviewPane({
   if (!preview || !path) {
     return (
       <div className="flex h-full items-center justify-center px-6 py-10 text-sm text-muted-foreground">
-        Pick a file to preview
+        Pick a file to preview.
       </div>
     );
   }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border bg-muted/20 px-4 py-2 font-mono text-[11px] text-muted-foreground">
+      <div className="truncate overflow-hidden border-b border-border bg-muted/20 px-4 py-2 font-mono text-[11px] text-muted-foreground">
         {path}
       </div>
       <div

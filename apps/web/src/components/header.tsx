@@ -16,7 +16,6 @@ export function Header() {
         <div className="flex items-center gap-5">
           <Link to="/" aria-label="Stanza" className="mr-1">
             <Logo className="size-6" />
-            <span className="sr-only">Stanza</span>
           </Link>
           <Link
             to="/docs/$"
@@ -47,8 +46,7 @@ export function Header() {
             variant="outline"
             size="icon"
           >
-            <IconBrandGithub className="text-muted-foreground" aria-hidden />
-            <span className="sr-only">GitHub</span>
+            <IconBrandGithub className="text-muted-foreground" aria-hidden="true" />
           </Button>
           <ThemeToggle />
         </div>

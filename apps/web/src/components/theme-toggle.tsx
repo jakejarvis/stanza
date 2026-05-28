@@ -20,24 +20,29 @@ export function ThemeToggle() {
       <DropdownMenuTrigger
         render={
           <Button variant="outline" size="icon" aria-label="Toggle theme">
-            <IconSun className="scale-100 rotate-0 text-muted-foreground transition-transform dark:scale-0 dark:-rotate-90" />
-            <IconMoon className="absolute scale-0 rotate-90 text-muted-foreground transition-transform dark:scale-100 dark:rotate-0" />
-            <span className="sr-only">Toggle theme</span>
+            <IconSun
+              aria-hidden="true"
+              className="scale-100 rotate-0 text-muted-foreground transition-transform motion-reduce:transition-none dark:scale-0 dark:-rotate-90"
+            />
+            <IconMoon
+              aria-hidden="true"
+              className="absolute scale-0 rotate-90 text-muted-foreground transition-transform motion-reduce:transition-none dark:scale-100 dark:rotate-0"
+            />
           </Button>
         }
       />
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
           <DropdownMenuRadioItem value="light" closeOnClick className="cursor-pointer">
-            <IconSun className="text-muted-foreground" />
+            <IconSun aria-hidden="true" className="text-muted-foreground" />
             Light
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark" closeOnClick className="cursor-pointer">
-            <IconMoon className="text-muted-foreground" />
+            <IconMoon aria-hidden="true" className="text-muted-foreground" />
             Dark
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system" closeOnClick className="cursor-pointer">
-            <IconDeviceLaptop className="text-muted-foreground" />
+            <IconDeviceLaptop aria-hidden="true" className="text-muted-foreground" />
             System
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>

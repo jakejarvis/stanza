@@ -45,7 +45,11 @@ export function BarList({ data, emptyMessage = "No data yet.", className }: BarL
 
   if (data.length === 0) {
     return (
-      <p className={cn("py-2 text-xs/relaxed text-muted-foreground/70", className)}>
+      <p
+        role="status"
+        aria-live="polite"
+        className={cn("py-2 text-xs/relaxed text-muted-foreground/70", className)}
+      >
         {emptyMessage}
       </p>
     );
@@ -58,19 +62,19 @@ export function BarList({ data, emptyMessage = "No data yet.", className }: BarL
         return (
           <li key={entry.name} className="group/row relative h-7 overflow-hidden">
             <div
-              aria-hidden
+              aria-hidden="true"
               className={cn(
-                "absolute inset-y-0 left-0 bg-gradient-to-r from-muted via-muted/70 to-muted/30 transition-[width] duration-700 ease-out",
+                "absolute inset-y-0 left-0 w-full origin-left bg-gradient-to-r from-muted via-muted/70 to-muted/30 transition-transform duration-700 ease-out motion-reduce:transition-none",
                 "group-hover/row:from-foreground/20 group-hover/row:via-foreground/12 group-hover/row:to-foreground/5",
               )}
               style={{
-                width: mounted ? `${pct}%` : 0,
+                transform: `scaleX(${mounted ? pct / 100 : 0})`,
                 transitionDelay: `${Math.min(idx * 40, 240)}ms`,
               }}
             >
               <div
-                aria-hidden
-                className="absolute inset-0 bg-[image:repeating-linear-gradient(135deg,currentColor_0_1px,transparent_1px_5px)] text-foreground opacity-[0.07] transition-opacity duration-300 group-hover/row:opacity-[0.14]"
+                aria-hidden="true"
+                className="absolute inset-0 bg-[image:repeating-linear-gradient(135deg,currentColor_0_1px,transparent_1px_5px)] text-foreground opacity-[0.07] transition-opacity duration-300 group-hover/row:opacity-[0.14] motion-reduce:transition-none"
               />
             </div>
             <div className="relative flex h-full items-center justify-between gap-3 px-2 text-xs">
@@ -79,7 +83,7 @@ export function BarList({ data, emptyMessage = "No data yet.", className }: BarL
                 {entry.href ? (
                   <a
                     href={entry.href}
-                    className="truncate font-medium text-foreground after:absolute after:inset-0 hover:underline"
+                    className="truncate font-medium text-foreground after:absolute after:inset-0 hover:underline focus-visible:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   >
                     {entry.name}
                   </a>

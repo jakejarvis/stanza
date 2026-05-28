@@ -37,26 +37,28 @@ function TemplateRow({
 }) {
   const [open, setOpen] = useState(false);
   const hasPreview = Boolean(preview);
+  const previewId = `template-preview-${template.dest.replaceAll(/[^a-zA-Z0-9_-]/g, "-")}`;
   return (
     <li>
       <button
         type="button"
         onClick={() => hasPreview && setOpen((o) => !o)}
         disabled={!hasPreview}
-        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left font-mono text-xs transition-colors hover:bg-muted/40 disabled:cursor-default disabled:hover:bg-transparent"
-        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left font-mono text-xs transition-colors hover:bg-muted/40 disabled:cursor-default disabled:text-foreground/70 disabled:hover:bg-transparent"
+        aria-expanded={hasPreview ? open : undefined}
+        aria-controls={hasPreview ? previewId : undefined}
       >
         <span className="truncate text-foreground">{template.dest}</span>
         <span className="shrink-0 text-[10px] tracking-wider text-muted-foreground/60 uppercase">
           {scopeLabel(template.scope)}
         </span>
       </button>
-      {open && preview && <PreviewBlock preview={preview} />}
+      {open && preview && <PreviewBlock id={previewId} dest={template.dest} preview={preview} />}
     </li>
   );
 }
 
-function PreviewBlock({ preview }: { preview: Preview }) {
+function PreviewBlock({ id, dest, preview }: { id: string; dest: string; preview: Preview }) {
   const { resolvedTheme } = useTheme();
   const inner = useMemo(
     () => ({ __html: resolvedTheme === "dark" ? preview.dark : preview.light }),
@@ -64,6 +66,9 @@ function PreviewBlock({ preview }: { preview: Preview }) {
   );
   return (
     <div
+      id={id}
+      role="region"
+      aria-label={`Preview of ${dest}`}
       className="overflow-auto border-t border-border pt-4 text-xs leading-relaxed [&_pre]:bg-transparent! [&_pre]:p-0!"
       dangerouslySetInnerHTML={inner}
     />

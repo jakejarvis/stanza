@@ -22,8 +22,9 @@ function NavLink({ url, name, pathname }: { url: string; name: ReactNode; pathna
       <Link
         to="/docs/$"
         params={{ _splat: toSplat(url) }}
+        aria-current={active ? "page" : undefined}
         className={cn(
-          "block rounded px-2 py-1 text-muted-foreground transition-colors hover:text-foreground",
+          "block rounded px-2 py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           active && "bg-accent font-medium text-accent-foreground",
         )}
       >
@@ -83,17 +84,22 @@ export function DocsSidebar({ tree }: { tree: Root }) {
       <details className="group my-4 md:hidden">
         <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent [&::-webkit-details-marker]:hidden">
           Documentation
-          <IconChevronRight className="size-4 text-muted-foreground transition-transform group-open:rotate-90" />
+          <IconChevronRight
+            aria-hidden="true"
+            className="size-4 text-muted-foreground transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none"
+          />
         </summary>
         <div className="mt-2 border-t border-border pt-2">{list}</div>
       </details>
 
-      {/* Desktop: sticky left rail aligned to the page frame. */}
-      <aside className="hidden w-56 shrink-0 md:block">
+      {/* Desktop: sticky left rail aligned to the page frame. The mobile
+       * disclosure above intentionally has no landmark — the desktop nav
+       * is the canonical landmark, hidden via CSS on small screens. */}
+      <nav aria-label="Documentation" className="hidden w-56 shrink-0 md:block">
         <div className="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto py-8 pr-4">
           {list}
         </div>
-      </aside>
+      </nav>
     </>
   );
 }

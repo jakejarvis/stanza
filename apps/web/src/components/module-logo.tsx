@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 function InlineSvg({ html, className }: { html: string; className: string }) {
   const inner = useMemo(() => ({ __html: html }), [html]);
-  return <div aria-hidden className={className} dangerouslySetInnerHTML={inner} />;
+  return <div aria-hidden="true" className={className} dangerouslySetInnerHTML={inner} />;
 }
 
 /**
@@ -33,7 +33,7 @@ export function ModuleLogo({
   if (!logo) {
     return (
       <div
-        aria-hidden
+        aria-hidden="true"
         className={cn(
           "flex shrink-0 items-center justify-center rounded-none border border-border bg-muted/40 font-semibold text-muted-foreground",
           sizeClass,

@@ -79,7 +79,7 @@ function ChartTooltipContent({
 
   if (!active || !payload?.length) {
     // Empty tooltip - to prevent position getting 0.0 so it doesnt animate tooltip every time from 0.0 origin
-    return <span className="p-4" />;
+    return <span aria-hidden="true" className="p-4" />;
   }
 
   const nestLabel = payload.length === 1 && indicator !== "dot";
@@ -132,6 +132,7 @@ function ChartTooltipContent({
                     ) : (
                       !hideIndicator && (
                         <div
+                          aria-hidden="true"
                           className={cn("shrink-0 rounded-[2px]", {
                             "h-2.5 w-2.5": indicator === "dot",
                             "w-1": indicator === "line",

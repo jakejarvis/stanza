@@ -47,15 +47,20 @@ export function AdapterSwitcher({
     <div className="space-y-3">
       {switchable.map(([slot, options]) => {
         const active = resolvedPeers[slot];
+        const labelId = `adapter-switcher-${slot}`;
         return (
           <div key={slot} className="flex flex-wrap items-center gap-2">
-            <span className="w-20 shrink-0 text-[13px] font-medium tracking-tight text-muted-foreground">
+            <span
+              id={labelId}
+              className="w-20 shrink-0 text-[13px] font-medium tracking-tight text-muted-foreground"
+            >
               {categoryLabel(slot)}
             </span>
             <ToggleGroup
               variant="outline"
               size="sm"
               spacing={0}
+              aria-labelledby={labelId}
               value={active ? [active] : []}
               onValueChange={(value: string[]) => {
                 const next = value[0];

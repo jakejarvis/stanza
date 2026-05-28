@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 const HOVER_QUERY = "(hover: hover)";
 const COARSE_POINTER_QUERY = "(pointer: coarse)";
@@ -11,29 +11,19 @@ type PointerCapability = {
   isTouchDevice: boolean;
 };
 
+/**
+ * Pointer-capability flags derived from `(hover)` + `(pointer)` media queries.
+ * Defaults assume desktop (hover-capable, fine pointer) so SSR + first
+ * hydration don't flag desktop users as touch; touch devices read the real
+ * values on the first client render via `useSyncExternalStore`.
+ */
 export function usePointerCapability(): PointerCapability {
-  const supportsHover = useMediaQuery(HOVER_QUERY);
-  const isCoarsePointer = useMediaQuery(COARSE_POINTER_QUERY);
+  const supportsHover = useMediaQuery(HOVER_QUERY, true);
+  const isCoarsePointer = useMediaQuery(COARSE_POINTER_QUERY, false);
 
   return {
-    supportsHover: supportsHover ?? false,
-    isCoarsePointer: isCoarsePointer ?? false,
-    isTouchDevice: supportsHover === false || isCoarsePointer === true,
+    supportsHover,
+    isCoarsePointer,
+    isTouchDevice: !supportsHover || isCoarsePointer,
   };
-}
-
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = React.useState<boolean>();
-
-  React.useEffect(() => {
-    const mediaQueryList = window.matchMedia(query);
-    const updateMatches = () => setMatches(mediaQueryList.matches);
-
-    updateMatches();
-    mediaQueryList.addEventListener("change", updateMatches);
-
-    return () => mediaQueryList.removeEventListener("change", updateMatches);
-  }, [query]);
-
-  return matches;
 }

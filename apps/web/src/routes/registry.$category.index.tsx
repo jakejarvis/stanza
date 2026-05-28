@@ -1,5 +1,6 @@
 import type { CategoryId } from "@stanza/registry";
 import { categoryLabel, isCategoryId } from "@stanza/registry";
+import { IconArrowLeft } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useLoaderData } from "@tanstack/react-router";
 import { useMemo } from "react";
 
@@ -61,23 +62,33 @@ function CategoryLandingPage() {
       <div className="mb-6">
         <Link
           to="/"
-          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          ← Back to builder
+          <IconArrowLeft className="size-3" aria-hidden="true" />
+          Back to builder
         </Link>
       </div>
 
       <header>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-medium tracking-tight">{label}</h1>
+          <h1 className="text-2xl font-medium tracking-tight text-balance">{label}</h1>
         </div>
-        <p className="mt-1.5 text-sm text-muted-foreground">{CATEGORY_BLURBS[category]}</p>
+        <p className="mt-1.5 text-sm text-pretty text-muted-foreground">
+          {CATEGORY_BLURBS[category]}
+        </p>
       </header>
 
       <Separator className="my-8" />
 
+      <h2 className="sr-only">Modules</h2>
       {modules.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No modules in this category yet.</p>
+        <p className="text-sm text-muted-foreground">
+          No {label.toLowerCase()} modules in the registry yet.{" "}
+          <Link to="/" className="underline underline-offset-1 hover:text-foreground">
+            Browse the builder
+          </Link>{" "}
+          for what’s available.
+        </p>
       ) : (
         <Section title="Modules" count={modules.length}>
           <SectionList>

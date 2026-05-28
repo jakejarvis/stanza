@@ -17,9 +17,10 @@ function TocList({ toc }: { toc: TOCItemType[] }) {
           <li key={item.url}>
             <a
               href={item.url}
+              aria-current={isActive ? "location" : undefined}
               style={{ paddingLeft: `${0.5 + Math.max(0, item.depth - 2) * 0.75}rem` }}
               className={cn(
-                "block py-1 text-muted-foreground transition-colors hover:text-foreground",
+                "block py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                 isActive && "font-medium text-foreground",
               )}
             >
@@ -36,7 +37,7 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
   if (toc.length === 0) return null;
 
   return (
-    <aside className="hidden w-56 shrink-0 xl:block">
+    <nav aria-label="On this page" className="hidden w-56 shrink-0 xl:block">
       <div className="sticky top-14 max-h-[calc(100svh-3.5rem)] overflow-y-auto py-8">
         <p className="mb-2 px-2 text-xs font-medium tracking-wide text-muted-foreground/70">
           On this page
@@ -45,6 +46,6 @@ export function DocsToc({ toc }: { toc: TOCItemType[] }) {
           <TocList toc={toc} />
         </AnchorProvider>
       </div>
-    </aside>
+    </nav>
   );
 }

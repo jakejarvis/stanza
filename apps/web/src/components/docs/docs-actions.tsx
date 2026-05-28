@@ -3,6 +3,7 @@
 import { IconCheck, IconChevronDown, IconCopy } from "@tabler/icons-react";
 import * as React from "react";
 import type { ReactElement, SVGProps } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -75,7 +76,14 @@ export function DocsActions({ markdownPath, pageUrl, className }: DocsActionsPro
                 <DropdownMenuItem
                   key={item.label}
                   className="cursor-pointer [&_svg]:text-muted-foreground"
-                  render={<a href={href} target="_blank" rel="noopener noreferrer" />}
+                  render={
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${item.label} (opens in new tab)`}
+                    />
+                  }
                 >
                   <Icon aria-hidden="true" data-icon="inline-start" />
                   <span className="text-[13px] leading-none">{item.label}</span>
@@ -108,31 +116,38 @@ function CopyMarkdownButton({ markdownPath }: { markdownPath: string }) {
       setCopied(true);
       timeoutRef.current = window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      // surface as a no-op; chevron menu still offers `View as Markdown`
+      toast.error("Couldn’t copy page markdown.", {
+        description: "Try View as Markdown from the menu instead.",
+      });
     }
   }, [copied, markdownPath]);
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className={cn(
-        "shrink-0 gap-1.5 px-2.5! text-[13px] leading-none",
-        copied && "cursor-default",
-      )}
-      aria-label={copied ? "Copied" : "Copy Page"}
-      onClick={() => {
-        void handleClick();
-      }}
-    >
-      {copied ? (
-        <IconCheck aria-hidden="true" data-icon="inline-start" />
-      ) : (
-        <IconCopy aria-hidden="true" data-icon="inline-start" />
-      )}
-      <span>{copied ? "Copied" : "Copy Page"}</span>
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={cn(
+          "shrink-0 gap-1.5 px-2.5! text-[13px] leading-none",
+          copied && "cursor-default",
+        )}
+        aria-label={copied ? "Copied" : "Copy Page"}
+        onClick={() => {
+          void handleClick();
+        }}
+      >
+        {copied ? (
+          <IconCheck aria-hidden="true" data-icon="inline-start" />
+        ) : (
+          <IconCopy aria-hidden="true" data-icon="inline-start" />
+        )}
+        <span>{copied ? "Copied" : "Copy Page"}</span>
+      </Button>
+      <span aria-live="polite" className="sr-only">
+        {copied ? "Page markdown copied to clipboard" : ""}
+      </span>
+    </>
   );
 }
 

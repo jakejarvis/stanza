@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const relativeFormatter = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
+const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 const MINUTE = 60;
 const HOUR = 60 * MINUTE;
@@ -13,7 +13,7 @@ function format(iso: string, now: Date): string {
   if (Number.isNaN(date.getTime())) return iso;
   const diffSec = Math.round((date.getTime() - now.getTime()) / 1000);
   const abs = Math.abs(diffSec);
-  if (abs < MINUTE) return "just now";
+  if (abs < MINUTE) return relativeFormatter.format(0, "second");
   if (abs < HOUR) return relativeFormatter.format(Math.round(diffSec / MINUTE), "minute");
   if (abs < DAY) return relativeFormatter.format(Math.round(diffSec / HOUR), "hour");
   if (abs < MONTH) return relativeFormatter.format(Math.round(diffSec / DAY), "day");
@@ -22,18 +22,19 @@ function format(iso: string, now: Date): string {
 }
 
 /**
- * Reactive `Intl.RelativeTimeFormat` — re-renders on a fixed interval so the
- * label stays fresh while the tab is open. SSR returns a value computed against
- * server time; gate the rendered element on client-only state if exact
- * second-level accuracy at hydration matters.
+ * Reactive `Intl.RelativeTimeFormat`. Defers reading `new Date()` to a
+ * post-mount effect so SSR + first hydration agree on a stable fallback (the
+ * raw iso), then we swap to the formatted relative label once the client clock
+ * is available. Re-renders on a fixed interval so the label stays fresh.
  */
 export function useTimeAgo(iso: string, intervalMs = 30_000): string {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    setNow(new Date());
     const id = setInterval(() => setNow(new Date()), intervalMs);
     return () => clearInterval(id);
   }, [intervalMs]);
 
-  return format(iso, now);
+  return now ? format(iso, now) : iso;
 }
