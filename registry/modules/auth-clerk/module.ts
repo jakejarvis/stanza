@@ -36,10 +36,10 @@ export default defineModule({
         // Package-scoped: provider + barrel land in packages/auth/.
         { src: "next/provider.tsx", dest: "src/provider.tsx", scope: "package" },
         { src: "next/index.ts", dest: "src/index.ts", scope: "package" },
-        // App-scoped: Next requires middleware.ts at the app root. We ship a
-        // thin shim that re-exports clerkMiddleware from the auth package, so
-        // the @clerk/nextjs dep stays in packages/auth/.
-        { src: "next/middleware.ts", dest: "middleware.ts", scope: "app", template: true },
+        // App-scoped: Next 16 requires proxy.ts at the app root (renamed from
+        // middleware.ts). We ship a thin shim that re-exports clerkMiddleware
+        // from the auth package, so the @clerk/nextjs dep stays in packages/auth/.
+        { src: "next/proxy.ts", dest: "proxy.ts", scope: "app", template: true },
       ],
       codemods: [
         {

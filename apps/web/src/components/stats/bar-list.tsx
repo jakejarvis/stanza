@@ -29,9 +29,10 @@ type BarListProps = {
  * interactive when `href` is set: hover deepens the fill so the affordance is
  * felt across the whole bar, not just the link text.
  *
- * Bars carry an EvilCharts-style diagonal hatch laid over a horizontal gradient,
- * and grow in from 0% on mount with a small per-row stagger so the leaderboard
- * settles into place instead of flashing fully-formed.
+ * Bars grow in from 0 on mount with a small per-row stagger so the leaderboard
+ * settles into place instead of flashing fully-formed. Animating `width` (not
+ * `transform: scaleX`) keeps the fill's gradient and rounded cap from distorting
+ * relative to the row's actual filled length.
  */
 export function BarList({ data, emptyMessage = "No data yet.", className }: BarListProps) {
   // Bars render at width 0 on first commit, then transition to their real
@@ -60,25 +61,24 @@ export function BarList({ data, emptyMessage = "No data yet.", className }: BarL
       {data.map((entry, idx) => {
         const pct = (entry.value / max) * 100;
         return (
-          <li key={entry.name} className="group/row relative h-7 overflow-hidden">
+          <li key={entry.name} className="group/row relative h-7">
             <div
               aria-hidden="true"
-              className={cn(
-                "absolute inset-y-0 left-0 w-full origin-left bg-gradient-to-r from-muted via-muted/70 to-muted/30 transition-transform duration-700 ease-out motion-reduce:transition-none",
-                "group-hover/row:from-foreground/20 group-hover/row:via-foreground/12 group-hover/row:to-foreground/5",
-              )}
+              className="absolute inset-y-0 left-0 transition-[width] duration-700 ease-out motion-reduce:transition-none"
               style={{
-                transform: `scaleX(${mounted ? pct / 100 : 0})`,
+                width: mounted ? `${pct}%` : 0,
                 transitionDelay: `${Math.min(idx * 40, 240)}ms`,
               }}
             >
               <div
-                aria-hidden="true"
-                className="absolute inset-0 bg-[image:repeating-linear-gradient(135deg,currentColor_0_1px,transparent_1px_5px)] text-foreground opacity-[0.07] transition-opacity duration-300 group-hover/row:opacity-[0.14] motion-reduce:transition-none"
+                className={cn(
+                  "absolute inset-0 bg-gradient-to-r from-foreground/[0.10] to-foreground/[0.04] ring-1 ring-foreground/[0.04] transition-colors duration-200 ring-inset",
+                  "group-hover/row:from-foreground/[0.18] group-hover/row:to-foreground/[0.08] group-hover/row:ring-foreground/[0.08]",
+                )}
               />
             </div>
             <div className="relative flex h-full items-center justify-between gap-3 px-2 text-xs">
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-1">
                 {entry.leading}
                 {entry.href ? (
                   <a

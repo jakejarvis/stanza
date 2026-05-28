@@ -91,7 +91,7 @@ Every module fills exactly one [category](/docs/concepts#categories). A category
 - **`home: "repo"`** (`tooling`, `monorepo`, `deploy`) — config + scripts land at the monorepo root.
 - **`home: "package"`** (`auth`, `db`, `orm`, `ui`, `api`, `ai`, `payments`, `email`) — the module installs into its own workspace package at `packages/<dir>/`, named `@<project>/<dir>`. Every consuming app gets a `workspace:*` dep.
 
-Template `scope` derives from this. For a package-home module, prefer `scope: "package"` for everything that can live inside the package, and reach for `scope: "app"` only when a framework convention forces a file to the app root (e.g. Next's `middleware.ts`).
+Template `scope` derives from this. For a package-home module, prefer `scope: "package"` for everything that can live inside the package, and reach for `scope: "app"` only when a framework convention forces a file to the app root (e.g. Next's `proxy.ts`).
 
 ## Adapters and peer resolution
 
