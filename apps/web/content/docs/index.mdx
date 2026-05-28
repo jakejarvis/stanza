@@ -5,6 +5,12 @@ description: Assemble modular full-stack TypeScript monorepos with Stanza.
 
 Stanza is a [shadcn](https://ui.shadcn.com/docs)-style CLI for assembling modular full-stack TypeScript monorepos. Pick a framework, UI, database, ORM, and auth — Stanza vendors idiomatic code directly into your repo, with no additional runtime dependencies to maintain afterwards.
 
+<Callout type="warn">
+  Stanza is in **early alpha**. Expect breaking changes, rough edges, and incomplete modules. Take
+  extra care when pointing `stanza-cli` at an existing project — commit your work first, and review
+  the diff before keeping it.
+</Callout>
+
 ## Why Stanza
 
 - **`add` works after `init`.** Run `stanza add` on an existing project. It reads your `stanza.json` manifest, resolves peer constraints, and picks the right adapter for your stack — so adding auth to a Next + Drizzle app writes
