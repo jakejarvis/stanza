@@ -129,7 +129,7 @@ function CopyMarkdownButton({ markdownPath }: { markdownPath: string }) {
         variant="outline"
         size="sm"
         className={cn(
-          "shrink-0 gap-1.5 px-2.5! text-[13px] leading-none",
+          "shrink-0 gap-1.5 pr-3! pl-2.5! text-[13px] leading-none font-normal",
           copied && "cursor-default",
         )}
         aria-label={copied ? "Copied" : "Copy Page"}
@@ -142,7 +142,7 @@ function CopyMarkdownButton({ markdownPath }: { markdownPath: string }) {
         ) : (
           <IconCopy aria-hidden="true" data-icon="inline-start" />
         )}
-        <span>{copied ? "Copied" : "Copy Page"}</span>
+        <span>Copy Page</span>
       </Button>
       <span aria-live="polite" className="sr-only">
         {copied ? "Page markdown copied to clipboard" : ""}

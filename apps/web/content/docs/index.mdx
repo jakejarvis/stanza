@@ -13,8 +13,7 @@ Stanza is a [shadcn](https://ui.shadcn.com/docs)-style CLI for assembling modula
 
 ## Why Stanza
 
-- **`add` works after `init`.** Run `stanza add` on an existing project. It reads your `stanza.json` manifest, resolves peer constraints, and picks the right adapter for your stack — so adding auth to a Next + Drizzle app writes
-  different code than adding it to a TanStack Start + Prisma app.
+- **`add` works after `init`.** Run `stanza add` on an existing project. It reads your `stanza.json` manifest, resolves peer constraints, and picks the right adapter for your stack — so adding auth to a Next + Drizzle app writes different code than adding it to a TanStack Start + Prisma app.
 - **Your code, vendored.** Generated files land in your repo verbatim. There's no `@stanza/runtime` package to install, and nothing to upgrade out from under you — the code is yours to edit.
 - **Open registry.** Modules are plain static JSON. The CLI ships with a default registry, but you can point it at your own host with `STANZA_REGISTRY` and serve custom modules.
 

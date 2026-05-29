@@ -258,7 +258,7 @@ export function SiteSearch({ registry, docs }: { registry: RegistryIndex; docs: 
             id="site-search-listbox"
             role="listbox"
             aria-label="Search results"
-            className="max-h-72 overflow-x-hidden overflow-y-auto overscroll-contain p-1"
+            className="max-h-72 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain p-1"
           >
             {flat.length === 0 ? (
               <div
