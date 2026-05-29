@@ -3,9 +3,9 @@ packages:
   - packages/*
   - registry/modules/*
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@^0.1.22
-  vite-plus: ^0.1.22
-  vitest: npm:@voidzero-dev/vite-plus-test@^0.1.22
+  vite: npm:@voidzero-dev/vite-plus-core@^0.1.23
+  vite-plus: ^0.1.23
+  vitest: npm:@voidzero-dev/vite-plus-test@^0.1.23
 ignoredBuiltDependencies:
   - sharp
 ignoredOptionalDependencies: []
@@ -15,7 +15,6 @@ onlyBuiltDependencies:
   - msw
   - protobufjs
 overrides:
-  es-toolkit: 1.46.1
   vite: "catalog:"
   vitest: "catalog:"
 peerDependencyRules:

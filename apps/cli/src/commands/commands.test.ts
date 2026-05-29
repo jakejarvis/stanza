@@ -524,13 +524,6 @@ describe("third-party registries", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
-  function writeStanza(projectRoot: string, registries: Record<string, unknown>) {
-    const file = path.join(projectRoot, "stanza.json");
-    const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
-    manifest.registries = registries;
-    fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
-  }
-
   it("installs a module from a third-party namespace and records its origin", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
@@ -635,3 +628,10 @@ describe("third-party registries", () => {
     expect(manifest.modules.testing).toBeUndefined();
   });
 });
+
+function writeStanza(projectRoot: string, registries: Record<string, unknown>) {
+  const file = path.join(projectRoot, "stanza.json");
+  const manifest = JSON.parse(fs.readFileSync(file, "utf8"));
+  manifest.registries = registries;
+  fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
+}

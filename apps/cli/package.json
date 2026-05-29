@@ -29,18 +29,18 @@
     ".": "./src/index.ts"
   },
   "publishConfig": {
-    "access": "public",
     "bin": {
       "stanza": "./dist/bin.mjs"
     },
+    "main": "./dist/index.mjs",
+    "types": "./dist/index.d.mts",
     "exports": {
       ".": {
         "types": "./dist/index.d.mts",
         "default": "./dist/index.mjs"
       }
     },
-    "main": "./dist/index.mjs",
-    "types": "./dist/index.d.mts"
+    "access": "public"
   },
   "scripts": {
     "build": "vp pack"

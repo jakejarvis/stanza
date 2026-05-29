@@ -23,10 +23,10 @@
   ],
   "type": "module",
   "publishConfig": {
-    "access": "public",
     "bin": {
       "create-stanza": "./dist/bin.mjs"
-    }
+    },
+    "access": "public"
   },
   "scripts": {
     "build": "vp pack"
