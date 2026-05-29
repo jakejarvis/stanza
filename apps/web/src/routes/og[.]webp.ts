@@ -4,12 +4,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { OgDefault } from "@/server/og-card.server";
 
 /**
- * `/og` — default OG used by `/`, `/search`, and anywhere without a more
+ * `/og.webp` — default OG used by `/`, `/search`, and anywhere without a more
  * specific image. Static-ish content; the SWR header lets the CDN serve it
  * stale for a long time. A TanStack Start server route (no page component):
  * the `GET` handler streams a WebP straight back.
  */
-export const Route = createFileRoute("/og/")({
+export const Route = createFileRoute("/og.webp")({
   server: {
     handlers: {
       GET: () =>

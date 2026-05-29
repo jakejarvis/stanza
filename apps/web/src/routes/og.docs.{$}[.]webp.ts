@@ -5,11 +5,11 @@ import { source } from "@/lib/source";
 import { OgDocs } from "@/server/og-card.server";
 
 /**
- * `/og/docs/$splat` — per-docs-page OG card, mirroring the public
+ * `/og/docs/$splat.webp` — per-docs-page OG card, mirroring the public
  * `/docs/$splat` URL. The splat resolves to fumadocs page slugs the same way
  * `routes/docs.$.tsx` does. Bails 404 when the page is unknown.
  */
-export const Route = createFileRoute("/og/docs/$")({
+export const Route = createFileRoute("/og/docs/{$}.webp")({
   server: {
     handlers: {
       GET: ({ params }) => {

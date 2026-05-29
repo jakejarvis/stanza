@@ -10,9 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as OgDotwebpRouteImport } from './routes/og[.]webp'
 import { Route as DocsDotmdRouteImport } from './routes/docs[.]md'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as OgIndexRouteImport } from './routes/og.index'
+import { Route as RegistryIndexRouteImport } from './routes/registry.index'
 import { Route as DocsChar123Char125DotmdRouteImport } from './routes/docs.{$}[.]md'
 import { Route as DocsLlmsDottxtRouteImport } from './routes/docs.llms[.]txt'
 import { Route as DocsLlmsFullDottxtRouteImport } from './routes/docs.llms-full[.]txt'
@@ -20,14 +21,19 @@ import { Route as DocsSplatRouteImport } from './routes/docs.$'
 import { Route as ApiEventsRouteImport } from './routes/api.events'
 import { Route as RegistryCategoryIndexRouteImport } from './routes/registry.$category.index'
 import { Route as RegistryCategoryIdRouteImport } from './routes/registry.$category.$id'
-import { Route as OgDocsSplatRouteImport } from './routes/og.docs.$'
+import { Route as OgDocsChar123Char125DotwebpRouteImport } from './routes/og.docs.{$}[.]webp'
 import { Route as ApiSearchModulesRouteImport } from './routes/api.search.modules'
 import { Route as ApiSearchDocsRouteImport } from './routes/api.search.docs'
-import { Route as OgRegistryCategoryIdRouteImport } from './routes/og.registry.$category.$id'
+import { Route as OgRegistryCategoryChar123idChar125DotwebpRouteImport } from './routes/og.registry.$category.{$id}[.]webp'
 
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgDotwebpRoute = OgDotwebpRouteImport.update({
+  id: '/og.webp',
+  path: '/og.webp',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsDotmdRoute = DocsDotmdRouteImport.update({
@@ -40,9 +46,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OgIndexRoute = OgIndexRouteImport.update({
-  id: '/og/',
-  path: '/og/',
+const RegistryIndexRoute = RegistryIndexRouteImport.update({
+  id: '/registry/',
+  path: '/registry/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocsChar123Char125DotmdRoute = DocsChar123Char125DotmdRouteImport.update({
@@ -80,11 +86,12 @@ const RegistryCategoryIdRoute = RegistryCategoryIdRouteImport.update({
   path: '/registry/$category/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OgDocsSplatRoute = OgDocsSplatRouteImport.update({
-  id: '/og/docs/$',
-  path: '/og/docs/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const OgDocsChar123Char125DotwebpRoute =
+  OgDocsChar123Char125DotwebpRouteImport.update({
+    id: '/og/docs/{$}.webp',
+    path: '/og/docs/{$}.webp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiSearchModulesRoute = ApiSearchModulesRouteImport.update({
   id: '/api/search/modules',
   path: '/api/search/modules',
@@ -95,134 +102,142 @@ const ApiSearchDocsRoute = ApiSearchDocsRouteImport.update({
   path: '/api/search/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OgRegistryCategoryIdRoute = OgRegistryCategoryIdRouteImport.update({
-  id: '/og/registry/$category/$id',
-  path: '/og/registry/$category/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const OgRegistryCategoryChar123idChar125DotwebpRoute =
+  OgRegistryCategoryChar123idChar125DotwebpRouteImport.update({
+    id: '/og/registry/$category/{$id}.webp',
+    path: '/og/registry/$category/{$id}.webp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
+  '/og.webp': typeof OgDotwebpRoute
   '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
-  '/og/': typeof OgIndexRoute
+  '/registry/': typeof RegistryIndexRoute
   '/api/search/docs': typeof ApiSearchDocsRoute
   '/api/search/modules': typeof ApiSearchModulesRoute
-  '/og/docs/$': typeof OgDocsSplatRoute
+  '/og/docs/{$}.webp': typeof OgDocsChar123Char125DotwebpRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
   '/registry/$category/': typeof RegistryCategoryIndexRoute
-  '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
+  '/og/registry/$category/{$id}.webp': typeof OgRegistryCategoryChar123idChar125DotwebpRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
+  '/og.webp': typeof OgDotwebpRoute
   '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
-  '/og': typeof OgIndexRoute
+  '/registry': typeof RegistryIndexRoute
   '/api/search/docs': typeof ApiSearchDocsRoute
   '/api/search/modules': typeof ApiSearchModulesRoute
-  '/og/docs/$': typeof OgDocsSplatRoute
+  '/og/docs/{$}.webp': typeof OgDocsChar123Char125DotwebpRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
   '/registry/$category': typeof RegistryCategoryIndexRoute
-  '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
+  '/og/registry/$category/{$id}.webp': typeof OgRegistryCategoryChar123idChar125DotwebpRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
+  '/og.webp': typeof OgDotwebpRoute
   '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
   '/docs/llms-full.txt': typeof DocsLlmsFullDottxtRoute
   '/docs/llms.txt': typeof DocsLlmsDottxtRoute
   '/docs/{$}.md': typeof DocsChar123Char125DotmdRoute
-  '/og/': typeof OgIndexRoute
+  '/registry/': typeof RegistryIndexRoute
   '/api/search/docs': typeof ApiSearchDocsRoute
   '/api/search/modules': typeof ApiSearchModulesRoute
-  '/og/docs/$': typeof OgDocsSplatRoute
+  '/og/docs/{$}.webp': typeof OgDocsChar123Char125DotwebpRoute
   '/registry/$category/$id': typeof RegistryCategoryIdRoute
   '/registry/$category/': typeof RegistryCategoryIndexRoute
-  '/og/registry/$category/$id': typeof OgRegistryCategoryIdRoute
+  '/og/registry/$category/{$id}.webp': typeof OgRegistryCategoryChar123idChar125DotwebpRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/docs.md'
+    | '/og.webp'
     | '/stats'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
     | '/docs/llms.txt'
     | '/docs/{$}.md'
-    | '/og/'
+    | '/registry/'
     | '/api/search/docs'
     | '/api/search/modules'
-    | '/og/docs/$'
+    | '/og/docs/{$}.webp'
     | '/registry/$category/$id'
     | '/registry/$category/'
-    | '/og/registry/$category/$id'
+    | '/og/registry/$category/{$id}.webp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/docs.md'
+    | '/og.webp'
     | '/stats'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
     | '/docs/llms.txt'
     | '/docs/{$}.md'
-    | '/og'
+    | '/registry'
     | '/api/search/docs'
     | '/api/search/modules'
-    | '/og/docs/$'
+    | '/og/docs/{$}.webp'
     | '/registry/$category/$id'
     | '/registry/$category'
-    | '/og/registry/$category/$id'
+    | '/og/registry/$category/{$id}.webp'
   id:
     | '__root__'
     | '/'
     | '/docs.md'
+    | '/og.webp'
     | '/stats'
     | '/api/events'
     | '/docs/$'
     | '/docs/llms-full.txt'
     | '/docs/llms.txt'
     | '/docs/{$}.md'
-    | '/og/'
+    | '/registry/'
     | '/api/search/docs'
     | '/api/search/modules'
-    | '/og/docs/$'
+    | '/og/docs/{$}.webp'
     | '/registry/$category/$id'
     | '/registry/$category/'
-    | '/og/registry/$category/$id'
+    | '/og/registry/$category/{$id}.webp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsDotmdRoute: typeof DocsDotmdRoute
+  OgDotwebpRoute: typeof OgDotwebpRoute
   StatsRoute: typeof StatsRoute
   ApiEventsRoute: typeof ApiEventsRoute
   DocsSplatRoute: typeof DocsSplatRoute
   DocsLlmsFullDottxtRoute: typeof DocsLlmsFullDottxtRoute
   DocsLlmsDottxtRoute: typeof DocsLlmsDottxtRoute
   DocsChar123Char125DotmdRoute: typeof DocsChar123Char125DotmdRoute
-  OgIndexRoute: typeof OgIndexRoute
+  RegistryIndexRoute: typeof RegistryIndexRoute
   ApiSearchDocsRoute: typeof ApiSearchDocsRoute
   ApiSearchModulesRoute: typeof ApiSearchModulesRoute
-  OgDocsSplatRoute: typeof OgDocsSplatRoute
+  OgDocsChar123Char125DotwebpRoute: typeof OgDocsChar123Char125DotwebpRoute
   RegistryCategoryIdRoute: typeof RegistryCategoryIdRoute
   RegistryCategoryIndexRoute: typeof RegistryCategoryIndexRoute
-  OgRegistryCategoryIdRoute: typeof OgRegistryCategoryIdRoute
+  OgRegistryCategoryChar123idChar125DotwebpRoute: typeof OgRegistryCategoryChar123idChar125DotwebpRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og.webp': {
+      id: '/og.webp'
+      path: '/og.webp'
+      fullPath: '/og.webp'
+      preLoaderRoute: typeof OgDotwebpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs.md': {
@@ -248,11 +270,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/og/': {
-      id: '/og/'
-      path: '/og'
-      fullPath: '/og/'
-      preLoaderRoute: typeof OgIndexRouteImport
+    '/registry/': {
+      id: '/registry/'
+      path: '/registry'
+      fullPath: '/registry/'
+      preLoaderRoute: typeof RegistryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/docs/{$}.md': {
@@ -304,11 +326,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryCategoryIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/og/docs/$': {
-      id: '/og/docs/$'
-      path: '/og/docs/$'
-      fullPath: '/og/docs/$'
-      preLoaderRoute: typeof OgDocsSplatRouteImport
+    '/og/docs/{$}.webp': {
+      id: '/og/docs/{$}.webp'
+      path: '/og/docs/{$}.webp'
+      fullPath: '/og/docs/{$}.webp'
+      preLoaderRoute: typeof OgDocsChar123Char125DotwebpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/search/modules': {
@@ -325,11 +347,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSearchDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/og/registry/$category/$id': {
-      id: '/og/registry/$category/$id'
-      path: '/og/registry/$category/$id'
-      fullPath: '/og/registry/$category/$id'
-      preLoaderRoute: typeof OgRegistryCategoryIdRouteImport
+    '/og/registry/$category/{$id}.webp': {
+      id: '/og/registry/$category/{$id}.webp'
+      path: '/og/registry/$category/{$id}.webp'
+      fullPath: '/og/registry/$category/{$id}.webp'
+      preLoaderRoute: typeof OgRegistryCategoryChar123idChar125DotwebpRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -338,19 +360,21 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsDotmdRoute: DocsDotmdRoute,
+  OgDotwebpRoute: OgDotwebpRoute,
   StatsRoute: StatsRoute,
   ApiEventsRoute: ApiEventsRoute,
   DocsSplatRoute: DocsSplatRoute,
   DocsLlmsFullDottxtRoute: DocsLlmsFullDottxtRoute,
   DocsLlmsDottxtRoute: DocsLlmsDottxtRoute,
   DocsChar123Char125DotmdRoute: DocsChar123Char125DotmdRoute,
-  OgIndexRoute: OgIndexRoute,
+  RegistryIndexRoute: RegistryIndexRoute,
   ApiSearchDocsRoute: ApiSearchDocsRoute,
   ApiSearchModulesRoute: ApiSearchModulesRoute,
-  OgDocsSplatRoute: OgDocsSplatRoute,
+  OgDocsChar123Char125DotwebpRoute: OgDocsChar123Char125DotwebpRoute,
   RegistryCategoryIdRoute: RegistryCategoryIdRoute,
   RegistryCategoryIndexRoute: RegistryCategoryIndexRoute,
-  OgRegistryCategoryIdRoute: OgRegistryCategoryIdRoute,
+  OgRegistryCategoryChar123idChar125DotwebpRoute:
+    OgRegistryCategoryChar123idChar125DotwebpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

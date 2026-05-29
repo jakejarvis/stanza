@@ -45,7 +45,7 @@ export const Route = createFileRoute("/registry/$category/$id")({
       title: module.label,
       description: module.description,
       path,
-      ogImage: `/og/registry/${params.category}/${params.id}`,
+      ogImage: `/og${path}.webp`,
       type: "article",
       jsonLd: [
         getSoftwareSourceCodeJsonLd({
@@ -118,7 +118,7 @@ function ModuleDetailPage() {
             <h1 className="text-2xl font-medium tracking-tight text-balance" translate="no">
               {module.label}
             </h1>
-            <Badge variant="default">{categoryLabel(module.category)}</Badge>
+            <Badge variant="secondary">{categoryLabel(module.category)}</Badge>
           </div>
           <p className="mt-1.5 text-sm text-pretty text-muted-foreground">{module.description}</p>
           <div className="mt-3 flex flex-wrap gap-3 text-xs">

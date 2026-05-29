@@ -53,7 +53,7 @@ function listRegistryPaths(): string[] {
   };
   const categoryPaths = index.categories.map((c) => `/registry/${c.id}`);
   const modulePaths = index.modules.map((m) => `/registry/${m.category}/${m.id}`);
-  return [...categoryPaths, ...modulePaths].toSorted((a, b) => a.localeCompare(b));
+  return ["/registry", ...categoryPaths, ...modulePaths].toSorted((a, b) => a.localeCompare(b));
 }
 
 export function listPrerenderPages() {

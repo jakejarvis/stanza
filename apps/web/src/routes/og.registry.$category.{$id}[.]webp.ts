@@ -6,11 +6,11 @@ import { OgCard } from "@/server/og-card.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 /**
- * `/og/registry/$category/$id` — per-module OG card (e.g. `/og/registry/auth/clerk`), mirroring
- * the public `/registry/$category/$id` URL. Dynamically rendered at request time via
+ * `/og/registry/$category/$id.webp` — per-module OG card (e.g. `/og/registry/auth/clerk.webp`),
+ * mirroring the public `/registry/$category/$id` URL. Dynamically rendered at request time via
  * Takumi. Bails 404 when the module is unknown.
  */
-export const Route = createFileRoute("/og/registry/$category/$id")({
+export const Route = createFileRoute("/og/registry/$category/{$id}.webp")({
   server: {
     handlers: {
       GET: async ({ params }) => {

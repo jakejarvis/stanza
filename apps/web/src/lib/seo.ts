@@ -40,7 +40,7 @@ export function buildHead(input: HeadInput): HeadOutput {
     input.titleOverride ?? (input.title ? `${input.title} · ${DEFAULT_TITLE}` : DEFAULT_TITLE);
   const description = input.description ?? DEFAULT_DESCRIPTION;
   const url = abs(input.path);
-  const ogImage = abs(input.ogImage ?? "/og");
+  const ogImage = abs(input.ogImage ?? "/og.webp");
   const type = input.type ?? "website";
 
   const links: Array<Record<string, string>> = [{ rel: "canonical", href: url }];

@@ -26,8 +26,8 @@ const PAGE: CSSProperties = {
 };
 
 const HEADER_ROW: CSSProperties = { display: "flex", alignItems: "center", gap: "12px" };
-const DOT: CSSProperties = { color: "#52525b", fontSize: "20px" };
-const SLOT: CSSProperties = { color: "#a1a1aa", fontSize: "20px" };
+const SEPARATOR: CSSProperties = { color: "#52525b", fontSize: "24px" };
+const SLOT: CSSProperties = { color: "#a1a1aa", fontSize: "24px" };
 
 // Brand mark sized and colored for the always-dark OG background. The viewer
 // `<img>` sets the rendered dimensions; the explicit fill keeps it visible
@@ -84,7 +84,9 @@ const FOOTER: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   color: "#6c6c6c",
-  fontSize: "20px",
+  fontSize: "22px",
+  fontWeight: 500,
+  fontFamily: "Geist Mono, monospace",
 };
 
 const DEFAULT_BODY: CSSProperties = {
@@ -100,7 +102,6 @@ const TAGLINE: CSSProperties = {
   lineHeight: 1.3,
   maxWidth: "900px",
 };
-const DEFAULT_FOOTER: CSSProperties = { color: "#52525b", fontSize: "22px" };
 
 export function OgCard({ meta }: { meta: ModuleMetadata }): ReactElement {
   const logo = meta.logo;
@@ -113,7 +114,7 @@ export function OgCard({ meta }: { meta: ModuleMetadata }): ReactElement {
     <div style={PAGE}>
       <div style={HEADER_ROW}>
         <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="Stanza" />
-        <span style={DOT}>·</span>
+        <span style={SEPARATOR}>/</span>
         <span style={SLOT}>{categoryLabel(meta.category)}</span>
       </div>
 
@@ -134,7 +135,7 @@ export function OgCard({ meta }: { meta: ModuleMetadata }): ReactElement {
 
       <div style={FOOTER}>
         <span>
-          stanza.tools/registry/{meta.category}/{meta.id}
+          npx stanza-cli add {meta.category} {meta.id}
         </span>
       </div>
     </div>
@@ -159,7 +160,7 @@ export function OgDocs({
     <div style={PAGE}>
       <div style={HEADER_ROW}>
         <img src={svgToDataUri(BRAND_LOGO_SVG)} width={32} height={32} alt="Stanza" />
-        <span style={DOT}>·</span>
+        <span style={SEPARATOR}>/</span>
         <span style={SLOT}>Docs</span>
       </div>
 
@@ -182,10 +183,10 @@ export function OgDefault(): ReactElement {
   return (
     <div style={PAGE}>
       <div style={DEFAULT_BODY}>
-        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={160} height={160} alt="Stanza" />
+        <img src={svgToDataUri(BRAND_LOGO_SVG)} width={120} height={120} alt="Stanza" />
         <div style={TAGLINE}>Modular monorepo template builder.</div>
       </div>
-      <div style={DEFAULT_FOOTER}>npm init stanza my-app</div>
+      <div style={FOOTER}>npm init stanza my-revolutionary-app</div>
     </div>
   );
 }

@@ -17,10 +17,13 @@ export function TemplatesList({
   previews: Record<string, Preview>;
 }) {
   if (templates.length === 0) return null;
+  const sorted = templates.toSorted(
+    (a, b) => scopeRank(a.scope) - scopeRank(b.scope) || a.dest.localeCompare(b.dest),
+  );
   return (
     <Section title="Templates" count={templates.length}>
       <SectionList>
-        {templates.map((tpl) => (
+        {sorted.map((tpl) => (
           <TemplateRow key={tpl.dest} template={tpl} preview={previews[tpl.dest]} />
         ))}
       </SectionList>
@@ -79,4 +82,10 @@ function scopeLabel(scope: TemplateRef["scope"]): string {
   if (scope === "repo") return "repo";
   if (scope === "package") return "package";
   return "app";
+}
+
+function scopeRank(scope: TemplateRef["scope"]): number {
+  if (scope === "package") return 1;
+  if (scope === "app") return 2;
+  return 0; // repo (or undefined default)
 }

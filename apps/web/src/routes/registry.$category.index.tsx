@@ -1,5 +1,4 @@
-import type { CategoryId } from "@stanza/registry";
-import { categoryLabel, isCategoryId } from "@stanza/registry";
+import { categoryDescription, categoryLabel, isCategoryId } from "@stanza/registry";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useLoaderData } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -27,21 +26,6 @@ export const Route = createFileRoute("/registry/$category/")({
   },
   component: CategoryLandingPage,
 });
-
-const CATEGORY_BLURBS: Record<CategoryId, string> = {
-  framework: "Web and native app frameworks.",
-  ui: "Styling systems and component primitives.",
-  db: "Database engines.",
-  orm: "Typed query layers over your database.",
-  auth: "Authentication providers and session handling.",
-  payments: "Checkout, customer portal, and webhooks.",
-  email: "Transactional email providers and templates.",
-  ai: "AI SDK and provider wiring.",
-  tooling: "Linter and formatter toolchains.",
-  testing: "Test runners — unit and end-to-end.",
-  deploy: "Deploy targets.",
-  monorepo: "Workspace task orchestrators.",
-};
 
 function CategoryLandingPage() {
   const { category } = Route.useLoaderData();
@@ -74,7 +58,7 @@ function CategoryLandingPage() {
           <h1 className="text-2xl font-medium tracking-tight text-balance">{label}</h1>
         </div>
         <p className="mt-1.5 text-sm text-pretty text-muted-foreground">
-          {CATEGORY_BLURBS[category]}
+          {categoryDescription(category)}
         </p>
       </header>
 

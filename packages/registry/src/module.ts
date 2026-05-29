@@ -43,70 +43,70 @@ export const CATEGORIES = [
   {
     id: "framework",
     label: "Framework",
-    description: "Web/native app framework.",
+    description: "Web and native app frameworks.",
     cardinality: "one",
     home: { kind: "app" },
   },
   {
     id: "ui",
     label: "UI",
-    description: "Styling system + component primitives.",
+    description: "Styling systems and component primitives.",
     cardinality: "one",
     home: { kind: "package", dir: "ui" },
   },
   {
     id: "db",
     label: "Database",
-    description: "Database engine.",
+    description: "Database engines.",
     cardinality: "one",
     home: { kind: "package", dir: "db" },
   },
   {
     id: "orm",
     label: "ORM",
-    description: "Database query layer.",
+    description: "Typed query layers over your database.",
     cardinality: "one",
     home: { kind: "package", dir: "db" },
   },
   {
     id: "auth",
     label: "Auth",
-    description: "Authentication provider.",
+    description: "Authentication providers and session handling.",
     cardinality: "one",
     home: { kind: "package", dir: "auth" },
   },
   {
     id: "payments",
     label: "Payments",
-    description: "Checkout + webhooks.",
+    description: "Checkout, customer portal, and webhooks.",
     cardinality: "one",
     home: { kind: "package", dir: "payments" },
   },
   {
     id: "email",
     label: "Email",
-    description: "Transactional email.",
+    description: "Transactional email providers and templates.",
     cardinality: "one",
     home: { kind: "package", dir: "email" },
   },
   {
     id: "ai",
     label: "AI",
-    description: "AI SDK + provider wiring.",
+    description: "AI SDK and provider wiring.",
     cardinality: "one",
     home: { kind: "package", dir: "ai" },
   },
   {
     id: "tooling",
     label: "Tooling",
-    description: "Linter + formatter toolchain.",
+    description: "Linter and formatter toolchains.",
     cardinality: "one",
     home: { kind: "repo" },
   },
   {
     id: "testing",
     label: "Testing",
-    description: "Test runners (unit, e2e).",
+    description: "Test runners — unit and end-to-end.",
     cardinality: "many",
     home: { kind: "app" },
   },
@@ -120,7 +120,7 @@ export const CATEGORIES = [
   {
     id: "monorepo",
     label: "Monorepo",
-    description: "Workspace task orchestrator.",
+    description: "Workspace task orchestrators.",
     cardinality: "one",
     home: { kind: "repo" },
   },
@@ -159,6 +159,11 @@ const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map((c) => [c.id, c])) as R
 /** Display name — used by the wizard, summary, and CLI/web list output. */
 export function categoryLabel(id: CategoryId): string {
   return CATEGORY_BY_ID[id].label;
+}
+
+/** One-line blurb — used as the category landing-page subtitle. */
+export function categoryDescription(id: CategoryId): string {
+  return CATEGORY_BY_ID[id].description;
 }
 
 /** Install destination for a category's modules. */

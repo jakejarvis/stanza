@@ -25,6 +25,7 @@ export {
   PEER_CATEGORIES,
   PACKAGE_DIRS,
   categoryLabel,
+  categoryDescription,
   categoryHome,
   categoryCardinality,
   isMulti,
