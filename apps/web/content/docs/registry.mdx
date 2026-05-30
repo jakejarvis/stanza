@@ -171,10 +171,10 @@ Not a category — a top-level field in `stanza.json` (`packageManager: "pnpm" |
 
 The categories above are first-party — Stanza ships them under the default `@stanza` namespace. Anyone can publish additional modules under their own `@scope` and have users install them with `stanza add <category> @scope/<id>`. The category taxonomy itself stays first-party (third-party registries can't redefine it).
 
-For consumers, declaring a registry is a few lines in `stanza.json`:
+For consumers, declaring a registry is the full URL of its main JSON file in `stanza.json`:
 
 ```jsonc
-{ "registries": { "@acme": "https://reg.acme.dev" } }
+{ "registries": { "@acme": "https://reg.acme.example/index.json" } }
 ```
 
 For authors, the full module surface — `defineModule`, templates, codemods, the build pipeline, hosting, namespace conventions, and a worked example — lives in the [Authoring manual](/docs/authoring).

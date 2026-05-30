@@ -7,11 +7,12 @@ import mdx from "fumadocs-mdx/vite";
 import { nitro } from "nitro/vite";
 import { defineConfig, lazyPlugins } from "vite-plus";
 
+import { version as cliVersion } from "../cli/package.json" with { type: "json" };
 import { listPrerenderPages } from "./src/lib/prerender.ts";
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+    __APP_VERSION__: JSON.stringify(cliVersion),
   },
   plugins: lazyPlugins(async () => [
     mdx(await import("./source.config.ts")),

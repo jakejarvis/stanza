@@ -32,6 +32,7 @@ A few rules on top of the [CLI surface](/docs/cli) keep agent runs predictable:
 - **Pass [`--app=<id>`](/docs/cli#add)** to `add`/`remove` in multi-app projects. Single-app projects auto-target, but if `stanza.json`'s `apps` array has more than one entry, scripts should pass the flag explicitly rather than relying on cwd inference.
 - **`stanza.json` is generated state.** Don't hand-edit it; use the verbs that maintain it (`add`, `remove`).
 - **Generated files are user-owned source.** Once Stanza writes a template, edit it like any other file in the repo.
+- **Verify with [`stanza doctor`](/docs/cli#doctor).** It reports drift between `stanza.json` and the filesystem and exits non-zero, so a script can gate on it after a run or after hand-edits.
 
 ## Common errors
 
@@ -67,8 +68,9 @@ npx -y stanza-cli@latest add auth better-auth --dry-run
 npx -y stanza-cli@latest add auth better-auth
 pnpm install
 
-# 4. Inspect.
+# 4. Inspect + verify.
 npx -y stanza-cli@latest list
+npx -y stanza-cli@latest doctor   # confirm the project matches its manifest
 ```
 
 When reporting results back to the user, include the exact command run, whether it wrote files, and any follow-up install needed.

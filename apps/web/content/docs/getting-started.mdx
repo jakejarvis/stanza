@@ -7,7 +7,7 @@ Scaffold a new monorepo, then layer in modules as you go.
 
 ## Prerequisites
 
-- **Node.js** 20 or newer.
+- **Node.js** 22 or newer.
 - A package manager — **pnpm** (recommended), **npm**, or **bun**. Stanza writes a workspace-based monorepo, so a workspace-aware package manager is required.
 
 ## Create a project
@@ -57,6 +57,7 @@ pnpm install
 
 ```sh
 npx stanza-cli list                  # show installed modules, grouped by category
+npx stanza-cli doctor                # check the project still matches its manifest
 npx stanza-cli search drizzle        # find modules in the registry by query
 npx stanza-cli remove auth           # remove a module and sweep the files it owns
 ```

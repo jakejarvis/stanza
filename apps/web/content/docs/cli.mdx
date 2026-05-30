@@ -3,7 +3,7 @@ title: CLI
 description: The Stanza command-line verbs, flags, and environment variables.
 ---
 
-Stanza ships five verbs against the category taxonomy. Run any verb with `--help` for its full flag list:
+Stanza ships six verbs against the category taxonomy. Run any verb with `--help` for its full flag list:
 
 ```sh
 npx stanza-cli add --help
@@ -32,7 +32,7 @@ Add one module to an existing project.
 npx stanza-cli add <category> <module> [--app=<id>]
 ```
 
-Resolves peers, selects the matching adapter, and writes the module's templates, deps, env, and scripts to the right home. Adding a module to a single-choice category that's already filled fails until you remove the existing one — and that limit is **per app** for `home: "app"` categories (so picking a framework for one app doesn't block a different framework for another).
+Resolves peers, selects the matching adapter, and writes the module's templates, deps, env, and scripts to the right home. If an apply step fails partway through — including inside a codemod — Stanza rolls the changes back, so a failed `add` leaves your tree as it was. Adding a module to a single-choice category that's already filled fails until you remove the existing one — and that limit is **per app** for `home: "app"` categories (so picking a framework for one app doesn't block a different framework for another).
 
 - `--app=<id>` — pick which app the install targets. Required for app-relevant modules when the project has multiple apps and you're not running inside one of them. Single-app projects auto-target; multi-app projects also auto-pick when `cwd` is inside one app's directory. Interactive runs (TTY, no `--yes`) fall back to a prompt; non-interactive runs error out asking for the flag.
 - The flag is meaningless for `home: "repo"` modules like `tooling`.
@@ -67,6 +67,16 @@ npx stanza-cli search [query]
 
 Use the printed **id** (not the display label) when passing a module to `add`.
 
+## `doctor`
+
+Check `stanza.json` against the filesystem and report drift, without changing anything.
+
+```sh
+npx stanza-cli doctor
+```
+
+Walks every [region](/docs/concepts#regions) claim in the manifest and verifies it still holds on disk — claimed files exist, claimed dependencies/scripts/env vars are still present, and each internal package with claims is wired into its consuming apps. Read-only; exits non-zero when it finds drift, so it slots into CI or a pre-commit check. It doesn't repair anything — use `add` / `remove` for that.
+
 <Callout type="info">
   **Planned:** `swap` (replace a module with another in the same category) and `update` (re-pull a
   module at a newer version) are on the roadmap. The manifest already reserves the fields they need;
@@ -83,7 +93,7 @@ These apply to the mutating verbs (`init`, `add`, `remove`):
 
 ## Environment variables
 
-- `STANZA_REGISTRY=<url-or-path>` — override the `@stanza` default namespace's URL (or filesystem path). For per-namespace third-party registries, use the `registries` field in `stanza.json` instead — see [Third-party registries](/docs/registry#third-party-registries).
+- `STANZA_REGISTRY=<url-or-path>` — override the `@stanza` default namespace's source: the full URL or filesystem path to a registry's **main JSON file** (not a directory). For per-namespace third-party registries, use the `registries` field in `stanza.json` instead — see [Third-party registries](/docs/registry#third-party-registries).
 - `STANZA_NO_NPM_LOOKUP=1` — skip npm version lookups and write dependency ranges verbatim.
 - `STANZA_NPM_REGISTRY=<url>` — override the npm registry used for version lookups.
 - `STANZA_TELEMETRY=0` / `DO_NOT_TRACK=1` — disable telemetry persistently. Telemetry is also auto-skipped in CI.
@@ -95,7 +105,7 @@ Stanza captures a small set of anonymous events to help us see which modules peo
 
 **What's sent**
 
-- The command name (`init`, `add`, `remove`, `list`, `search`), its duration in milliseconds, and whether it succeeded.
+- The command name (`init`, `add`, `remove`, `list`, `search`, `doctor`), its duration in milliseconds, and whether it succeeded.
 - CLI version, Node version, OS, and architecture.
 - For installs and removes: the module id, its category, and the namespace it came from (e.g. `@stanza` or `@acme`).
 - An ephemeral UUID generated per process so events from the same run can be grouped. It's regenerated next time and never persisted.

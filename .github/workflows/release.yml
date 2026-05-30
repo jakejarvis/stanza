@@ -11,7 +11,7 @@ permissions: {}
 
 jobs:
   release:
-    name: Version + publish
+    name: Version & publish
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -45,12 +45,9 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          version: vp exec changeset version
+          version: vp run version
           publish: vp run release
           title: "chore: release"
           commit: "chore: release"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # Enable provenance — requires `id-token: write` above.
-          NPM_CONFIG_PROVENANCE: "true"

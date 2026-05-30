@@ -1,6 +1,6 @@
 {
   "name": "stanza",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
   "description": "Modular monorepo template CLI — shadcn for stacks.",
   "license": "MIT",
@@ -17,7 +17,8 @@
     "fmt": "vp fmt",
     "fmt:check": "vp fmt --check",
     "changeset": "vp exec changeset",
-    "release": "vp run build:cli && changeset publish",
+    "version": "vp exec changeset version",
+    "release": "vp run build:cli && vp exec changeset publish",
     "prepare": "vp config"
   },
   "devDependencies": {

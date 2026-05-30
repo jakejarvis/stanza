@@ -7,6 +7,8 @@ description: Use the npm-distributed Stanza CLI non-interactively to scaffold or
 
 Use only the published CLI surface. Do not assume the Stanza source repo, local `registry/modules`, maintainer scripts, or workspace packages are available unless the user explicitly provides them.
 
+For depth this skill doesn't cover (the concept/region model, the full registry roadmap, and module authoring) fetch the complete docs at <https://stanza.tools/docs/llms-full.txt> when you have network access. For the current set of installable modules, `stanza search` is authoritative; the roadmap doc lags it.
+
 ## Runtime Contract
 
 - The CLI package is `stanza-cli`; the binary is `stanza`.
@@ -73,7 +75,7 @@ Run `add`, `remove`, `list`, and `doctor` from the project root or any child dir
 
 Every module belongs to exactly one **category**, and each category is either single-choice or multi-choice:
 
-- **Single-choice** categories: `framework`, `ui`, `db`, `orm`, `auth`, `payments`, `email`, `ai`, `tooling`, `monorepo`. Adding a module to a filled single-choice category fails until the existing one is removed.
+- **Single-choice** categories: `framework`, `api`, `ui`, `db`, `orm`, `auth`, `payments`, `email`, `ai`, `tooling`, `monorepo`. Adding a module to a filled single-choice category fails until the existing one is removed.
 - **Multi-choice** categories: `testing`, `deploy`. Multiple modules coexist in one category.
 
 For `init --yes`, pass each category's module ids as a comma-separated value; single-choice categories take exactly one, multi-choice take several — for example `--framework=next` and `--testing=vitest,playwright`.
@@ -89,17 +91,18 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 
 - Use `--dry-run` before a mutating command when the user wants a preview. It writes nothing.
 - Mutating commands refuse to run in a dirty git worktree. Ask the user before using `--dangerously-allow-dirty`; it intentionally allows Stanza edits to mix with existing changes.
+- A failed `add` rolls back automatically — if any step throws (including a codemod), Stanza restores the worktree to its pre-`add` state.
 
 ## Registries
 
-Stanza ships modules from the first-party `@stanza` namespace by default. To install modules from another publisher, declare the registry in `stanza.json#registries` and address modules with `@<scope>/<id>` syntax:
+Stanza ships modules from the first-party `@stanza` namespace by default. To install modules from another publisher, declare the registry in `stanza.json#registries` and address its modules with `@<scope>/<id>` syntax.
 
-A registry is addressed by the **full URL to its main JSON file** — the index, which lists every module and the relative `path` to its full JSON. The string form is that URL:
+Point a registry at the **full URL of its main JSON file** — the index, which lists every module and the relative `path` to its full JSON. The string form is that URL:
 
 ```json
 {
   "registries": {
-    "@acme": "https://reg.acme.dev/registry.json"
+    "@acme": "https://reg.acme.example/index.json"
   }
 }
 ```
@@ -114,7 +117,7 @@ Editing `stanza.json#registries` is an expected user-driven edit (the rest of th
 {
   "registries": {
     "@acme": {
-      "url": "https://api.acme.dev/r/registry.json",
+      "url": "https://api.acme.example/r/registry.json",
       "headers": { "Authorization": "Bearer ${ACME_TOKEN}" },
       "params": { "channel": "stable" }
     }
@@ -143,4 +146,5 @@ Editing `stanza.json#registries` is an expected user-driven edit (the rest of th
 - Treat generated files as user-owned project code after Stanza writes them.
 - Don't synthesize `modules`, `regions`, or `readmeChecksum` in `stanza.json` — those are runner-managed. `registries`, `apps`, and `packageManager` are user config and may be edited.
 - Prefer CLI commands over reconstructing Stanza's template output yourself.
+- After mutating a project (or editing generated files), run `stanza doctor` to confirm `stanza.json` still matches the filesystem; it exits non-zero on drift.
 - When reporting results, include the exact command run, whether it wrote files, and any follow-up package-manager command needed.

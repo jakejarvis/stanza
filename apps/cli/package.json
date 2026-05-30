@@ -1,6 +1,6 @@
 {
   "name": "stanza-cli",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "Modular monorepo template CLI — shadcn for stacks.",
   "keywords": [
     "boilerplate",
@@ -30,7 +30,8 @@
   },
   "publishConfig": {
     "bin": {
-      "stanza": "./dist/bin.mjs"
+      "stanza": "./dist/bin.mjs",
+      "stanza-cli": "./dist/bin.mjs"
     },
     "main": "./dist/index.mjs",
     "types": "./dist/index.d.mts",
@@ -46,7 +47,7 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@clack/prompts": "^1.4.0",
+    "@clack/prompts": "^1.5.0",
     "citty": "^0.2.2",
     "handlebars": "^4.7.9",
     "jsonc-parser": "^3.3.1",

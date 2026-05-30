@@ -1,11 +1,19 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "jakejarvis/stanza" }],
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "jakejarvis/stanza", "disableThanks": true }
+  ],
   "commit": false,
+  "prettier": false,
   "fixed": [],
   "linked": [],
   "access": "public",
+  "privatePackages": { "version": false, "tag": false },
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": [],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "updateInternalDependents": "always"
+  }
 }
