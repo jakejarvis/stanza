@@ -55,6 +55,13 @@ export const CATEGORIES = [
     home: { kind: "package", dir: "ui" },
   },
   {
+    id: "api",
+    label: "API",
+    description: "Typed RPC layer between the framework and your services.",
+    cardinality: "one",
+    home: { kind: "package", dir: "api" },
+  },
+  {
     id: "db",
     label: "Database",
     description: "Database engines.",

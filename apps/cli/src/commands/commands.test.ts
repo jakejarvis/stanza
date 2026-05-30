@@ -138,6 +138,22 @@ describe("cmdAdd", () => {
     await cmdAdd(args({ slot: "nonsense", moduleId: "x" }));
     expect(process.exitCode).toBe(1);
   });
+
+  it("rejects an unknown --app target", async () => {
+    await cmdAdd(args({ slot: "db", moduleId: "postgres", app: "nope" }));
+    expect(process.exitCode).toBe(1);
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.db).toBeUndefined();
+  });
+
+  it("surfaces a field-path error for a malformed stanza.json", async () => {
+    const m = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    m.apps = "not-an-array"; // schema expects an array of app specs
+    fs.writeFileSync("stanza.json", JSON.stringify(m, null, 2));
+    await expect(cmdAdd(args({ slot: "db", moduleId: "postgres" }))).rejects.toThrow(
+      /Malformed stanza\.json[\s\S]*apps/,
+    );
+  });
 });
 
 describe("cmdRemove", () => {
@@ -619,13 +635,46 @@ describe("third-party registries", () => {
     });
 
     // The runner validates codemod ids against the first-party catalog up
-    // front, so this throws before any files change.
-    await expect(cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }))).rejects.toThrow(
-      /not-a-real-codemod/,
-    );
+    // front (before any files change); cmdAdd surfaces it as a handled failure
+    // with recovery guidance rather than a raw stack.
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+    expect(process.exitCode).toBe(1);
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(manifest.modules.testing).toBeUndefined();
+  });
+
+  it("surfaces a clear error when the registry has no such module (non-200)", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    // fixture.modules is empty → the stub server 404s for testing-ghost.
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/ghost" }));
+    expect(process.exitCode).toBe(1);
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toBeUndefined();
+  });
+
+  it("surfaces a region conflict cleanly and writes nothing", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    // First-party vitest claims `scripts.test` on the app's package.json.
+    await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
+    expect(process.exitCode).toBeFalsy();
+    const before = fs.readFileSync("apps/web/package.json", "utf8");
+
+    // A fixture add-on that also wants `scripts.test` → claim conflict. Region
+    // claims are staged in memory before any flush, so the throw lands before a
+    // single byte is written.
+    fixture.modules["testing-cosmos"] = cosmosModule({ scripts: { test: "cosmos run" } });
+    process.exitCode = undefined;
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+    expect(process.exitCode).toBe(1);
+
+    expect(fs.readFileSync("apps/web/package.json", "utf8")).toBe(before);
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing.map((r: { id: string }) => r.id)).toEqual(["vitest"]);
   });
 });
 

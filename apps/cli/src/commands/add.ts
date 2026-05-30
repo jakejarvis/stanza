@@ -15,7 +15,7 @@ import {
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
-import { applyModule } from "../lib/codemod-runner";
+import { applyModule, RegionConflictError } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
@@ -212,7 +212,20 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     });
   } catch (err) {
     spinner.stop(`${mod.label} ${pc.red("failed")}`);
-    throw err;
+    reportApplyFailure({
+      category,
+      moduleId,
+      namespace,
+      dryRun,
+      // The dirty-worktree guard ran (unless overridden), so the repo had a
+      // clean baseline a `git restore`/`clean` can safely reset to. With
+      // `--dangerously-allow-dirty` that's untrue — a reset would also discard
+      // the user's own pending work, so we don't suggest it.
+      cleanBaseline: !dryRun && !args["dangerously-allow-dirty"],
+      err,
+    });
+    process.exitCode = 1;
+    return;
   }
 
   // Always counted in the aggregate install total; the `namespace` property
@@ -303,6 +316,55 @@ async function pickTargetApp(args: {
       `Specify which with \`--app=<id>\`.`,
   );
   return null;
+}
+
+/**
+ * Surface a mid-apply failure with recovery guidance instead of a raw stack.
+ * Templates/deps are flushed before codemods run, so a codemod throw can leave
+ * a partial change on disk; the manifest record + region claims are persisted
+ * incrementally, so `stanza remove` can sweep what Stanza tracked. When the
+ * worktree had a clean baseline, a git reset is the fuller escape hatch.
+ */
+function reportApplyFailure(args: {
+  category: string;
+  moduleId: string;
+  namespace: string | undefined;
+  dryRun: boolean;
+  cleanBaseline: boolean;
+  err: unknown;
+}): void {
+  const { category, moduleId, namespace, dryRun, cleanBaseline, err } = args;
+  const detail = err instanceof Error ? err.message : String(err);
+  const spec = `${category} ${namespace ? `${namespace}/` : ""}${moduleId}`;
+
+  // A region conflict throws before any disk write (claims are staged in
+  // memory first), so nothing was changed — retrying won't help, the stacks
+  // are incompatible as installed.
+  if (err instanceof RegionConflictError) {
+    p.log.error(
+      `Couldn't add ${spec}: ${detail}.\n` +
+        `Another installed module already owns that region — remove the conflicting module first, or pick a different one. No files were changed.`,
+    );
+    return;
+  }
+
+  if (dryRun) {
+    p.log.error(`Dry-run for ${spec} failed: ${detail}`);
+    return;
+  }
+
+  const lines = [
+    `Failed while adding ${spec}: ${detail}`,
+    "",
+    "A partial change may have been written. To recover:",
+    `  ${pc.cyan(`stanza remove ${category} ${moduleId}`)}  ${pc.dim("# sweep what Stanza tracked")}`,
+  ];
+  if (cleanBaseline) {
+    lines.push(
+      `  ${pc.cyan("git restore . && git clean -fd")}  ${pc.dim("# or reset the worktree to its last-clean state")}`,
+    );
+  }
+  p.log.error(lines.join("\n"));
 }
 
 function describeResolveError(kind: string): string {

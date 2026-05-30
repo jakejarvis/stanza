@@ -199,7 +199,8 @@ export async function cmdInit(args: CliArgs): Promise<void> {
     if (!dryRun) {
       p.log.error(
         `Init failed after ${applied.length} module(s): ${applied.join(", ") || "(none)"}.\n` +
-          `Project left at ${projectRoot} for inspection. Remove it manually to retry.`,
+          `Project left at ${projectRoot} for inspection. ` +
+          `Remove it with \`rm -rf ${result.name}\` and re-run to retry.`,
       );
     }
     throw err;

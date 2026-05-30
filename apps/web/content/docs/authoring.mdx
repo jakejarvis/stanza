@@ -175,7 +175,7 @@ adapters: [
 ],
 ```
 
-The catalog lives at [`packages/codemods/src/builtins/`](https://github.com/jakejarvis/stanza/tree/main/packages/codemods/src/builtins). Each codemod is parameterized by its own `args` type so the same generic transformation serves multiple modules (`wrap-root-layout` handles both Clerk and any future provider-style auth/state library).
+The catalog lives at [`packages/codemods/src/builtins/`](https://github.com/jakejarvis/stanza/tree/main/packages/codemods/src/builtins). Each codemod is parameterized by its own `args` type so the same generic transformation serves multiple modules (for example, [`wrap-root-layout`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/wrap-root-layout.ts) handles both Clerk and any future provider-style auth/state library).
 
 **Modules cannot ship codemod code** — the registry JSON carries data (`{ id, args }`), never executable code. This is enforced for first-party and third-party modules alike: the runner throws when an adapter references a codemod id that isn't in the catalog. If your module needs a transformation no existing codemod covers:
 
@@ -183,6 +183,32 @@ The catalog lives at [`packages/codemods/src/builtins/`](https://github.com/jake
 - **Third-party**: open an issue or PR for the codemod you'd need. Per-registry codemod sandboxing isn't on the near-term roadmap.
 
 String values inside `args` go through the same mustache substitution as templates, so you can reference `{{package.name}}`, `{{packages.db.name}}`, etc.
+
+### The built-in catalog
+
+These ten codemods ship in Stanza today. Each is idempotent (re-applying is a no-op) and reversible (`stanza remove` runs its inverse), and each claims a [region](/docs/concepts#regions) so two modules can't silently fight over the same edit.
+
+| `id`                                                                                                                                  | What it does                                                                                                                                                                                                                | Required args                         |
+| ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| [`add-plugin-to-call`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/add-plugin-to-call.ts)           | Splice a call into a flat `<property>: [...]` array inside a call's object argument (`defineConfig({ plugins: [...] })`, `betterAuth({ plugins: [...] })`). Creates the array if missing.                                   | `file`, `callee`, `property`, `call`  |
+| [`add-array-entry-in-call`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/add-array-entry-in-call.ts) | The nested sibling of `add-plugin-to-call` — walks a dotted `property` path to a deeper array; suffix a segment with `()` to dive into an arrow-returned object (`head().links`).                                           | `file`, `callee`, `property`, `entry` |
+| [`add-jsx-child`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/add-jsx-child.ts)                     | Insert a JSX element as a child of a named parent element (`<ThemeToggle />` into a starter `<main>`). Gate with `onlyIfContains` to skip user-customized files.                                                            | `file`, `parent`, `element`           |
+| [`wrap-root-layout`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/wrap-root-layout.ts)               | Wrap the framework root layout's children with a provider element. Dispatches per framework — Next `app/layout.tsx` `{children}`, TanStack Start `src/routes/__root.tsx` `<Outlet />` — so the module never names the file. | `providerName`, `providerImport`      |
+| [`set-html-attributes`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/set-html-attributes.ts)         | Set or merge attributes on the root `<html>` element. Each attribute is a bare `boolean`, a string `value` (token-merged for `className`), or an `expression`.                                                              | `file`, `attributes`                  |
+| [`replace-import`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/replace-import.ts)                   | Swap the module specifier of an existing `import` in place (`./globals.css` → `@my-app/ui/globals.css`), preserving the import kind and bindings.                                                                           | `file`, `from`, `to`                  |
+| [`re-export`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/re-export.ts)                             | Append an `export … from "X"` to a barrel file. Star-over-star and named merges are no-ops; mismatched shapes throw.                                                                                                        | `file`, `from`                        |
+| [`add-package-dep`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/add-package-dep.ts)                 | Add a dependency to a target `package.json`. For cross-package wiring only — prefer the declarative `dependencies` / `devDependencies` fields when the dep belongs in the module's own package.                             | `name`                                |
+| [`set-tsconfig-paths`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/set-tsconfig-paths.ts)           | Merge entries into a tsconfig's `compilerOptions.paths` (sets `baseUrl: "."` when missing). Refuses when the file `extends` a parent.                                                                                       | `paths`                               |
+| [`append-to-file`](https://github.com/jakejarvis/stanza/blob/main/packages/codemods/src/builtins/append-to-file.ts)                   | Append or prepend a marker-wrapped text block to a non-TS file (Prisma schema, CSS `@import`, YAML, `.env`). The markers give robust idempotency without parsing the host format.                                           | `file`, `content`, `marker`           |
+
+Several conventions are shared across the catalog:
+
+- **`base`** — where `file` resolves: `"app"` (default, the active app's dir), `"repo"` (monorepo root), or `"package:<dir>"` (`packages/<dir>/`). `add-package-dep` and `set-tsconfig-paths` use it to pick the target file; `re-export` accepts only `"app"` / `"package:<dir>"`; `append-to-file` splits it into `scope: "repo" | "app"` plus a separate `base: "package:<dir>"`; `wrap-root-layout` has no `base` (the path is derived from the selected framework).
+- **`imports`** — `Array<{ from, named?, default? }>` on the three codemods that introduce new symbols (`add-plugin-to-call`, `add-array-entry-in-call`, `add-jsx-child`); each entry merges into one import declaration.
+- **`position`** — `"start"` / `"end"` for placement, plus `before:<anchor>` / `after:<anchor>` on the array codemods (a missing anchor warns and falls back to `"end"`).
+- **`regionKey`** — every codemod derives a sensible default; override it only when two invocations would otherwise collide on the same key.
+
+When none of these fit a transformation your module needs, [add a new generic codemod](/docs/authoring#codemod-invocations) rather than reaching for a bespoke one — the catalog is the only execution surface for first- and third-party modules alike.
 
 ## Install fields
 
