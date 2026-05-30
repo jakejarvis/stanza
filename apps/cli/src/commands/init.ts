@@ -25,7 +25,7 @@ import { ensureCleanWorktree } from "../lib/git";
 import { initManifest, writeManifest } from "../lib/manifest";
 import { resolveExactVersion } from "../lib/npm-version";
 import { writeFreshReadme } from "../lib/readme";
-import { loadRegistries, pickRegistryRoot } from "../lib/registry-loader";
+import { loadRegistries } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { runInitWizard, type WizardOverrides } from "../lib/wizard";
 import { commonArgs, type CliArgs } from "./_args";
@@ -104,12 +104,6 @@ export async function cmdInit(args: CliArgs): Promise<void> {
     packageManager: result.packageManager,
   });
 
-  // Init always uses the first-party @stanza registry, so the FS root chain
-  // (env override → local monorepo → null) applies. `null` is fine — every
-  // first-party module's templates are also inlined in the registry build,
-  // so the runner doesn't read from disk when there's no local root.
-  const registryRoot = pickRegistryRoot();
-
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files will be written"));
 
   const spinner = p.spinner();
@@ -168,7 +162,6 @@ export async function cmdInit(args: CliArgs): Promise<void> {
             // home: "package" → ship shims into every app (today: just one)
             // home: "repo"    → seed app for render context (the first app)
             targetApps: home.kind === "app" ? appHomeTarget : targetApps,
-            registryRoot,
             dryRun,
           });
         } catch (err) {

@@ -359,11 +359,22 @@ export type ModuleMetadata = Omit<Module, "adapters"> & {
   adapters: Pick<ModuleAdapter, "key" | "match">[];
 };
 
+/**
+ * A module entry in the registry's main file. Extends the display metadata with
+ * `path` — a relative URI to the module's full JSON, resolved against the main
+ * file's own location. The loader reads `path` verbatim; there is no
+ * filename/directory convention.
+ */
+export type RegistryEntry = ModuleMetadata & {
+  /** Relative path/URI to this module's full JSON, resolved against the main file. */
+  path: string;
+};
+
 export type RegistryIndex = {
   generatedAt: string;
-  schemaVersion: 1;
+  schemaVersion: 2;
   categories: Category[];
-  modules: ModuleMetadata[];
+  modules: RegistryEntry[];
 };
 
 /**
@@ -531,10 +542,19 @@ export const ModuleMetadataSchema = z.object({
   ),
 }) satisfies z.ZodType<ModuleMetadata>;
 
-/** Runtime-validatable schema for the registry `index.json` payload. */
+/**
+ * A main-file module entry: index metadata plus the relative `path` to the
+ * module's full JSON. `path` reuses the safe-relative-path guard so a hostile
+ * main file can't escape its own directory (`../../etc`) or inject a scheme.
+ */
+export const RegistryEntrySchema = ModuleMetadataSchema.extend({
+  path: relativePathSchema,
+}) satisfies z.ZodType<RegistryEntry>;
+
+/** Runtime-validatable schema for the registry main-file (index) payload. */
 export const RegistryIndexSchema = z.object({
   generatedAt: z.string(),
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   categories: z.array(categorySchema),
-  modules: z.array(ModuleMetadataSchema),
+  modules: z.array(RegistryEntrySchema),
 }) satisfies z.ZodType<RegistryIndex>;

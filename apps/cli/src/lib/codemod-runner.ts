@@ -29,7 +29,8 @@ import {
 } from "@stanza/registry";
 import semver from "semver";
 
-import { writeManifest } from "./manifest";
+import { FileTx } from "./file-tx";
+import { manifestPath, writeManifest } from "./manifest";
 import { resolveRanges } from "./npm-version";
 import { claim, release, RegionConflictError } from "./region-tracker";
 
@@ -67,13 +68,6 @@ export async function applyModule(args: {
   adapter: ModuleAdapter;
   targetApps: AppSpec[];
   /**
-   * Local registry root for sourcing template files when they aren't inlined
-   * on the module manifest. Third-party HTTP registries always inline
-   * `tpl.content`, so passing `null` is fine for those; the runner only
-   * touches disk when a template lacks `content`.
-   */
-  registryRoot: string | null;
-  /**
    * Namespace the module was loaded from (e.g. `"@acme"`). Persisted on the
    * `StanzaModuleRecord` so `remove`/`update` can refetch from the original
    * registry. `undefined` (default) means the first-party `@stanza` registry.
@@ -81,7 +75,7 @@ export async function applyModule(args: {
   namespace?: string;
   dryRun: boolean;
 }): Promise<RunResult> {
-  const { projectRoot, module, adapter, targetApps, namespace, registryRoot, dryRun } = args;
+  const { projectRoot, module, adapter, targetApps, namespace, dryRun } = args;
   let manifest = args.manifest;
   const touchedFiles = new Set<string>();
 
@@ -118,15 +112,6 @@ export async function applyModule(args: {
     home.kind === "app" && targetApps.length === 1
       ? `${module.id}@${targetApps[0]!.id}`
       : module.id;
-  // Module dirs are named `<category>-<id>` (e.g. `testing-vitest`). Only used
-  // as a fallback when a template lacks inlined `content` — `readTemplateSource`
-  // throws with a clear error if it's needed but the registry root is null
-  // (which is the typical published-CLI + third-party-registry case).
-  const moduleDir =
-    registryRoot !== null
-      ? path.join(registryRoot, "modules", `${module.category}-${module.id}`)
-      : null;
-
   // Module-level install fields (shared across adapters) are merged with the
   // adapter-level ones (variation per peer combination). Adapter wins per-key
   // on conflicts; env merges by `name`.
@@ -203,7 +188,7 @@ export async function applyModule(args: {
         const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
         manifest = claim(manifest, rel, "file", owner);
         if (!dryRun) {
-          const source = readTemplateSource(tpl, moduleDir);
+          const source = readTemplateSource(tpl);
           const rendered = tpl.template ? renderTemplate(source, renderContextFor(app)) : source;
           deferredWrites.push(() => {
             fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -224,7 +209,7 @@ export async function applyModule(args: {
     const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
     manifest = claim(manifest, rel, "file", owner);
     if (!dryRun) {
-      const source = readTemplateSource(tpl, moduleDir);
+      const source = readTemplateSource(tpl);
       const rendered = tpl.template ? renderTemplate(source, renderContextFor(seedApp)) : source;
       deferredWrites.push(() => {
         fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -354,61 +339,85 @@ export async function applyModule(args: {
   }
 
   if (!dryRun) {
-    const record = recordFor(module, adapter, targetApps, namespace);
-    // Push into the category's array, replacing any same-(id, apps-key) record
-    // so re-adds are idempotent. Single-choice categories with home:"app" are
-    // kept to one record per app id by `add`/`init` validation; other homes
-    // stay capped at ≤ 1 total.
-    const existing = manifest.modules[module.category] ?? [];
-    const sameKey = (r: typeof record) => r.id === record.id && sameAppSet(r.apps, record.apps);
-    manifest = {
-      ...manifest,
-      modules: {
-        ...manifest.modules,
-        [module.category]: [...existing.filter((r) => !sameKey(r)), record],
-      },
-    };
-    writeManifest(projectRoot, manifest);
+    // Snapshot every file we're about to touch so a throw anywhere in the
+    // mutation phase rolls the worktree back to its pre-apply state instead of
+    // leaving a partial change. Captured up front (the pre-transaction bytes);
+    // codemod targets that surface later are snapshotted as they're claimed.
+    const tx = new FileTx();
+    tx.snapshot(manifestPath(projectRoot));
+    for (const rel of touchedFiles) tx.snapshot(path.join(projectRoot, rel));
+    if (packageRoot) {
+      tx.snapshot(path.join(packageRoot, "package.json"));
+      tx.snapshot(path.join(packageRoot, "tsconfig.json"));
+    }
+    for (const app of targetApps) tx.snapshot(path.join(projectRoot, app.dir, "package.json"));
 
-    for (const write of slotBootstrapWrites) write();
-    for (const write of deferredWrites) write();
+    try {
+      const record = recordFor(module, adapter, targetApps, namespace);
+      // Push into the category's array, replacing any same-(id, apps-key)
+      // record so re-adds are idempotent. Single-choice categories with
+      // home:"app" are kept to one record per app id by `add`/`init`
+      // validation; other homes stay capped at ≤ 1 total.
+      const existing = manifest.modules[module.category] ?? [];
+      const sameKey = (r: typeof record) => r.id === record.id && sameAppSet(r.apps, record.apps);
+      manifest = {
+        ...manifest,
+        modules: {
+          ...manifest.modules,
+          [module.category]: [...existing.filter((r) => !sameKey(r)), record],
+        },
+      };
+      writeManifest(projectRoot, manifest);
 
-    // Codemods dispatch once per targeted app (or once with the seed app for
-    // repo-home). Manifest re-persists after claims are gathered, before
-    // `project.save()` flushes — same disk-leads-manifest contract as above.
-    if (adapter.codemods?.length) {
-      const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
-      const saves: Array<() => Promise<void>> = [];
-      for (const app of dispatchApps) {
-        const appRoot = path.join(projectRoot, app.dir);
-        const project = lazyProject(appRoot);
-        const ctx = buildContext({
-          projectRoot,
-          app,
-          appRoot,
-          manifest,
-          module,
-          adapter,
-          project: project.get,
-          touchedFiles,
-          dryRun,
-          onClaim: (file, region) => {
-            manifest = claim(manifest, file, region, owner);
-          },
-        });
-        for (const invocation of adapter.codemods) {
-          const fn = CODEMOD_CATALOG[invocation.id]!;
-          const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
-          const result = await fn.apply(ctx, renderedArgs);
-          result.touchedFiles.forEach((f) => touchedFiles.add(f));
-          // Persist after every codemod so a later throw doesn't lose the
-          // already-claimed regions. Cheap (small JSON), and a partial-apply
-          // surfaces cleanly to `stanza remove`'s sweep.
-          writeManifest(projectRoot, manifest);
+      for (const write of slotBootstrapWrites) write();
+      for (const write of deferredWrites) write();
+
+      // Codemods dispatch once per targeted app (or once with the seed app for
+      // repo-home). ts-morph edits stay in memory until `project.save()` runs
+      // last, so a codemod throw never reaches disk; direct-fs codemods are
+      // snapshotted as they claim / report touched files.
+      if (adapter.codemods?.length) {
+        const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
+        const saves: Array<() => Promise<void>> = [];
+        for (const app of dispatchApps) {
+          const appRoot = path.join(projectRoot, app.dir);
+          const project = lazyProject(appRoot);
+          const ctx = buildContext({
+            projectRoot,
+            app,
+            appRoot,
+            manifest,
+            module,
+            adapter,
+            project: project.get,
+            touchedFiles,
+            dryRun,
+            onClaim: (file, region) => {
+              tx.snapshot(path.join(projectRoot, file));
+              manifest = claim(manifest, file, region, owner);
+            },
+          });
+          for (const invocation of adapter.codemods) {
+            const fn = CODEMOD_CATALOG[invocation.id]!;
+            const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
+            const result = await fn.apply(ctx, renderedArgs);
+            for (const f of result.touchedFiles) {
+              tx.snapshot(path.isAbsolute(f) ? f : path.join(projectRoot, f));
+            }
+            result.touchedFiles.forEach((f) => touchedFiles.add(f));
+            // Persist after every codemod so a later throw doesn't lose the
+            // already-claimed regions. Cheap (small JSON), and a partial-apply
+            // surfaces cleanly to `stanza remove`'s sweep.
+            writeManifest(projectRoot, manifest);
+          }
+          saves.push(() => project.save());
         }
-        saves.push(() => project.save());
+        for (const save of saves) await save();
       }
-      for (const save of saves) await save();
+    } catch (err) {
+      // Restore the worktree to its pre-apply state, then surface the error.
+      tx.rollback();
+      throw err;
     }
   }
 
@@ -634,25 +643,18 @@ function renderArgs(
 }
 
 /**
- * Resolve a template's source text. HTTP-loaded modules inline their template
- * contents in `tpl.content` (the registry build step bakes them in). Local
- * dev (FS-based registry) leaves `content` undefined, so we fall back to
- * reading from the module's templates/ directory on disk.
- *
- * `moduleDir` is null when no local registry is reachable (published CLI
- * fetching from the canonical URL, or any third-party namespace). In that
- * case the loader guarantees `tpl.content` is set; if it isn't, the module
- * is malformed and we error early.
+ * Resolve a template's source text. Every module carries its template bodies
+ * inlined in `tpl.content` (the registry build bakes them in), so this is a
+ * straight read. A missing `content` means a malformed module — error early.
  */
-function readTemplateSource(tpl: TemplateRef, moduleDir: string | null): string {
-  if (tpl.content !== undefined) return tpl.content;
-  if (moduleDir === null) {
+function readTemplateSource(tpl: TemplateRef): string {
+  if (tpl.content === undefined) {
     throw new Error(
-      `Template "${tpl.src}" has no inlined content and no local registry root is available. ` +
-        `Third-party modules must inline template content (run the registry build) before publishing.`,
+      `Template "${tpl.src}" has no inlined content. Registry modules must inline ` +
+        `template content (run the registry build) before publishing.`,
     );
   }
-  return fs.readFileSync(path.join(moduleDir, "templates", tpl.src), "utf8");
+  return tpl.content;
 }
 
 /**

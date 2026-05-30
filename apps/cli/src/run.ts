@@ -2,6 +2,7 @@ import { defineCommand, runMain } from "citty";
 
 import { version } from "../package.json" with { type: "json" };
 import { add } from "./commands/add";
+import { doctor } from "./commands/doctor";
 import { init } from "./commands/init";
 import { list } from "./commands/list";
 import { remove } from "./commands/remove";
@@ -10,7 +11,7 @@ import * as telemetry from "./lib/telemetry";
 
 let startedAt = 0;
 
-const KNOWN_COMMANDS = new Set(["init", "add", "remove", "list", "search"]);
+const KNOWN_COMMANDS = new Set(["init", "add", "remove", "list", "search", "doctor"]);
 
 const main = defineCommand({
   meta: {
@@ -26,7 +27,7 @@ const main = defineCommand({
       "  stanza remove payments\n\n" +
       "Docs: https://stanza.tools",
   },
-  subCommands: { init, add, remove, list, search },
+  subCommands: { init, add, remove, list, search, doctor },
   setup({ rawArgs }) {
     const raw = rawArgs.find((arg) => !arg.startsWith("-"));
     // No verb (bare `stanza`/help/version): leave telemetry unconfigured so

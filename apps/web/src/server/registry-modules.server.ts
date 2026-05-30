@@ -20,7 +20,7 @@ async function loadAll(): Promise<Record<string, Module>> {
   const settled = await Promise.all(
     index.modules.map(async (meta): Promise<readonly [string, Module] | null> => {
       try {
-        const mod = await loadRegistryFile<Module>(`modules/${meta.category}-${meta.id}.json`);
+        const mod = await loadRegistryFile<Module>(meta.path);
         return [`${mod.category}:${mod.id}`, mod] as const;
       } catch (cause) {
         console.error("[server-error]", cause, {

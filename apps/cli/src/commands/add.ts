@@ -19,7 +19,7 @@ import { applyModule, RegionConflictError } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
-import { loadRegistries, pickRegistryRoot } from "../lib/registry-loader";
+import { loadRegistries } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
 
@@ -194,10 +194,6 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   const spinner = p.spinner();
   spinner.start(`Adding ${mod.label}`);
 
-  // Third-party modules ship templates inlined and don't need a local
-  // registry root. For @stanza we still surface the local FS path so dev-mode
-  // (FS) registry runs can read template files that aren't inlined yet.
-  const registryRoot = pickRegistryRoot(namespace ?? DEFAULT_NAMESPACE);
   let result;
   try {
     result = await applyModule({
@@ -206,7 +202,6 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
       module: mod,
       adapter: resolved.adapter,
       targetApps,
-      registryRoot,
       dryRun,
       namespace,
     });
@@ -353,17 +348,11 @@ function reportApplyFailure(args: {
     return;
   }
 
-  const lines = [
-    `Failed while adding ${spec}: ${detail}`,
-    "",
-    "A partial change may have been written. To recover:",
-    `  ${pc.cyan(`stanza remove ${category} ${moduleId}`)}  ${pc.dim("# sweep what Stanza tracked")}`,
-  ];
-  if (cleanBaseline) {
-    lines.push(
-      `  ${pc.cyan("git restore . && git clean -fd")}  ${pc.dim("# or reset the worktree to its last-clean state")}`,
-    );
-  }
+  const lines = [`Failed while adding ${spec}: ${detail}`, "", "The change was rolled back."];
+  // Backstops for the rare case rollback couldn't fully restore the worktree.
+  const escapes = [pc.cyan(`stanza remove ${category} ${moduleId}`)];
+  if (cleanBaseline) escapes.push(pc.cyan("git restore . && git clean -fd"));
+  lines.push(`If anything remains, run ${escapes.join(" or ")}.`);
   p.log.error(lines.join("\n"));
 }
 

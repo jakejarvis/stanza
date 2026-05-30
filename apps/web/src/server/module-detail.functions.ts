@@ -67,9 +67,9 @@ export type ModuleDetail = {
 
 export const getModuleDetail = createServerFn({ method: "GET" })
   .inputValidator((data: ModuleDetailInput) => {
-    // category and id flow into `loadRegistryFile(modules/${category}-${id}.json)`
-    // which, in dev, calls path.resolve — unvalidated `..` segments could
-    // escape the asset root. Constrain to the known shape.
+    // category + id are used to look the entry up in the index; constrain them
+    // to the known shape anyway (the module file is then loaded via the entry's
+    // own `path`, which the index schema already guards against traversal).
     if (typeof data.category !== "string" || !isCategoryId(data.category)) {
       throw new Error(`Unknown category "${String(data.category)}".`);
     }
@@ -84,7 +84,7 @@ export const getModuleDetail = createServerFn({ method: "GET" })
     const meta = index.modules.find((m) => m.category === data.category && m.id === data.id);
     if (!meta) return null;
 
-    const module = await loadRegistryFile<Module>(`modules/${data.category}-${data.id}.json`);
+    const module = await loadRegistryFile<Module>(meta.path);
 
     const peerOptions = computePeerOptions(module, index);
     const resolvedPeers = applyAutoDefaults(module, data.peers, peerOptions);

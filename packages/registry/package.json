@@ -8,6 +8,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./build": "./src/build.ts",
     "./manifest": "./src/manifest.ts",
     "./module": "./src/module.ts",
     "./resolver": "./src/resolver.ts"

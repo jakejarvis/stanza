@@ -83,22 +83,15 @@ export function expandEnv(input: string, env: NodeJS.ProcessEnv = process.env): 
 const registryObjectSchema = z
   .object({
     /**
-     * URL template — must include both `{category}` and `{id}` placeholders.
-     * The CLI substitutes them per module fetch (e.g.
-     * `https://reg.acme.com/{category}/{id}.json` → `.../testing/vitest.json`).
+     * Full URL to the registry's main JSON file (the index). Each module's
+     * `path` recorded in that file is resolved relative to this URL — there is
+     * no filename convention and no `{category}`/`{id}` templating.
      */
-    url: z.string().refine((s) => s.includes("{category}") && s.includes("{id}"), {
-      message: "url must include both {category} and {id} placeholders",
-    }),
+    url: z.string(),
     /**
-     * Optional registry index URL. When set, `stanza search` includes this
-     * namespace's catalog. Absent → the namespace is fetch-by-name only.
-     */
-    indexUrl: z.string().optional(),
-    /**
-     * Headers sent with every request to this registry. Values may contain
-     * `${ENV_VAR}` tokens; a header whose template references an unset var
-     * is silently omitted.
+     * Headers sent with every request to this registry (the main file and each
+     * module). Values may contain `${ENV_VAR}` tokens; a header whose template
+     * references an unset var is silently omitted.
      */
     headers: z.record(z.string(), z.string()).optional(),
     /**
@@ -111,9 +104,11 @@ const registryObjectSchema = z
 
 /**
  * Shape of a registry entry in `stanza.json`. Either:
- *   - a bare URL prefix (uses Stanza's canonical layout — `{base}/index.json`
- *     and `{base}/modules/{category}-{id}.json`), or
- *   - a full object with a URL template + optional auth/params.
+ *   - a string: the full URL to the registry's main JSON file, or
+ *   - an object: that URL plus optional auth headers / query params.
+ *
+ * The main file lists each module's `path`; the CLI resolves modules against
+ * the main file's URL. No directory or filename is assumed.
  */
 export const RegistryConfigSchema = z.union([z.string(), registryObjectSchema]);
 

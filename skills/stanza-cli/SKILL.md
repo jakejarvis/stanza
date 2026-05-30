@@ -65,8 +65,9 @@ pnpm dev
 - `stanza remove <category> [[@<ns>/]<id>] [--app=<id>]` removes a module. For single-choice categories the `id` is optional; for multi-choice categories it is required. `--app` scopes removal in projects with multiple apps. The `@<ns>/` prefix is accepted for readability but not required — `remove` matches against the stored `id`.
 - `stanza list` prints installed modules grouped by category from the nearest `stanza.json`.
 - `stanza search [query]` lists registry modules and their `category/id` pairs.
+- `stanza doctor` checks `stanza.json` against the filesystem for drift (claimed files/deps/scripts/env vars still present, internal packages wired) and reports issues. Read-only; exits non-zero when drift is found.
 
-Run `add`, `remove`, and `list` from the project root or any child directory containing a parent `stanza.json`.
+Run `add`, `remove`, `list`, and `doctor` from the project root or any child directory containing a parent `stanza.json`.
 
 ## Categories
 
@@ -93,10 +94,12 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 
 Stanza ships modules from the first-party `@stanza` namespace by default. To install modules from another publisher, declare the registry in `stanza.json#registries` and address modules with `@<scope>/<id>` syntax:
 
+A registry is addressed by the **full URL to its main JSON file** — the index, which lists every module and the relative `path` to its full JSON. The string form is that URL:
+
 ```json
 {
   "registries": {
-    "@acme": "https://reg.acme.dev"
+    "@acme": "https://reg.acme.dev/registry.json"
   }
 }
 ```
@@ -105,14 +108,13 @@ Stanza ships modules from the first-party `@stanza` namespace by default. To ins
 stanza add testing @acme/cosmos
 ```
 
-Editing `stanza.json#registries` is an expected user-driven edit (the rest of the manifest stays runner-managed). For non-canonical layouts, use the object form:
+Editing `stanza.json#registries` is an expected user-driven edit (the rest of the manifest stays runner-managed). For auth or query params, use the object form:
 
 ```json
 {
   "registries": {
     "@acme": {
-      "url": "https://api.acme.dev/r/{category}/{id}.json",
-      "indexUrl": "https://api.acme.dev/r/index.json",
+      "url": "https://api.acme.dev/r/registry.json",
       "headers": { "Authorization": "Bearer ${ACME_TOKEN}" },
       "params": { "channel": "stable" }
     }
@@ -120,9 +122,9 @@ Editing `stanza.json#registries` is an expected user-driven edit (the rest of th
 }
 ```
 
-`{category}` and `{id}` are required placeholders. `indexUrl` is optional — without it, `stanza search` skips that namespace but install-by-name still works. `${ENV_VAR}` expansion runs against `process.env`: unset vars in `headers` silently drop the header; unset vars in `params` are a hard error. Unknown namespaces fail fast — no implicit fallback to `@stanza`. `@stanza` itself is reserved and rejected if redeclared under `registries`.
+`url` is the full URL to the main JSON file (any filename — module paths in it are resolved relative to it; there is no `{category}`/`{id}` templating or directory convention). `${ENV_VAR}` expansion runs against `process.env`: unset vars in `headers` silently drop the header; unset vars in `params` are a hard error. Unknown namespaces fail fast — no implicit fallback to `@stanza`. `@stanza` itself is reserved and rejected if redeclared under `registries`.
 
-`STANZA_REGISTRY=<url-or-path>` overrides the `@stanza` namespace's URL only — for a self-hosted mirror, air-gapped install, or CI fixture. It does NOT enable third-party modules.
+`STANZA_REGISTRY=<url-or-path>` overrides the `@stanza` namespace's source only — set it to the **full URL or filesystem path to a registry's main JSON file** (not a directory), for a self-hosted mirror, air-gapped install, or CI fixture. It does NOT enable third-party modules.
 
 ## Telemetry
 

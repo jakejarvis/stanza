@@ -1,15 +1,17 @@
 /**
  * Static registry build. Scans `registry/modules/*`, imports each module's
  * default export, writes:
- *   - <out>/registry/index.json           — registry index (per-module metadata)
+ *   - <out>/registry/index.json               — the main file (per-module
+ *                                                metadata, each carrying `path`)
  *   - <out>/registry/modules/<slot>-<id>.json — per-module full manifests
- *   - <out>/schema.json                   — JSON Schema for stanza.json (served at the web root)
+ *   - <out>/schema.json                       — JSON Schema for stanza.json
  *
  * The output base defaults to `<repoRoot>/dist`. Pass a positional arg to
  * redirect — e.g. the web app's prebuild points it at `apps/web/public/` so
  * the registry lands directly under `public/registry/`.
  *
- * Invoked via `jiti packages/registry/src/build.ts [outBase]`.
+ * Invoked via `jiti packages/registry/src/build.ts [outBase]`. Also exported as
+ * `buildRegistry()` so the CLI test harness can build a fixture registry.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,15 +22,21 @@ import { optimize } from "svgo";
 import { manifestJsonSchema } from "./manifest";
 import { CATEGORIES, type Logo, type Module, type RegistryIndex } from "./module";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = findRepoRoot(here);
-const modulesDir = path.join(repoRoot, "registry", "modules");
-const outBase = path.resolve(process.argv[2] ?? path.join(repoRoot, "dist"));
-const registryDir = path.join(outBase, "registry");
+/**
+ * Build the static registry into `<outBase>/registry/` (+ `<outBase>/schema.json`).
+ * `modulesDir` defaults to the repo's `registry/modules`; tests can point it
+ * elsewhere. Returns the module count and resolved output base.
+ */
+export async function buildRegistry(opts: {
+  outBase: string;
+  modulesDir?: string;
+}): Promise<{ count: number; outBase: string }> {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const repoRoot = findRepoRoot(here);
+  const modulesDir = opts.modulesDir ?? path.join(repoRoot, "registry", "modules");
+  const outBase = path.resolve(opts.outBase);
+  const registryDir = path.join(outBase, "registry");
 
-await main();
-
-async function main() {
   // Wipe + recreate so a renamed module's stale JSON doesn't linger and
   // ghost-serve from the CDN.
   const modulesOut = path.join(registryDir, "modules");
@@ -67,26 +75,27 @@ async function main() {
       })),
     };
 
-    // Dirs/files are keyed by `<category>-<id>` (e.g. testing-vitest). The
-    // CLI's HTTP loader builds the same filename from the category it's asked for.
-    fs.writeFileSync(
-      path.join(registryDir, "modules", `${mod.category}-${mod.id}.json`),
-      JSON.stringify(inlined, null, 2),
-    );
+    // Per-module files live at `modules/<category>-<id>.json`; the index
+    // records each one's relative `path` so the loader never has to infer a
+    // filename. (The physical layout is the build's choice — the contract is
+    // the explicit `path`.)
+    const modulePath = `modules/${mod.category}-${mod.id}.json`;
+    fs.writeFileSync(path.join(registryDir, modulePath), JSON.stringify(inlined, null, 2));
 
     // The index keeps lightweight metadata — no template `content`, no
     // per-adapter payloads — but it DOES carry top-level fields like `logo`
     // so the wizard / web builder can render module cards without fetching
-    // the full per-module JSON.
+    // the full per-module JSON, plus the `path` the loader resolves.
     metadata.push({
       ...inlined,
       adapters: inlined.adapters.map((a) => ({ key: a.key, match: a.match })),
+      path: modulePath,
     });
   }
 
   const index: RegistryIndex = {
     generatedAt: new Date().toISOString(),
-    schemaVersion: 1,
+    schemaVersion: 2,
     categories: [...CATEGORIES],
     modules: metadata,
   };
@@ -100,7 +109,17 @@ async function main() {
     JSON.stringify(manifestJsonSchema(), null, 2),
   );
 
-  console.log(`Wrote ${metadata.length} modules to ${outBase}`);
+  return { count: metadata.length, outBase };
+}
+
+// Direct invocation: `jiti packages/registry/src/build.ts [outBase]`. Skipped
+// when imported (e.g. by the CLI test harness), so importing has no side effect.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const repoRoot = findRepoRoot(path.dirname(fileURLToPath(import.meta.url)));
+  const { count, outBase } = await buildRegistry({
+    outBase: process.argv[2] ?? path.join(repoRoot, "dist"),
+  });
+  console.log(`Wrote ${count} modules to ${outBase}`);
 }
 
 /**

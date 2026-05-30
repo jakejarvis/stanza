@@ -119,21 +119,21 @@ describe("expandEnv", () => {
 
 describe("RegistryConfigSchema", () => {
   it("accepts a string shorthand", () => {
-    expect(RegistryConfigSchema.parse("https://reg.acme.com")).toBe("https://reg.acme.com");
+    expect(RegistryConfigSchema.parse("https://reg.acme.example")).toBe("https://reg.acme.example");
   });
 
-  it("accepts the full object form with placeholders", () => {
+  it("accepts the full object form (url = main-file URL + optional auth)", () => {
     const cfg = {
-      url: "https://reg.acme.com/{category}/{id}.json",
+      url: "https://reg.acme.example/registry.json",
       headers: { Authorization: "Bearer ${TOKEN}" },
     };
     expect(RegistryConfigSchema.parse(cfg)).toEqual(cfg);
   });
 
-  it("rejects an object url missing placeholders", () => {
-    expect(() => RegistryConfigSchema.parse({ url: "https://reg.acme.com/static.json" })).toThrow(
-      /category.*id|id.*category/,
-    );
+  it("rejects legacy/unknown object keys (e.g. indexUrl)", () => {
+    expect(() =>
+      RegistryConfigSchema.parse({ url: "https://reg.acme.example/index.json", indexUrl: "x" }),
+    ).toThrow(/indexUrl|[Uu]nrecognized/);
   });
 });
 
@@ -141,9 +141,9 @@ describe("RegistriesSchema", () => {
   it("accepts well-formed namespaces", () => {
     expect(
       RegistriesSchema.parse({
-        "@acme": "https://reg.acme.com",
+        "@acme": "https://reg.acme.example",
         "@private": {
-          url: "https://reg.private.io/r/{category}/{id}.json",
+          url: "https://reg.private.example/registry.json",
           headers: { Authorization: "Bearer ${TOKEN}" },
         },
       }),
@@ -151,10 +151,12 @@ describe("RegistriesSchema", () => {
   });
 
   it("rejects the reserved @stanza namespace", () => {
-    expect(() => RegistriesSchema.parse({ [DEFAULT_NAMESPACE]: "https://x" })).toThrow(/reserved/);
+    expect(() => RegistriesSchema.parse({ [DEFAULT_NAMESPACE]: "https://x.example" })).toThrow(
+      /reserved/,
+    );
   });
 
   it("rejects malformed namespace keys", () => {
-    expect(() => RegistriesSchema.parse({ acme: "https://x" })).toThrow(/@scope/);
+    expect(() => RegistriesSchema.parse({ acme: "https://x.example" })).toThrow(/@scope/);
   });
 });

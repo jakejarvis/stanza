@@ -3,23 +3,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { Module, RegistryConfig, RegistryIndex, StanzaManifest } from "@stanza/registry";
-import {
-  CATEGORIES,
-  DEFAULT_NAMESPACE,
-  expandEnv,
-  ModuleSchema,
-  RegistryIndexSchema,
-} from "@stanza/registry";
+import { DEFAULT_NAMESPACE, expandEnv, ModuleSchema, RegistryIndexSchema } from "@stanza/registry";
 
 /**
- * The published Stanza website hosts the canonical first-party registry under
- * `/registry/`. The bundled CLI defaults to fetching from this URL when no
- * `STANZA_REGISTRY` env override and no in-repo dev registry is detected.
+ * The published Stanza website hosts the canonical first-party registry. A
+ * registry is addressed by the full URL to its **main JSON file** (the index);
+ * the bundled CLI defaults to this one when `STANZA_REGISTRY` is unset.
  */
-const DEFAULT_REGISTRY_URL = "https://stanza.tools/registry";
+const DEFAULT_REGISTRY_URL = "https://stanza.tools/registry/index.json";
 
-// Cap every fetch so a slow/hung third-party registry can't stall the CLI
-// (or block CI). Overridable for slow links + testing.
+// Cap every fetch so a slow/hung registry can't stall the CLI (or block CI).
+// Overridable for slow links + testing.
 function defaultTimeoutMs(): number {
   const env = process.env.STANZA_HTTP_TIMEOUT_MS;
   const parsed = env ? Number.parseInt(env, 10) : NaN;
@@ -30,46 +24,41 @@ function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response
   return fetch(url, { ...init, signal: AbortSignal.timeout(defaultTimeoutMs()) });
 }
 
+/** Per-registry HTTP options (ignored for filesystem URIs). */
+type FetchOpts = { headers?: Record<string, string>; params?: Record<string, string> };
+
 /**
  * Multi-namespace registry surface used by every CLI command. The default
- * `@stanza` namespace is always present (resolved through the env-var →
- * local-FS → default-URL chain); additional namespaces come from the
- * project's `stanza.json` `registries` map.
+ * `@stanza` namespace is always present (its main file resolved through the
+ * env-var → default-URL chain); additional namespaces come from the project's
+ * `stanza.json` `registries` map.
  *
- * Unknown namespaces fail fast with a hard error to keep private module
- * names from accidentally leaking to a public registry — same rule shadcn
- * applies.
+ * Unknown namespaces fail fast with a hard error to keep private module names
+ * from accidentally leaking to a public registry — same rule shadcn applies.
  */
 export type Registries = {
   /** Every namespace this resolver knows about, including `@stanza`. */
   namespaces(): string[];
   /**
-   * Fetch a module by category + id. `namespace` defaults to `@stanza`;
-   * pass an explicit string (e.g. `"@acme"`) to route to a user-declared
-   * registry. Throws when the namespace isn't configured.
+   * Fetch a module by category + id. `namespace` defaults to `@stanza`; pass an
+   * explicit string (e.g. `"@acme"`) to route to a user-declared registry.
+   * Throws when the namespace isn't configured.
    */
   loadModule(category: string, id: string, namespace?: string): Promise<Module>;
-  /**
-   * The default `@stanza` namespace's index — always present. Used by
-   * `stanza init`, which never browses third-party registries.
-   */
+  /** The default `@stanza` namespace's index — always present. */
   defaultIndex(): RegistryIndex;
-  /**
-   * Namespaces that exposed a registry index, for fan-out `search`/`list`.
-   * Namespaces without an `indexUrl` (or whose index 404s) are omitted —
-   * they can still serve modules by name, just not by browse.
-   */
+  /** Every namespace's index, for fan-out `search`/`list`. */
   searchableIndices(): { namespace: string; index: RegistryIndex }[];
 };
 
 type NamespaceLoader = {
-  index?: RegistryIndex;
+  index: RegistryIndex;
   loadModule(category: string, id: string): Promise<Module>;
 };
 
 /**
- * Build a {@link Registries} instance for a project. Pass `manifest` to pick
- * up its declared `registries` map; omit it for project-less flows like
+ * Build a {@link Registries} instance for a project. Pass `manifest` to pick up
+ * its declared `registries` map; omit it for project-less flows like
  * `stanza init` that only ever hit the default namespace.
  */
 export async function loadRegistries(manifest?: StanzaManifest): Promise<Registries> {
@@ -83,7 +72,7 @@ export async function loadRegistries(manifest?: StanzaManifest): Promise<Registr
   // broken third-party registry doesn't take down the rest of the CLI.
   const [defaultLoader, customResults] = await Promise.all([
     buildDefaultLoader(),
-    Promise.allSettled(customEntries.map(([ns, cfg]) => buildCustomLoader(ns, cfg))),
+    Promise.allSettled(customEntries.map(([, cfg]) => buildCustomLoader(cfg))),
   ]);
 
   const loaders = new Map<string, NamespaceLoader>();
@@ -109,105 +98,83 @@ export async function loadRegistries(manifest?: StanzaManifest): Promise<Registr
       return loader.loadModule(category, id);
     },
     defaultIndex() {
-      const loader = loaders.get(DEFAULT_NAMESPACE)!;
-      if (!loader.index) {
-        throw new Error("Default Stanza registry returned no index.");
-      }
-      return loader.index;
+      return loaders.get(DEFAULT_NAMESPACE)!.index;
     },
     searchableIndices() {
-      const out: { namespace: string; index: RegistryIndex }[] = [];
-      for (const [namespace, loader] of loaders) {
-        if (loader.index) out.push({ namespace, index: loader.index });
-      }
-      return out;
+      return [...loaders].map(([namespace, loader]) => ({ namespace, index: loader.index }));
     },
   };
+}
+
+function buildDefaultLoader(): Promise<NamespaceLoader> {
+  const override = process.env.STANZA_REGISTRY;
+  return loadRegistry(override && override.length > 0 ? override : DEFAULT_REGISTRY_URL, {});
+}
+
+function buildCustomLoader(cfg: RegistryConfig): Promise<NamespaceLoader> {
+  const { url, headers, params } = typeof cfg === "string" ? { url: cfg } : cfg;
+  return loadRegistry(url, { headers, params });
 }
 
 /**
- * Locate the local first-party registry root for sourcing template/codemod
- * files. Only valid for the default `@stanza` namespace — third-party
- * namespaces ship template bodies inlined in their per-module JSON (the
- * registry build inlines `tpl.content`), so the runner never needs a disk
- * path for them.
- *
- * Returns `null` when no local registry is reachable (the typical published-
- * CLI case): callers must then rely on inlined `tpl.content` from the HTTP
- * loader. The runner handles this with a clear error if a template is missing
- * both inlined content and a registry root.
+ * The one and only registry loader. `mainUri` is the full URL/path to the
+ * registry's main JSON file (the index) — never a directory or a base. Each
+ * module's `path` recorded in that file is resolved relative to `mainUri`,
+ * over `http(s)://` or the filesystem (bare path or `file://`), identically.
  */
-export function pickRegistryRoot(namespace: string = DEFAULT_NAMESPACE): string | null {
-  if (namespace !== DEFAULT_NAMESPACE) return null;
-  const override = process.env.STANZA_REGISTRY;
-  if (override && !override.startsWith("http")) return override;
-  const local = resolveLocalRegistry();
-  if (local) return local;
-  return null;
-}
-
-function resolveLocalRegistry(): string | undefined {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  let dir = here;
-  for (let i = 0; i < 6; i++) {
-    const candidate = path.join(dir, "registry", "modules");
-    if (fs.existsSync(candidate)) return path.join(dir, "registry");
-    dir = path.dirname(dir);
+async function loadRegistry(mainUri: string, opts: FetchOpts): Promise<NamespaceLoader> {
+  let text: string;
+  try {
+    text = await readText(mainUri, opts);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Could not load the registry main file at "${mainUri}". It must be the full ` +
+        `path/URL to the registry's main JSON file (not a directory). ${detail}`,
+      { cause: err },
+    );
   }
-  return undefined;
-}
+  const index = RegistryIndexSchema.parse(JSON.parse(text));
 
-async function buildDefaultLoader(): Promise<NamespaceLoader> {
-  const envOverride = process.env.STANZA_REGISTRY;
-  if (envOverride) {
-    return envOverride.startsWith("http")
-      ? loadHttpRegistry(envOverride)
-      : loadFsRegistry(envOverride);
-  }
-  const localPath = resolveLocalRegistry();
-  if (localPath) return loadFsRegistry(localPath);
-  return loadHttpRegistry(DEFAULT_REGISTRY_URL);
-}
-
-async function buildCustomLoader(namespace: string, cfg: RegistryConfig): Promise<NamespaceLoader> {
-  const resolved = resolveConfig(cfg);
-  // Try to grab an index up front; absent or 404 just means the namespace is
-  // fetch-by-name only (won't appear in `searchableIndices`).
-  const index = await tryFetchIndex(namespace, resolved);
   return {
     index,
     async loadModule(category, id) {
-      const url = appendParams(renderModuleUrl(resolved, category, id), resolved.params);
-      const init: RequestInit = { headers: buildHeaders(resolved.headers) };
-      const res = await fetchWithTimeout(url, init);
-      if (!res.ok) {
-        throw new Error(`Module fetch failed: ${url} (${res.status} ${res.statusText})`);
+      const entry = index.modules.find((m) => m.category === category && m.id === id);
+      if (!entry) {
+        throw new Error(`Module not found in registry: ${category}/${id}`);
       }
-      return ModuleSchema.parse(await res.json());
+      const moduleUri = resolveModuleUri(mainUri, entry.path);
+      const body = await readText(moduleUri, opts);
+      return ModuleSchema.parse(JSON.parse(body));
     },
   };
 }
 
-type ResolvedConfig = {
-  url: string;
-  indexUrl?: string;
-  headers?: Record<string, string>;
-  params?: Record<string, string>;
-};
-
-function resolveConfig(cfg: RegistryConfig): ResolvedConfig {
-  if (typeof cfg === "string") {
-    const base = cfg.replace(/\/+$/, "");
-    return {
-      url: `${base}/modules/{category}-{id}.json`,
-      indexUrl: `${base}/index.json`,
-    };
-  }
-  return cfg;
+function isHttp(uri: string): boolean {
+  return uri.startsWith("http://") || uri.startsWith("https://");
 }
 
-function renderModuleUrl(cfg: ResolvedConfig, category: string, id: string): string {
-  return cfg.url.replaceAll("{category}", category).replaceAll("{id}", id);
+function toFsPath(uri: string): string {
+  return uri.startsWith("file://") ? fileURLToPath(uri) : uri;
+}
+
+/** Resolve a module's relative `path` against the main file's URI. */
+function resolveModuleUri(mainUri: string, relPath: string): string {
+  if (isHttp(mainUri)) return new URL(relPath, mainUri).toString();
+  return path.resolve(path.dirname(toFsPath(mainUri)), relPath);
+}
+
+/** Read a registry resource as text — HTTP fetch or filesystem read. */
+async function readText(uri: string, opts: FetchOpts): Promise<string> {
+  if (isHttp(uri)) {
+    const url = appendParams(uri, opts.params);
+    const res = await fetchWithTimeout(url, { headers: buildHeaders(opts.headers) });
+    if (!res.ok) {
+      throw new Error(`fetch failed: ${url} (${res.status} ${res.statusText})`);
+    }
+    return res.text();
+  }
+  return fs.readFileSync(toFsPath(uri), "utf8");
 }
 
 const warnedHeaders = new Set<string>();
@@ -220,8 +187,8 @@ function buildHeaders(headers?: Record<string, string>): Record<string, string> 
     if (value !== null) {
       out[name] = value;
     } else if (!warnedHeaders.has(name)) {
-      // shadcn-style: drop the header rather than ship `Bearer ${TOKEN}` with
-      // a literal placeholder. Warn once so it's debuggable when the registry
+      // shadcn-style: drop the header rather than ship `Bearer ${TOKEN}` with a
+      // literal placeholder. Warn once so it's debuggable when the registry
       // then returns 401.
       warnedHeaders.add(name);
       console.warn(`Registry header "${name}" dropped — env var in "${template}" is unset.`);
@@ -243,119 +210,4 @@ function appendParams(url: string, params?: Record<string, string>): string {
     u.searchParams.set(name, value);
   }
   return u.toString();
-}
-
-async function tryFetchIndex(
-  namespace: string,
-  cfg: ResolvedConfig,
-): Promise<RegistryIndex | undefined> {
-  if (!cfg.indexUrl) return undefined;
-  let url: string;
-  try {
-    url = appendParams(cfg.indexUrl, cfg.params);
-  } catch (err) {
-    // appendParams throws on unset env vars — surface that since it's a
-    // config error the user can fix, not a missing-index condition.
-    console.warn(
-      `Registry "${namespace}" index skipped: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return undefined;
-  }
-  let res: Response;
-  try {
-    res = await fetchWithTimeout(url, { headers: buildHeaders(cfg.headers) });
-  } catch {
-    // Network failure (DNS, offline, etc.) — the namespace stays
-    // fetch-by-name-only this run. Silent: typical when offline.
-    return undefined;
-  }
-  // 404 means "no index advertised" — legitimate for fetch-by-name-only
-  // registries. Other non-OK statuses (401, 403, 5xx) likely indicate a
-  // misconfiguration the user should see.
-  if (res.status === 404) return undefined;
-  if (!res.ok) {
-    console.warn(`Registry "${namespace}" index returned ${res.status} ${res.statusText}.`);
-    return undefined;
-  }
-  try {
-    return RegistryIndexSchema.parse(await res.json());
-  } catch (err) {
-    // 200 but schema-invalid → config error worth telling the user about.
-    const detail = err instanceof Error ? err.message.split("\n")[0] : String(err);
-    console.warn(`Registry "${namespace}" index is malformed: ${detail}`);
-    return undefined;
-  }
-}
-
-async function loadFsRegistry(rootDir: string): Promise<NamespaceLoader> {
-  const modulesDir = path.join(rootDir, "modules");
-  const ids = fs
-    .readdirSync(modulesDir, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name);
-
-  // Lazily import each module manifest. We don't keep them all in memory;
-  // we strip the adapter payloads down to `key` + `match` for the index and
-  // re-import full modules on demand.
-  const summaries = await Promise.all(
-    ids.map(async (name) => {
-      const mod = await importModule(modulesDir, name);
-      return { ...mod, adapters: mod.adapters.map((a) => ({ key: a.key, match: a.match })) };
-    }),
-  );
-
-  const index: RegistryIndex = {
-    generatedAt: new Date().toISOString(),
-    schemaVersion: 1,
-    categories: [...CATEGORIES],
-    modules: summaries,
-  };
-
-  return {
-    index,
-    async loadModule(_slot, id) {
-      // Modules are stored as `<slot>-<id>` directories. We accept either the
-      // bare id (preferred) or the slot-prefixed dir name.
-      const dirName = ids.find((d) => d === id || d.endsWith(`-${id}`) || d === `${_slot}-${id}`);
-      if (!dirName) {
-        throw new Error(`Module not found in local registry: ${_slot}/${id}`);
-      }
-      return importModule(modulesDir, dirName);
-    },
-  };
-}
-
-async function loadHttpRegistry(baseUrl: string): Promise<NamespaceLoader> {
-  const indexRes = await fetchWithTimeout(`${baseUrl}/index.json`);
-  if (!indexRes.ok) {
-    throw new Error(`Failed to load Stanza registry from ${baseUrl}: ${indexRes.status}`);
-  }
-  const index = RegistryIndexSchema.parse(await indexRes.json());
-
-  return {
-    index,
-    async loadModule(slot, id) {
-      const url = `${baseUrl}/modules/${slot}-${id}.json`;
-      const res = await fetchWithTimeout(url);
-      if (!res.ok) throw new Error(`Module fetch failed: ${url} (${res.status})`);
-      return ModuleSchema.parse(await res.json());
-    },
-  };
-}
-
-async function importModule(modulesDir: string, dirName: string): Promise<Module> {
-  const entry = path.join(modulesDir, dirName, "module.ts");
-  const mod: { default: Module } = await import(entry);
-  if (!mod.default) {
-    throw new Error(`Module ${dirName} has no default export at ${entry}`);
-  }
-  // Mirror `build.ts`: a sidecar `readme.md` next to `module.ts` is inlined
-  // onto the manifest so the dev-time FS loader and the inlined-JSON loader
-  // produce equivalent modules. Authors edit a real markdown file rather than
-  // a string literal in `module.ts`.
-  const readmeFile = path.join(modulesDir, dirName, "readme.md");
-  if (fs.existsSync(readmeFile)) {
-    return { ...mod.default, readme: fs.readFileSync(readmeFile, "utf8") };
-  }
-  return mod.default;
 }

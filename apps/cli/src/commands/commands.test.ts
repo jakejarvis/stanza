@@ -3,17 +3,35 @@ import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
+import { CATEGORIES } from "@stanza/registry";
+import { buildRegistry } from "@stanza/registry/build";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
 
+import { loadRegistries } from "../lib/registry-loader";
 import { cmdAdd } from "./add";
+import { cmdDoctor } from "./doctor";
 import { cmdInit } from "./init";
 import { cmdRemove } from "./remove";
-
-const REPO_ROOT = path.resolve(import.meta.dirname, "../../../..");
 
 let tmp: string;
 let prevCwd: string;
 let prevExitCode: typeof process.exitCode;
+
+// The CLI only reads built registries (no source-tree loader), so build the
+// real first-party registry once into a temp dir and point STANZA_REGISTRY at
+// its main file. Hermetic + exercises the production loader.
+let fixtureRoot: string;
+let fixtureMain: string;
+
+beforeAll(async () => {
+  fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-reg-"));
+  await buildRegistry({ outBase: fixtureRoot });
+  fixtureMain = path.join(fixtureRoot, "registry", "index.json");
+});
+
+afterAll(() => {
+  fs.rmSync(fixtureRoot, { recursive: true, force: true });
+});
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-cmd-"));
@@ -21,9 +39,8 @@ beforeEach(() => {
   process.chdir(tmp);
   prevExitCode = process.exitCode;
   process.exitCode = undefined;
-  // Point the registry loader at this repo's dev-mode registry so tests
-  // exercise the real first-party modules instead of hitting the network.
-  process.env.STANZA_REGISTRY = path.join(REPO_ROOT, "registry");
+  // Full path to the built registry's main file — no directory/base inference.
+  process.env.STANZA_REGISTRY = fixtureMain;
   // Keep the apply path hermetic: skip npm version lookups so deps land at the
   // manifest's verbatim ranges and no real network calls happen.
   process.env.STANZA_NO_NPM_LOOKUP = "1";
@@ -514,22 +531,34 @@ describe("third-party registries", () => {
     server = createServer((req, res) => {
       const url = req.url ?? "";
       fixture.onRequest?.({ url, headers: req.headers });
-      // Map `/modules/<category>-<id>.json` → fixture.modules[<category>-<id>].
-      // `/index.json` is intentionally 404 — we exercise fetch-by-name only.
-      const match = /^\/modules\/(.+)\.json$/.exec(url);
-      if (!match) {
-        res.statusCode = 404;
-        res.end();
+      const sendJson = (payload: unknown) => {
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify(payload));
+      };
+      // The main file: an index listing every fixture module, each carrying its
+      // `path`. Adapters are stripped to `key`+`match` (index metadata shape).
+      if (url === "/index.json" || url.startsWith("/index.json?")) {
+        const modules = Object.entries(fixture.modules).map(([key, mod]) => {
+          const m = mod as Record<string, unknown> & {
+            adapters?: Array<{ key: string; match: unknown }>;
+          };
+          return Object.assign({}, m, {
+            adapters: (m.adapters ?? []).map((a) => ({ key: a.key, match: a.match })),
+            path: `modules/${key}.json`,
+          });
+        });
+        sendJson({ generatedAt: "t", schemaVersion: 2, categories: [...CATEGORIES], modules });
         return;
       }
-      const payload = fixture.modules[match[1]!];
+      // Per-module full manifests at the `path` advertised by the index.
+      const match = /^\/modules\/([^?]+)\.json/.exec(url);
+      const payload = match ? fixture.modules[match[1]!] : undefined;
       if (!payload) {
         res.statusCode = 404;
         res.end();
         return;
       }
-      res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify(payload));
+      sendJson(payload);
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const port = (server.address() as { port: number }).port;
@@ -543,7 +572,7 @@ describe("third-party registries", () => {
   it("installs a module from a third-party namespace and records its origin", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
-    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/index.json` });
     fixture.modules["testing-cosmos"] = cosmosModule();
 
     await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
@@ -575,7 +604,7 @@ describe("third-party registries", () => {
   it("refetches from the original namespace on remove", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
-    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/index.json` });
     fixture.modules["testing-cosmos"] = cosmosModule();
 
     await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
@@ -600,7 +629,7 @@ describe("third-party registries", () => {
     process.chdir(path.join(tmp, "app"));
     writeStanza(process.cwd(), {
       "@fixture": {
-        url: `${baseUrl}/modules/{category}-{id}.json`,
+        url: `${baseUrl}/index.json`,
         headers: {
           Authorization: "Bearer ${STANZA_TEST_TOKEN}",
           "X-Missing": "Bearer ${STANZA_UNSET_TOKEN}",
@@ -629,7 +658,7 @@ describe("third-party registries", () => {
   it("rejects a third-party module that invokes an unknown codemod", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
-    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/index.json` });
     fixture.modules["testing-cosmos"] = cosmosModule({
       adapters: [{ key: "default", match: {}, codemods: [{ id: "not-a-real-codemod" }] }],
     });
@@ -644,13 +673,66 @@ describe("third-party registries", () => {
     expect(manifest.modules.testing).toBeUndefined();
   });
 
-  it("surfaces a clear error when the registry has no such module (non-200)", async () => {
+  it("surfaces a clear error when the registry's main file lists no such module", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
-    writeStanza(process.cwd(), { "@fixture": baseUrl });
-    // fixture.modules is empty → the stub server 404s for testing-ghost.
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/index.json` });
+    // fixture.modules is empty → the main file lists nothing, so `ghost` isn't
+    // in the index and resolution fails cleanly.
     await cmdAdd(args({ slot: "testing", moduleId: "@fixture/ghost" }));
     expect(process.exitCode).toBe(1);
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toBeUndefined();
+  });
+
+  it("skips a namespace whose main file is unreachable", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    // Points at a path the stub 404s — the namespace fails to initialize and is
+    // skipped, so the module id resolves to an unknown registry.
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/nope.json` });
+    fixture.modules["testing-cosmos"] = cosmosModule();
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
+    expect(process.exitCode).toBe(1);
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing).toBeUndefined();
+  });
+
+  it("rolls back template writes when a codemod throws mid-apply", async () => {
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/index.json` });
+    // A module that writes a template, then runs `append-to-file` against a
+    // file that doesn't exist — a real catalog codemod that throws at runtime,
+    // AFTER the template has been flushed to disk.
+    fixture.modules["testing-probe"] = {
+      category: "testing",
+      id: "probe",
+      label: "Probe",
+      description: "rollback probe",
+      version: "1.0.0",
+      adapters: [
+        {
+          key: "default",
+          match: {},
+          templates: [
+            { src: "p.txt", dest: "rollback-probe.txt", scope: "app", content: "probe\n" },
+          ],
+          codemods: [
+            {
+              id: "append-to-file",
+              args: { file: "nope.txt", content: "boom", marker: "m", commentStyle: "line" },
+            },
+          ],
+        },
+      ],
+    };
+
+    await cmdAdd(args({ slot: "testing", moduleId: "@fixture/probe" }));
+    expect(process.exitCode).toBe(1);
+
+    // Rollback removed the flushed template and restored the manifest.
+    expect(fs.existsSync("apps/web/rollback-probe.txt")).toBe(false);
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(manifest.modules.testing).toBeUndefined();
   });
@@ -658,7 +740,7 @@ describe("third-party registries", () => {
   it("surfaces a region conflict cleanly and writes nothing", async () => {
     await cmdInit(args({ name: "app", yes: true, framework: "next" }));
     process.chdir(path.join(tmp, "app"));
-    writeStanza(process.cwd(), { "@fixture": baseUrl });
+    writeStanza(process.cwd(), { "@fixture": `${baseUrl}/index.json` });
     // First-party vitest claims `scripts.test` on the app's package.json.
     await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
     expect(process.exitCode).toBeFalsy();
@@ -675,6 +757,103 @@ describe("third-party registries", () => {
     expect(fs.readFileSync("apps/web/package.json", "utf8")).toBe(before);
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(manifest.modules.testing.map((r: { id: string }) => r.id)).toEqual(["vitest"]);
+  });
+});
+
+describe("filesystem main-file registry", () => {
+  // STANZA_REGISTRY is the full path to the main JSON file; module `path`s in it
+  // resolve relative to the file. No directory or filename inference.
+  it("loads the index and modules from a main-file URI", async () => {
+    const root = path.join(tmp, "reg");
+    fs.mkdirSync(path.join(root, "modules"), { recursive: true });
+    const cosmos = cosmosModule();
+    const mainFile = path.join(root, "main.json"); // any filename works
+    fs.writeFileSync(
+      mainFile,
+      JSON.stringify({
+        generatedAt: "2026-01-01T00:00:00.000Z",
+        schemaVersion: 2,
+        categories: [...CATEGORIES],
+        modules: [
+          {
+            ...cosmos,
+            adapters: cosmos.adapters.map((a) => ({ key: a.key, match: a.match })),
+            path: "modules/testing-cosmos.json",
+          },
+        ],
+      }),
+    );
+    fs.writeFileSync(path.join(root, "modules", "testing-cosmos.json"), JSON.stringify(cosmos));
+    process.env.STANZA_REGISTRY = mainFile;
+
+    const registry = await loadRegistries();
+    expect(registry.defaultIndex().modules.map((m) => m.id)).toContain("cosmos");
+    expect(registry.defaultIndex().categories.map((c) => c.id)).toContain("api");
+    // Full module resolves via the entry's `path`, with install fields intact.
+    const mod = await registry.loadModule("testing", "cosmos");
+    expect(mod.id).toBe("cosmos");
+    expect(mod.devDependencies?.["react-cosmos"]).toBe("^7.0.0");
+    // A module absent from the main file surfaces a clear error.
+    await expect(registry.loadModule("testing", "ghost")).rejects.toThrow(/not found in registry/);
+  });
+
+  it("errors clearly when STANZA_REGISTRY points at a directory", async () => {
+    // The built fixture's `registry/` dir is a directory, not the main file.
+    process.env.STANZA_REGISTRY = path.dirname(fixtureMain);
+    await expect(loadRegistries()).rejects.toThrow(
+      /full path\/URL to the registry's main JSON file/,
+    );
+  });
+});
+
+describe("cmdDoctor", () => {
+  beforeEach(async () => {
+    await cmdInit(
+      args({ name: "app", yes: true, framework: "next", db: "postgres", orm: "drizzle" }),
+    );
+    process.chdir(path.join(tmp, "app"));
+  });
+
+  it("reports no drift for a freshly generated project", async () => {
+    await cmdDoctor();
+    expect(process.exitCode).toBeFalsy();
+  });
+
+  it("flags a claimed file that was deleted", async () => {
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    const fileClaim = Object.entries(manifest.regions).find(
+      ([, regions]) => (regions as Record<string, string>).file,
+    );
+    expect(fileClaim).toBeTruthy();
+    fs.rmSync(fileClaim![0]); // delete the claimed file (paths are project-relative)
+
+    process.exitCode = undefined;
+    await cmdDoctor();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it("flags a claimed dependency that was stripped", async () => {
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    let target: { file: string; kind: string; name: string } | undefined;
+    for (const [file, regions] of Object.entries(manifest.regions)) {
+      for (const region of Object.keys(regions as Record<string, string>)) {
+        const s = region.startsWith("app.") ? region.slice("app.".length) : region;
+        if (s.startsWith("dependencies.") || s.startsWith("devDependencies.")) {
+          const [kind, ...rest] = s.split(".");
+          target = { file, kind: kind!, name: rest.join(".") };
+          break;
+        }
+      }
+      if (target) break;
+    }
+    expect(target).toBeTruthy();
+    const pkg = JSON.parse(fs.readFileSync(target!.file, "utf8"));
+    delete pkg[target!.kind][target!.name];
+    fs.writeFileSync(target!.file, JSON.stringify(pkg, null, 2));
+
+    process.exitCode = undefined;
+    await cmdDoctor();
+    expect(process.exitCode).toBe(1);
   });
 });
 

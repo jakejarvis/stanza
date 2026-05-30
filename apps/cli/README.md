@@ -41,8 +41,9 @@ npx stanza-cli init my-app --yes \
 | `stanza remove <category> [[@<ns>/]<id>]` | Remove a module and clean up its files, deps, and codemods. The id is optional for single-choice categories.                                                                                       |
 | `stanza list`                             | Print installed modules grouped by category.                                                                                                                                                       |
 | `stanza search [query]`                   | List registry modules and their `category/id` pairs.                                                                                                                                               |
+| `stanza doctor`                           | Check `stanza.json` against the filesystem for drift (read-only); exits non-zero when something's missing.                                                                                         |
 
-Run `add` / `remove` / `list` from the project root or any child directory under a `stanza.json`.
+Run `add` / `remove` / `list` / `doctor` from the project root or any child directory under a `stanza.json`.
 
 Every module fills exactly one **category**. Single-choice categories (`framework`, `ui`, `db`, `orm`, `auth`, `payments`, `email`, `ai`, `tooling`, `monorepo`) hold one module; multi-choice (`testing`, `deploy`) coexist. `auth`/`db`/`orm` and friends install into their own internal workspace packages (`packages/auth/`, `packages/db/`, …); your apps consume them via `workspace:*`, so swapping a provider replaces a package's contents without touching your app imports.
 
@@ -57,14 +58,15 @@ Every module fills exactly one **category**. Single-choice categories (`framewor
 Modules ship from the first-party `@stanza` namespace by default. To pull from another publisher, declare it in `stanza.json` and address modules as `@<scope>/<id>`:
 
 ```jsonc
-{ "registries": { "@acme": "https://reg.acme.dev" } }
+// the full URL to the registry's main JSON file (the index)
+{ "registries": { "@acme": "https://reg.acme.dev/registry.json" } }
 ```
 
 ```sh
 stanza add testing @acme/cosmos
 ```
 
-`STANZA_REGISTRY=<url-or-path>` overrides the `@stanza` namespace's source (self-hosted mirror, air-gapped install, CI fixture).
+`STANZA_REGISTRY=<url-or-path>` overrides the `@stanza` namespace's source — the full URL or filesystem path to a registry's main JSON file (self-hosted mirror, air-gapped install, CI fixture).
 
 ## Telemetry
 

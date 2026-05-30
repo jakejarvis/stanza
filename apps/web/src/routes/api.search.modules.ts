@@ -37,7 +37,7 @@ async function buildIndex(): Promise<ModuleIndex> {
   const loaded = await Promise.all(
     index.modules.map(async (meta) => {
       try {
-        const mod = await loadRegistryFile<Module>(`modules/${meta.category}-${meta.id}.json`);
+        const mod = await loadRegistryFile<Module>(meta.path);
         return { meta, mod };
       } catch {
         return { meta, mod: null as Module | null };

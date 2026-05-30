@@ -185,16 +185,16 @@ describe("third-party registries", () => {
         ],
       },
       registries: {
-        "@thirdparty": "https://reg.thirdparty.dev",
+        "@thirdparty": "https://reg.thirdparty.example",
         "@private": {
-          url: "https://reg.private.io/{category}/{id}.json",
+          url: "https://reg.private.example/{category}/{id}.json",
           headers: { Authorization: "Bearer ${TOKEN}" },
         },
       },
     };
     const parsed = StanzaManifestSchema.parse(manifest);
     expect(parsed.modules.testing?.[0]?.namespace).toBe("@thirdparty");
-    expect(parsed.registries?.["@thirdparty"]).toBe("https://reg.thirdparty.dev");
+    expect(parsed.registries?.["@thirdparty"]).toBe("https://reg.thirdparty.example");
     expect(JSON.parse(JSON.stringify(parsed))).toEqual(manifest);
   });
 
@@ -219,7 +219,7 @@ describe("third-party registries", () => {
   it("rejects unknown top-level keys (catches typos like `registies`)", () => {
     const result = StanzaManifestSchema.safeParse({
       ...emptyManifest({ name: "acme" }),
-      registies: { "@acme": "https://reg.acme.dev" },
+      registies: { "@acme": "https://reg.acme.example" },
     });
     expect(result.success).toBe(false);
   });
