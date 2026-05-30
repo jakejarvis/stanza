@@ -6,7 +6,6 @@ dist/
 *.tsbuildinfo
 .tanstack/
 .source/
-.vercel
 
 # IDE
 .vscode/*
@@ -31,6 +30,5 @@ Thumbs.db
 coverage/
 __snapshots__/.tmp/
 
-# misc
-apps/web/public/registry/
-apps/web/public/schema.json
+# Vercel
+.vercel

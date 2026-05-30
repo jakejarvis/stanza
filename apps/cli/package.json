@@ -57,10 +57,12 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@stanza/codemods": "workspace:*",
-    "@stanza/registry": "workspace:*",
     "@types/node": "^25.9.1",
     "@types/semver": "^7.7.1",
+    "@withstanza/codemods": "workspace:*",
+    "@withstanza/registry": "workspace:*",
+    "@withstanza/schema": "workspace:*",
+    "@withstanza/utils": "workspace:*",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"

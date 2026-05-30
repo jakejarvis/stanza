@@ -1,6 +1,6 @@
+import { defineModule, type Module } from "@withstanza/schema";
 import { describe, expect, it } from "vite-plus/test";
 
-import { defineModule, type Module } from "./module";
 import type { Resolved } from "./package-json";
 import { ENV_EXAMPLE_HEADER, synthesizeEnvExample, synthesizeReadme } from "./synthesize";
 

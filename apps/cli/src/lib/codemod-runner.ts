@@ -1,10 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { openProject } from "@stanza/codemods";
-import { addPackageDependency, addPackageScript, addEnvVar } from "@stanza/codemods";
-import type { CodemodContext, Project } from "@stanza/codemods";
-import { CODEMOD_CATALOG } from "@stanza/codemods/builtins";
+import { openProject } from "@withstanza/codemods";
+import { addPackageDependency, addPackageScript, addEnvVar } from "@withstanza/codemods";
+import type { CodemodContext, Project } from "@withstanza/codemods";
+import { CODEMOD_CATALOG } from "@withstanza/codemods/builtins";
+import type { TemplateContext } from "@withstanza/registry";
+import {
+  activePeerIds,
+  buildRenderContext,
+  installPackageJsonTargets,
+  mergeInstallFields,
+  renderTemplate,
+  slotPackageJsonBase,
+} from "@withstanza/registry";
 import type {
   AppSpec,
   CategoryId,
@@ -12,21 +21,10 @@ import type {
   Module,
   ModuleAdapter,
   StanzaManifest,
-  TemplateContext,
   TemplateRef,
-} from "@stanza/registry";
-import {
-  activePeerIds,
-  assertSafeRelativePath,
-  buildRenderContext,
-  categoryHome,
-  declaredEnvNames,
-  installPackageJsonTargets,
-  mergeInstallFields,
-  PACKAGE_DIRS,
-  renderTemplate,
-  slotPackageJsonBase,
-} from "@stanza/registry";
+} from "@withstanza/schema";
+import { categoryHome, declaredEnvNames, PACKAGE_DIRS } from "@withstanza/schema";
+import { assertSafeRelativePath } from "@withstanza/utils";
 import semver from "semver";
 
 import { FileTx } from "./file-tx";
@@ -117,7 +115,7 @@ export async function applyModule(args: {
   // on conflicts; env merges by `name`.
   const installFields = mergeInstallFields(module, adapter);
 
-  // `categoryHome` (in @stanza/registry) is the single decision point for where
+  // `categoryHome` (in @withstanza/registry) is the single decision point for where
   // a module's templates/deps/scripts land — package (`packages/<dir>/`), repo
   // root, or each targeted app.
   const packageDir = home.kind === "package" ? home.dir : null;

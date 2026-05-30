@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { selectedOne } from "@stanza/registry";
+import { selectedOne } from "@withstanza/schema";
 
 import {
   addDefaultImport,

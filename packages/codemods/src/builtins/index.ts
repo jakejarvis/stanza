@@ -15,7 +15,7 @@
  * doesn't fit an existing generic codemod, design a new generic codemod
  * with the right argument surface and add it to the catalog.
  *
- * The catalog lives in `@stanza/codemods/builtins` (this file) so it sits
+ * The catalog lives in `@withstanza/codemods/builtins` (this file) so it sits
  * next to the helper primitives it uses; consumers import via the package's
  * subpath export.
  */

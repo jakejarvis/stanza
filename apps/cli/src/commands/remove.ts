@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import { removePackageDependency, removeEnvVar } from "@stanza/codemods";
-import type { AppSpec, StanzaManifest, StanzaModuleRecord } from "@stanza/registry";
+import { removePackageDependency, removeEnvVar } from "@withstanza/codemods";
+import type { AppSpec, StanzaManifest, StanzaModuleRecord } from "@withstanza/schema";
 import {
   appsForRecord,
   categoryHome,
@@ -15,7 +15,7 @@ import {
   PACKAGE_DIRS,
   parseModuleSpec,
   selectedAll,
-} from "@stanza/registry";
+} from "@withstanza/schema";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 

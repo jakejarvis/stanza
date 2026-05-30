@@ -1,7 +1,7 @@
-import type { CategoryId } from "@stanza/registry";
-import { KNOWN_CATEGORIES } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
 import { getCache, waitUntil } from "@vercel/functions";
+import type { CategoryId } from "@withstanza/schema";
+import { KNOWN_CATEGORIES } from "@withstanza/schema";
 
 import { getQueryConfig, runQuery } from "@/server/posthog-query.server";
 

@@ -1,5 +1,5 @@
-import type { EnvVar } from "@stanza/registry";
 import { IconExternalLink } from "@tabler/icons-react";
+import type { EnvVar } from "@withstanza/schema";
 
 import { Section, SectionList } from "@/components/detail/section";
 import { Badge } from "@/components/ui/badge";

@@ -1,7 +1,6 @@
+import { defineModule, emptyManifest, type Module } from "@withstanza/schema";
 import { assert, describe, expect, it } from "vite-plus/test";
 
-import { emptyManifest } from "./manifest";
-import { defineModule, type Module } from "./module";
 import { activePeerIds, resolveAdapter } from "./resolver";
 
 const drizzle: Module = defineModule({

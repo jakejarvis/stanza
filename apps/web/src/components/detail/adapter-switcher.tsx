@@ -1,5 +1,5 @@
-import type { CategoryId, ModuleMetadata, RegistryIndex } from "@stanza/registry";
-import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata, RegistryIndex } from "@withstanza/schema";
+import { categoryLabel, KNOWN_CATEGORIES } from "@withstanza/schema";
 import { useMemo } from "react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";

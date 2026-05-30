@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as SchemaDotjsonRouteImport } from './routes/schema[.]json'
 import { Route as OgDotwebpRouteImport } from './routes/og[.]webp'
 import { Route as DocsDotmdRouteImport } from './routes/docs[.]md'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ import { Route as OgRegistryCategoryChar123idChar125DotwebpRouteImport } from '.
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SchemaDotjsonRoute = SchemaDotjsonRouteImport.update({
+  id: '/schema.json',
+  path: '/schema.json',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OgDotwebpRoute = OgDotwebpRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
   '/og.webp': typeof OgDotwebpRoute
+  '/schema.json': typeof SchemaDotjsonRoute
   '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
   '/og.webp': typeof OgDotwebpRoute
+  '/schema.json': typeof SchemaDotjsonRoute
   '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
@@ -150,6 +158,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/docs.md': typeof DocsDotmdRoute
   '/og.webp': typeof OgDotwebpRoute
+  '/schema.json': typeof SchemaDotjsonRoute
   '/stats': typeof StatsRoute
   '/api/events': typeof ApiEventsRoute
   '/docs/$': typeof DocsSplatRoute
@@ -170,6 +179,7 @@ export interface FileRouteTypes {
     | '/'
     | '/docs.md'
     | '/og.webp'
+    | '/schema.json'
     | '/stats'
     | '/api/events'
     | '/docs/$'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/'
     | '/docs.md'
     | '/og.webp'
+    | '/schema.json'
     | '/stats'
     | '/api/events'
     | '/docs/$'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/'
     | '/docs.md'
     | '/og.webp'
+    | '/schema.json'
     | '/stats'
     | '/api/events'
     | '/docs/$'
@@ -225,6 +237,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DocsDotmdRoute: typeof DocsDotmdRoute
   OgDotwebpRoute: typeof OgDotwebpRoute
+  SchemaDotjsonRoute: typeof SchemaDotjsonRoute
   StatsRoute: typeof StatsRoute
   ApiEventsRoute: typeof ApiEventsRoute
   DocsSplatRoute: typeof DocsSplatRoute
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/schema.json': {
+      id: '/schema.json'
+      path: '/schema.json'
+      fullPath: '/schema.json'
+      preLoaderRoute: typeof SchemaDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/og.webp': {
@@ -361,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DocsDotmdRoute: DocsDotmdRoute,
   OgDotwebpRoute: OgDotwebpRoute,
+  SchemaDotjsonRoute: SchemaDotjsonRoute,
   StatsRoute: StatsRoute,
   ApiEventsRoute: ApiEventsRoute,
   DocsSplatRoute: DocsSplatRoute,

@@ -86,7 +86,7 @@ export const Route = createFileRoute("/docs/$")({
       title,
       description,
       path,
-      ogImage: loaderData ? `/og${loaderData.url}.webp` : undefined,
+      ogImage: loaderData ? `/og${path}.webp` : undefined,
       markdownPath: loaderData ? `${path}.md` : undefined,
       jsonLd:
         loaderData && title

@@ -2,8 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { Module, RegistryConfig, RegistryIndex, StanzaManifest } from "@stanza/registry";
-import { DEFAULT_NAMESPACE, expandEnv, ModuleSchema, RegistryIndexSchema } from "@stanza/registry";
+import type { Module, RegistryConfig, RegistryIndex, StanzaManifest } from "@withstanza/schema";
+import {
+  DEFAULT_NAMESPACE,
+  expandEnv,
+  ModuleSchema,
+  RegistryIndexSchema,
+} from "@withstanza/schema";
 
 /**
  * The published Stanza website hosts the canonical first-party registry. A

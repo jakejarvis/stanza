@@ -2,17 +2,21 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import type { AppSpec, CategoryId, Module, PackageManager, RegistryIndex } from "@stanza/registry";
+import { categoryOrder, resolveAdapter, validateProjectName } from "@withstanza/registry";
+import type {
+  AppSpec,
+  CategoryId,
+  Module,
+  PackageManager,
+  RegistryIndex,
+} from "@withstanza/schema";
 import {
   categoryLabel,
-  categoryOrder,
   defaultWebApp,
   emptyManifest,
   isMulti,
   KNOWN_CATEGORIES,
-  resolveAdapter,
-  validateProjectName,
-} from "@stanza/registry";
+} from "@withstanza/schema";
 import pc from "picocolors";
 
 import type { Registries } from "./registry-loader";
@@ -25,7 +29,7 @@ export type WizardResult = {
    * multi-app-shaped.
    */
   apps: AppSpec[];
-  packageManager: "pnpm" | "bun" | "npm";
+  packageManager: PackageManager;
   /** Chosen modules, keyed by category. Single-choice categories hold one. */
   selections: Partial<Record<CategoryId, Module[]>>;
 };
@@ -37,7 +41,7 @@ export type WizardResult = {
  */
 export type WizardOverrides = {
   name?: string;
-  packageManager?: "pnpm" | "bun" | "npm";
+  packageManager?: PackageManager;
   /** Category → module ids (comma-separated on the CLI). Missing = skipped. */
   selections: Partial<Record<CategoryId, string[]>>;
 };

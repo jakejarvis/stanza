@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { assertSafeRelativePath } from "@stanza/registry";
+import { assertSafeRelativePath } from "@withstanza/utils";
 
 import {
   addDefaultImport,

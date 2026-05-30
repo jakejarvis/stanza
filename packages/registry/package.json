@@ -1,5 +1,5 @@
 {
-  "name": "@stanza/registry",
+  "name": "@withstanza/registry",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -8,19 +8,16 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./build": "./src/build.ts",
-    "./manifest": "./src/manifest.ts",
-    "./module": "./src/module.ts",
     "./resolver": "./src/resolver.ts"
   },
   "dependencies": {
+    "@withstanza/schema": "workspace:*",
+    "@withstanza/utils": "workspace:*",
     "handlebars": "^4.7.9",
-    "validate-npm-package-name": "^8.0.0",
-    "zod": "^4.4.3"
+    "validate-npm-package-name": "^8.0.0"
   },
   "devDependencies": {
     "@types/validate-npm-package-name": "^4.0.2",
-    "svgo": "^4.0.1",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"

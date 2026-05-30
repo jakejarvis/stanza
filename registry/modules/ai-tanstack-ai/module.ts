@@ -1,4 +1,4 @@
-import { defineModule } from "@stanza/registry";
+import { defineModule } from "@withstanza/schema";
 
 export default defineModule({
   id: "tanstack-ai",

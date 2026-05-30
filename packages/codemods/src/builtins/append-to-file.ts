@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { assertSafeRelativePath } from "@stanza/registry";
+import { assertSafeRelativePath } from "@withstanza/utils";
 
-import type { Codemod } from "../index";
+import { type Codemod } from "../index";
 
 /** Comment-line shape used to wrap inserted blocks for idempotency + revert. */
 export type CommentStyle = "line" | "hash" | "block";

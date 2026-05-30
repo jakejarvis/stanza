@@ -1,7 +1,7 @@
-import type { CategoryId } from "@stanza/registry";
-import { categoryLabel, KNOWN_CATEGORIES, PEER_CATEGORIES } from "@stanza/registry";
 import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import type { CategoryId } from "@withstanza/schema";
+import { categoryLabel, KNOWN_CATEGORIES, PEER_CATEGORIES } from "@withstanza/schema";
 import { useCallback, useMemo } from "react";
 
 import { AdapterSwitcher } from "@/components/detail/adapter-switcher";

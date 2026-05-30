@@ -1,8 +1,11 @@
+import {
+  type AppSpec,
+  type CategoryId,
+  PACKAGE_DIRS,
+  type PackageManager,
+  PEER_CATEGORIES,
+} from "@withstanza/schema";
 import Handlebars from "handlebars";
-
-import type { AppSpec } from "./manifest";
-import { type CategoryId, PACKAGE_DIRS, PEER_CATEGORIES } from "./module";
-import type { PackageManager } from "./package-json";
 
 /**
  * Handlebars context consumed by {@link renderTemplate}. The shape is the

@@ -2,21 +2,24 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import type { AppSpec, CategoryId, Module, Resolved, ResolvedEntry } from "@stanza/registry";
+import type { Resolved, ResolvedEntry } from "@withstanza/registry";
 import {
   appPackageJsonBase,
-  categoryHome,
   categoryOrder,
-  DEFAULT_NAMESPACE,
   ENV_EXAMPLE_HEADER,
-  KNOWN_CATEGORIES,
-  PEER_CATEGORIES,
   pmRun,
   PM_FLOOR_VERSION,
   resolveAdapter,
   rootPackageJson,
   synthesizeReadme,
-} from "@stanza/registry";
+} from "@withstanza/registry";
+import type { AppSpec, CategoryId, Module, PackageManager } from "@withstanza/schema";
+import {
+  categoryHome,
+  DEFAULT_NAMESPACE,
+  KNOWN_CATEGORIES,
+  PEER_CATEGORIES,
+} from "@withstanza/schema";
 import { type ArgsDef, defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -228,7 +231,7 @@ export async function cmdInit(args: CliArgs): Promise<void> {
 
 async function bootstrapShell(
   projectRoot: string,
-  opts: { name: string; packageManager: "pnpm" | "bun" | "npm"; apps: AppSpec[] },
+  opts: { name: string; packageManager: PackageManager; apps: AppSpec[] },
 ) {
   // Pin `packageManager` to the latest released version that still satisfies
   // the floor (Corepack requires an exact version, so the modifier is stripped).

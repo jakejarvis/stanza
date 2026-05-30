@@ -1,6 +1,6 @@
-import { categoryDescription, categoryLabel, isCategoryId } from "@stanza/registry";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useLoaderData } from "@tanstack/react-router";
+import { categoryDescription, categoryLabel, isCategoryId } from "@withstanza/schema";
 import { useMemo } from "react";
 
 import { Section, SectionList } from "@/components/detail/section";

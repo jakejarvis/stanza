@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
-import type { AppSpec, StanzaManifest } from "@stanza/registry";
+import { resolveAdapter } from "@withstanza/registry";
+import type { AppSpec, StanzaManifest } from "@withstanza/schema";
 import {
   categoryHome,
   DEFAULT_NAMESPACE,
@@ -9,9 +10,8 @@ import {
   isValidModuleId,
   KNOWN_CATEGORIES,
   parseModuleSpec,
-  resolveAdapter,
   selectedAll,
-} from "@stanza/registry";
+} from "@withstanza/schema";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -71,7 +71,7 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
 
   // The id is about to be interpolated into a registry URL — reject anything
   // that could escape its segment (path traversal, query strings, encoded
-  // bytes). See `isValidModuleId` in @stanza/registry for the exact shape.
+  // bytes). See `isValidModuleId` in @withstanza/registry for the exact shape.
   if (!isValidModuleId(moduleId)) {
     p.log.error(
       `Invalid module id "${moduleId}". Ids must be alphanumeric segments ` +

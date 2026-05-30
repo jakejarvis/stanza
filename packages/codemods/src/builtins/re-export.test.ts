@@ -1,4 +1,4 @@
-import { emptyManifest } from "@stanza/registry";
+import { emptyManifest } from "@withstanza/schema";
 import { describe, expect, it } from "vite-plus/test";
 
 import { openProject, type CodemodContext, type Project } from "../index";

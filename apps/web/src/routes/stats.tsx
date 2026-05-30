@@ -1,7 +1,7 @@
 import NumberFlow from "@number-flow/react";
-import type { CategoryId, ModuleMetadata } from "@stanza/registry";
-import { categoryLabel, KNOWN_CATEGORIES } from "@stanza/registry";
 import { createFileRoute, Link, useLoaderData } from "@tanstack/react-router";
+import type { CategoryId, ModuleMetadata } from "@withstanza/schema";
+import { categoryLabel, KNOWN_CATEGORIES } from "@withstanza/schema";
 import { lazy, Suspense, useEffect, useState } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";

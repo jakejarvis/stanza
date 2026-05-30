@@ -1,6 +1,6 @@
-import type { RegistryIndex } from "@stanza/registry";
 import { ImageResponse } from "@takumi-rs/image-response";
 import { createFileRoute } from "@tanstack/react-router";
+import type { RegistryIndex } from "@withstanza/schema";
 
 import { OgCard } from "@/server/og-card.server";
 import { loadRegistryFile } from "@/server/registry-base.server";

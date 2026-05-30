@@ -1,4 +1,4 @@
-import { defineModule } from "@stanza/registry";
+import { defineModule } from "@withstanza/schema";
 
 /**
  * Clerk ships its own hosted UI and session store; it bypasses the user-owned

@@ -1,4 +1,4 @@
-import { KNOWN_CATEGORIES } from "@stanza/registry";
+import { KNOWN_CATEGORIES } from "@withstanza/schema";
 
 import type { Selections } from "@/lib/selection";
 

@@ -1,5 +1,4 @@
-import type { ModuleMetadata } from "@stanza/registry";
-import { categoryLabel } from "@stanza/registry";
+import { categoryLabel, type ModuleMetadata } from "@withstanza/schema";
 import type { CSSProperties, ReactElement } from "react";
 
 /**

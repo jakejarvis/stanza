@@ -42,7 +42,7 @@ function listRegistryPaths(): string[] {
   } catch (error) {
     throw new Error(
       `Prerender enumeration failed: ${registryPath} is missing. ` +
-        `Run \`pnpm --filter @stanza/web prebuild\` (or \`vp run @stanza/web#build\`) first.`,
+        `Run \`jiti scripts/compile-registry.ts apps/web/public/registry\` first.`,
       { cause: error },
     );
   }
@@ -67,6 +67,7 @@ export function listPrerenderPages() {
     "/docs/llms-full.txt",
     ...registry,
     "/stats",
+    "/schema.json",
   ];
   return paths.map((path) => ({ path, prerender: { enabled: true } }));
 }

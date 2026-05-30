@@ -1,11 +1,10 @@
 "use client";
 
-import type { ModuleMetadata, RegistryIndex } from "@stanza/registry";
-import { categoryLabel } from "@stanza/registry";
 import { IconBookmark, IconSearch } from "@tabler/icons-react";
 import { formatForDisplay, useHotkey } from "@tanstack/react-hotkeys";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useNavigate } from "@tanstack/react-router";
+import { categoryLabel, type ModuleMetadata, type RegistryIndex } from "@withstanza/schema";
 import type { SortedResult } from "fumadocs-core/search";
 import { useDocsSearch } from "fumadocs-core/search/client";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";

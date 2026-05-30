@@ -18,7 +18,7 @@ A module lives in a directory named `<category>-<id>/` and exports a default `de
 
 ```ts
 // registry/modules/testing-vitest/module.ts
-import { defineModule } from "@stanza/registry";
+import { defineModule } from "@withstanza/schema";
 
 export default defineModule({
   id: "vitest",
@@ -151,7 +151,7 @@ Conditional blocks use Handlebars' [built-ins](https://handlebarsjs.com/guide/bu
 
 The render context is rebound per target app, so a package-home module shipped into both a web and a native app renders each correctly.
 
-**Template bodies are inlined by the build.** [`packages/registry/src/build.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/registry/src/build.ts) reads every template file and bakes its contents onto `tpl.content` in the per-module JSON. HTTP-loaded modules are self-contained — the CLI never makes follow-up requests for template files.
+**Template bodies are inlined by the build.** [`scripts/compile-registry.ts`](https://github.com/jakejarvis/stanza/blob/main/scripts/compile-registry.ts) reads every template file and bakes its contents onto `tpl.content` in the per-module JSON. HTTP-loaded modules are self-contained — the CLI never makes follow-up requests for template files.
 
 ## Codemod invocations
 
@@ -286,31 +286,29 @@ Drop these next to `module.ts`:
 | `logo-light.svg` + `logo-dark.svg` | Theme pair — inlined as `mod.logo = { light, dark }`. Takes precedence over a single `logo.svg`.                |
 | `readme.md`                        | Markdown contribution to the generated project's README. Renders with the same Handlebars context as templates. |
 
-The build runs SVGO on logos and prefixes every `id` so multiple module logos on the same page can't collide. First-party logos generally come from [svgl.app](https://svgl.app).
+The build runs [SVGO](https://svgo.dev/) on logos and prefixes every `id` so multiple module logos on the same page can't collide. First-party logos generally come from [svgl.app](https://svgl.app).
 
 ## Validating
 
 Module authors don't run a separate validation step — the same Zod schemas the CLI uses are the source of truth:
 
-- `defineModule` (in [`packages/registry/src/module.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/registry/src/module.ts)) throws at runtime on illegal field combinations.
+- `defineModule` (in [`packages/schema/src/module.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/schema/src/module.ts)) throws at runtime on illegal field combinations.
 - `ModuleSchema.parse` runs on every HTTP fetch and rejects malformed manifests with structured errors.
 - `vp test` runs the whole repo's schema + resolver tests; add a fixture under `registry/modules/<your-id>/` and the existing suite picks it up.
 - `vp check` does a type-aware lint pass that catches most authoring mistakes statically.
 
-For a third-party registry, the same `ModuleSchema` ships from `@stanza/registry`. The simplest test loop is to build your registry and point the consumer's `STANZA_REGISTRY` at the built main file (`STANZA_REGISTRY=./out/registry/index.json stanza search`) and watch for parse errors.
+For a third-party registry, the same `ModuleSchema` ships from `@withstanza/schema` (published to npm). The simplest test loop is to build your registry and point the consumer's `STANZA_REGISTRY` at the built main file (`STANZA_REGISTRY=./out/index.json stanza search`) and watch for parse errors.
 
 ## Building a registry
 
-The build script ([`packages/registry/src/build.ts`](https://github.com/jakejarvis/stanza/blob/main/packages/registry/src/build.ts)) scans `registry/modules/*` and emits:
+The build script ([`scripts/compile-registry.ts`](https://github.com/jakejarvis/stanza/blob/main/scripts/compile-registry.ts)) scans `registry/modules/*` and writes the main file plus one JSON per module directly under the output directory:
 
 ```
 <out>/
-├── registry/
-│   ├── index.json                # main file: categories + per-module summaries (each with a `path`)
-│   └── modules/
-│       ├── <category>-<id>.json  # one file per module, templates inlined
-│       └── …
-└── schema.json                   # JSON Schema for stanza.json
+├── index.json                # main file: categories + per-module summaries (each with a `path`)
+└── modules/
+    ├── <category>-<id>.json  # one file per module, templates inlined
+    └── …
 ```
 
 Each per-module JSON is self-contained: template bodies, deps, env vars, codemod invocations, the optimized logo SVG, and the rendered readme are all in one document. The CLI never makes follow-up requests for module assets.
@@ -318,14 +316,14 @@ Each per-module JSON is self-contained: template bodies, deps, env vars, codemod
 To run the build:
 
 ```sh
-# Default output: <repoRoot>/dist
-jiti packages/registry/src/build.ts
+# Default output: <repoRoot>/dist (writes dist/index.json + dist/modules/*.json)
+jiti scripts/compile-registry.ts
 
 # Or point it elsewhere (this is what the web app's prebuild does):
-jiti packages/registry/src/build.ts apps/web/public
+jiti scripts/compile-registry.ts apps/web/public/registry
 ```
 
-For a third-party registry, fork the build script (or call it as a library) against your own `registry/modules/` tree. The output shape is identical.
+The script is a thin wrapper over `@withstanza/schema` (`CATEGORIES` + the contract types) and SVGO — for a third-party registry, fork it (or copy it) against your own `registry/modules/` tree. `compileRegistry({ outDir })` is also exported for in-process callers. The output shape is identical.
 
 ## Hosting a registry
 
@@ -405,7 +403,7 @@ A minimal third-party module from scratch.
 **1. Author `module.ts`** at `registry/modules/testing-cosmos/module.ts` in your registry repo:
 
 ```ts
-import { defineModule } from "@stanza/registry";
+import { defineModule } from "@withstanza/schema";
 
 export default defineModule({
   id: "cosmos",
@@ -423,13 +421,13 @@ export default defineModule({
 **2. Build the registry** with the script above. Output:
 
 ```
-out/registry/
+out/
 ├── index.json
 └── modules/
     └── testing-cosmos.json
 ```
 
-**3. Host it.** Push `out/registry/` (or its parent) to wherever you serve static files. Say the main file ends up at `https://reg.acme.example/index.json`.
+**3. Host it.** Push `out/` to wherever you serve static files. Say the main file ends up at `https://reg.acme.example/index.json`.
 
 **4. Tell users how to install.** Their `stanza.json`:
 

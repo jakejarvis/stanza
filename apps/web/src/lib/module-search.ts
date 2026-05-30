@@ -1,4 +1,4 @@
-import type { CategoryId, ModuleMetadata } from "@stanza/registry";
+import type { CategoryId, ModuleMetadata } from "@withstanza/schema";
 
 export function groupByCategory(
   modules: ModuleMetadata[],

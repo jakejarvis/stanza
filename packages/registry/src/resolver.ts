@@ -1,11 +1,12 @@
-import { type StanzaManifest, selectedOne } from "./manifest";
 import {
   type CategoryId,
   KNOWN_CATEGORIES,
   type ModuleAdapter,
   PEER_CATEGORIES,
   type PeerRequirement,
-} from "./module";
+  selectedOne,
+  type StanzaManifest,
+} from "@withstanza/schema";
 
 /**
  * Topological order categories are processed in (derived from `CATEGORIES`):

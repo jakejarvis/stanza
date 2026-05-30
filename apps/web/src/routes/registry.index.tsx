@@ -1,6 +1,6 @@
-import type { Category, ModuleMetadata } from "@stanza/registry";
 import { IconArrowLeft } from "@tabler/icons-react";
 import { Link, createFileRoute, useLoaderData } from "@tanstack/react-router";
+import type { Category, ModuleMetadata } from "@withstanza/schema";
 import { useMemo } from "react";
 
 import { SectionList } from "@/components/detail/section";

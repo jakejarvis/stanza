@@ -1,4 +1,4 @@
-import type { TemplateRef } from "@stanza/registry";
+import type { TemplateRef } from "@withstanza/schema";
 import { useMemo, useState } from "react";
 
 import { Section, SectionList } from "@/components/detail/section";

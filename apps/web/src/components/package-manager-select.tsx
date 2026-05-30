@@ -1,4 +1,5 @@
 import { IconChevronDown } from "@tabler/icons-react";
+import { isPackageManager, type PackageManager } from "@withstanza/schema";
 import type { ComponentProps, ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { isPackageManager, PACKAGE_MANAGERS, type PackageManager } from "@/lib/package-manager";
+import { PACKAGE_MANAGERS } from "@/lib/package-manager";
 
 function NpmLogo(props: ComponentProps<"svg">) {
   return (

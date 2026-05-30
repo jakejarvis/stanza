@@ -29,7 +29,7 @@ export async function loadRegistryFile<T>(relativePath: string): Promise<T> {
       return parsed;
     } catch {
       throw new Error(
-        `Registry asset not found: ${filePath} (run \`pnpm --filter @stanza/web prebuild\` to populate public/registry/)`,
+        `Registry asset not found: ${filePath} (run \`pnpm --filter @withstanza/web prebuild\` to populate public/registry/)`,
       );
     }
   }
