@@ -338,9 +338,6 @@ importers:
 
   packages/schema:
     dependencies:
-      '@withstanza/utils':
-        specifier: workspace:*
-        version: link:../utils
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -348,6 +345,9 @@ importers:
       '@types/node':
         specifier: ^25.9.1
         version: 25.9.1
+      '@withstanza/utils':
+        specifier: workspace:*
+        version: link:../utils
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

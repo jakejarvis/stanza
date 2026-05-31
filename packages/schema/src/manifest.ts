@@ -298,17 +298,3 @@ export function declaredEnvNames(manifest: StanzaManifest): string[] {
   if (!envRegions) return [];
   return Object.keys(envRegions).toSorted();
 }
-
-/**
- * JSON Schema for `stanza.json`, derived from the single Zod source of truth.
- * Published at {@link MANIFEST_SCHEMA_URL} so editors can validate and
- * autocomplete the manifest.
- */
-export function manifestJsonSchema(): Record<string, unknown> {
-  return {
-    $id: MANIFEST_SCHEMA_URL,
-    title: "Stanza manifest",
-    description: "Schema for stanza.json — a Stanza monorepo manifest.",
-    ...z.toJSONSchema(StanzaManifestSchema),
-  };
-}

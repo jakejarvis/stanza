@@ -40,11 +40,11 @@
     "build": "vp pack"
   },
   "dependencies": {
-    "@withstanza/utils": "workspace:*",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "@withstanza/utils": "workspace:*",
     "typescript": "^6.0.3",
     "vite-plus": "catalog:",
     "vitest": "catalog:"

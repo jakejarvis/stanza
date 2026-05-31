@@ -115,7 +115,7 @@ export async function applyModule(args: {
   // on conflicts; env merges by `name`.
   const installFields = mergeInstallFields(module, adapter);
 
-  // `categoryHome` (in @withstanza/registry) is the single decision point for where
+  // `categoryHome` (in @withstanza/schema) is the single decision point for where
   // a module's templates/deps/scripts land — package (`packages/<dir>/`), repo
   // root, or each targeted app.
   const packageDir = home.kind === "package" ? home.dir : null;
