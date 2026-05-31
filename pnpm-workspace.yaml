@@ -6,14 +6,7 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@^0.1.23
   vite-plus: ^0.1.23
   vitest: npm:@voidzero-dev/vite-plus-test@^0.1.23
-ignoredBuiltDependencies:
-  - sharp
 ignoredOptionalDependencies: []
-onlyBuiltDependencies:
-  - core-js
-  - esbuild
-  - msw
-  - protobufjs
 overrides:
   vite: "catalog:"
   vitest: "catalog:"
@@ -24,3 +17,9 @@ peerDependencyRules:
   allowedVersions:
     vite: "*"
     vitest: "*"
+allowBuilds:
+  core-js: true
+  esbuild: true
+  msw: true
+  protobufjs: true
+  sharp: false
