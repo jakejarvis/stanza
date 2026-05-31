@@ -8,7 +8,8 @@ import {
   type CategoryId,
   KNOWN_CATEGORIES,
   type ModuleId,
-} from "./module";
+} from "./category";
+import { type PackageManager, PackageManagerSchema } from "./package-manager";
 import { type RegistryConfig, RegistriesSchema } from "./registry-config";
 
 export const CURRENT_MANIFEST_VERSION = "0.4" as const;
@@ -97,7 +98,7 @@ export type StanzaManifest = {
    */
   version: (typeof SUPPORTED_MANIFEST_VERSIONS)[number];
   projectShape: "monorepo";
-  packageManager: "pnpm" | "bun" | "npm";
+  packageManager: PackageManager;
   /** Display name; usually the repo root name. */
   name: string;
   /**
@@ -144,7 +145,7 @@ export const StanzaManifestSchema = z
     // CLI re-stamps to CURRENT_MANIFEST_VERSION on the next write.
     version: z.enum(SUPPORTED_MANIFEST_VERSIONS),
     projectShape: z.literal("monorepo"),
-    packageManager: z.enum(["pnpm", "bun", "npm"]),
+    packageManager: PackageManagerSchema,
     name: z.string(),
     apps: z.array(appSpecSchema).min(1),
     // Zod 4: partialRecord because not every category is filled. Every category
@@ -219,7 +220,7 @@ export function defaultWebApp(): AppSpec {
 export function emptyManifest(input: {
   name: string;
   apps?: AppSpec[];
-  packageManager?: StanzaManifest["packageManager"];
+  packageManager?: PackageManager;
 }): StanzaManifest {
   return {
     $schema: MANIFEST_SCHEMA_URL,
@@ -296,18 +297,4 @@ export function declaredEnvNames(manifest: StanzaManifest): string[] {
   const envRegions = manifest.regions[".env.example"];
   if (!envRegions) return [];
   return Object.keys(envRegions).toSorted();
-}
-
-/**
- * JSON Schema for `stanza.json`, derived from the single Zod source of truth.
- * Published at {@link MANIFEST_SCHEMA_URL} so editors can validate and
- * autocomplete the manifest.
- */
-export function manifestJsonSchema(): Record<string, unknown> {
-  return {
-    $id: MANIFEST_SCHEMA_URL,
-    title: "Stanza manifest",
-    description: "Schema for stanza.json — a Stanza monorepo manifest.",
-    ...z.toJSONSchema(StanzaManifestSchema),
-  };
 }

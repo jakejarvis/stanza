@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import { PACKAGE_DIRS } from "@stanza/registry";
+import { PACKAGE_DIRS } from "@withstanza/schema";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 

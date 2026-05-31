@@ -1,11 +1,11 @@
+import { createServerFn } from "@tanstack/react-start";
 import {
   synthesizeEnvExample,
   synthesizeManifest,
   synthesizePackageJsons,
   synthesizeReadme,
   synthesizeTemplates,
-} from "@stanza/registry";
-import { createServerFn } from "@tanstack/react-start";
+} from "@withstanza/registry";
 
 import {
   DEFAULT_BUILDER_APPS,

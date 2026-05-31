@@ -1,4 +1,4 @@
-import { defineModule } from "@stanza/registry";
+import { defineModule } from "@withstanza/schema";
 
 // SDK is auth-agnostic. `+better-auth` adapters additionally wire the
 // `@polar-sh/better-auth` plugin into `packages/auth/src/auth.ts` so the

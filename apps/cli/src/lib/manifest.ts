@@ -8,7 +8,7 @@ import {
   MANIFEST_SCHEMA_URL,
   StanzaManifestSchema,
   type StanzaManifest,
-} from "@stanza/registry";
+} from "@withstanza/schema";
 
 const MANIFEST_FILENAME = "stanza.json";
 

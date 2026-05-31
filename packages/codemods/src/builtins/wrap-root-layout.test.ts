@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { emptyManifest, type StanzaManifest } from "@stanza/registry";
+import { emptyManifest, type StanzaManifest } from "@withstanza/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { type CodemodContext, openProject } from "../index";

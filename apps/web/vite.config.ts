@@ -55,12 +55,9 @@ export default defineConfig({
     tasks: {
       "compile-registry": {
         cwd: "../..",
-        command: "jiti packages/registry/src/build.ts apps/web/public",
-        input: [
-          { pattern: "registry/modules/**", base: "workspace" },
-          { pattern: "packages/registry/src/**", base: "workspace" },
-        ],
-        output: ["apps/web/public/registry/**", "apps/web/public/schema.json"],
+        command: "jiti scripts/compile-registry.ts apps/web/public/registry",
+        input: [{ pattern: "registry/modules/**", base: "workspace" }],
+        output: [{ pattern: "public/registry/**", base: "package" }],
       },
     },
   },

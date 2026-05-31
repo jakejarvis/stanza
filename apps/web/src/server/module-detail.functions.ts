@@ -1,3 +1,5 @@
+import { createServerFn } from "@tanstack/react-start";
+import { mergeInstallFields, resolveAdapter } from "@withstanza/registry";
 import type {
   CategoryId,
   EnvVar,
@@ -6,17 +8,14 @@ import type {
   ModuleMetadata,
   PeerRequirement,
   RegistryIndex,
-} from "@stanza/registry";
+} from "@withstanza/schema";
 import {
   emptyManifest,
   isCategoryId,
   isValidModuleId,
   KNOWN_CATEGORIES,
-  mergeInstallFields,
   PEER_CATEGORIES,
-  resolveAdapter,
-} from "@stanza/registry";
-import { createServerFn } from "@tanstack/react-start";
+} from "@withstanza/schema";
 
 import type { Preview } from "@/server/highlighter";
 import { renderPreview } from "@/server/highlighter.server";

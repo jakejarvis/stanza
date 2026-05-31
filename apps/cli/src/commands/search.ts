@@ -1,4 +1,4 @@
-import { DEFAULT_NAMESPACE, parseModuleSpec, type StanzaManifest } from "@stanza/registry";
+import { DEFAULT_NAMESPACE, parseModuleSpec, type StanzaManifest } from "@withstanza/schema";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 

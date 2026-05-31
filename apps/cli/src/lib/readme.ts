@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import type { Resolved, ResolvedEntry, StanzaManifest } from "@stanza/registry";
-import { activePeerIds, categoryOrder, synthesizeReadme } from "@stanza/registry";
+import type { Resolved, ResolvedEntry } from "@withstanza/registry";
+import { activePeerIds, categoryOrder, synthesizeReadme } from "@withstanza/registry";
+import type { StanzaManifest } from "@withstanza/schema";
 
 import type { Registries } from "./registry-loader";
 

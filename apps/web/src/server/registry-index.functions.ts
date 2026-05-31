@@ -1,5 +1,5 @@
-import type { RegistryIndex } from "@stanza/registry";
 import { createServerFn } from "@tanstack/react-start";
+import type { RegistryIndex } from "@withstanza/schema";
 
 import { loadRegistryFile } from "@/server/registry-base.server";
 

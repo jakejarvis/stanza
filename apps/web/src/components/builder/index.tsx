@@ -1,14 +1,13 @@
-import type { CategoryId, ModuleMetadata } from "@stanza/registry";
-import { isMulti } from "@stanza/registry";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { track } from "@vercel/analytics";
+import type { CategoryId, ModuleMetadata, PackageManager } from "@withstanza/schema";
+import { isMulti } from "@withstanza/schema";
 import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
 import { FilePreview } from "@/components/builder/file-preview";
 import { ModuleCards } from "@/components/builder/module-cards";
 import { ProjectSetup } from "@/components/builder/project-setup";
 import { CommandPreview } from "@/components/command-preview";
-import type { PackageManager } from "@/lib/package-manager";
 import {
   type BuilderSearch,
   type Selections,

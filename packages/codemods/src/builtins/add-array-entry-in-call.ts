@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { assertSafeRelativePath } from "@stanza/registry";
+import { assertSafeRelativePath } from "@withstanza/utils";
 import type { ArrayLiteralExpression, CallExpression, ObjectLiteralExpression } from "ts-morph";
 
 import {

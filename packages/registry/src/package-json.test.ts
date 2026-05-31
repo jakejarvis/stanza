@@ -1,6 +1,6 @@
+import { defineModule, type Module, ModuleSchema } from "@withstanza/schema";
 import { describe, expect, it } from "vite-plus/test";
 
-import { defineModule, type Module, ModuleSchema } from "./module";
 import {
   mergeInstallFields,
   type Resolved,

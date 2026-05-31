@@ -1,25 +1,20 @@
+import type { Resolved, ResolvedEntry } from "@withstanza/registry";
+import { categoryOrder, resolveAdapter } from "@withstanza/registry";
 import type {
   AppSpec,
   CategoryId,
   Module,
   ModuleMetadata,
-  Resolved,
-  ResolvedEntry,
-} from "@stanza/registry";
-import {
-  categoryOrder,
-  defaultWebApp,
-  emptyManifest,
-  KNOWN_CATEGORIES,
-  PEER_CATEGORIES,
-  resolveAdapter,
-} from "@stanza/registry";
-
+  PackageManager,
+} from "@withstanza/schema";
 import {
   DEFAULT_PACKAGE_MANAGER,
+  defaultWebApp,
+  emptyManifest,
   isPackageManager,
-  type PackageManager,
-} from "@/lib/package-manager";
+  KNOWN_CATEGORIES,
+  PEER_CATEGORIES,
+} from "@withstanza/schema";
 
 /** Selected module ids per category. Single-choice categories hold ≤ 1. */
 export type Selections = Partial<Record<CategoryId, string[]>>;

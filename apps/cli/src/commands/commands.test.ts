@@ -1,11 +1,14 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { createServer, type Server } from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { CATEGORIES } from "@stanza/registry";
-import { buildRegistry } from "@stanza/registry/build";
+import { CATEGORIES } from "@withstanza/schema";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 import { loadRegistries } from "../lib/registry-loader";
 import { cmdAdd } from "./add";
@@ -23,10 +26,17 @@ let prevExitCode: typeof process.exitCode;
 let fixtureRoot: string;
 let fixtureMain: string;
 
-beforeAll(async () => {
+beforeAll(() => {
   fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-reg-"));
-  await buildRegistry({ outBase: fixtureRoot });
-  fixtureMain = path.join(fixtureRoot, "registry", "index.json");
+  // Build the real first-party registry via the standalone build script — the
+  // same entrypoint CI and the web prebuild use — so the test exercises the
+  // production build path rather than an in-process import.
+  execFileSync(
+    path.join(repoRoot, "node_modules/.bin/jiti"),
+    ["scripts/compile-registry.ts", fixtureRoot],
+    { cwd: repoRoot, stdio: "inherit" },
+  );
+  fixtureMain = path.join(fixtureRoot, "index.json");
 });
 
 afterAll(() => {

@@ -1,5 +1,5 @@
 {
-  "name": "@stanza/web",
+  "name": "@withstanza/web",
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
@@ -16,7 +16,6 @@
     "@number-flow/react": "^0.6.0",
     "@orama/orama": "^3.1.18",
     "@pierre/trees": "1.0.0-beta.4",
-    "@stanza/registry": "workspace:*",
     "@tabler/icons-react": "^3.44.0",
     "@tailwindcss/vite": "^4.3.0",
     "@takumi-rs/image-response": "^1.6.0",
@@ -28,6 +27,8 @@
     "@tanstack/react-start": "^1.168.18",
     "@vercel/analytics": "^2.0.1",
     "@vercel/functions": "^3.6.1",
+    "@withstanza/registry": "workspace:*",
+    "@withstanza/schema": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fumadocs-core": "^16.9.3",

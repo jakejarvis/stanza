@@ -1,12 +1,12 @@
 import fs from "node:fs";
 
-import { appendEnvVar } from "@stanza/registry";
+import { appendEnvVar } from "@withstanza/utils";
 
 /**
  * Idempotently append an env var to a .env.example-style file. Preserves
  * existing entries; updates the example value in-place if the var already
  * exists; adds a leading comment if `description` is supplied. Formatting is
- * delegated to `appendEnvVar` (pure, in `@stanza/registry`) so the CLI and the
+ * delegated to `appendEnvVar` (pure, in `@withstanza/utils`) so the CLI and the
  * web builder's preview produce identical files.
  */
 export function addEnvVar(

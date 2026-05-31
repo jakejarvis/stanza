@@ -1,14 +1,15 @@
-import type { CategoryId, ModuleMetadata, ResolveError } from "@stanza/registry";
+import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
+import { Link } from "@tanstack/react-router";
+import type { ResolveError } from "@withstanza/registry";
+import { resolveAdapter } from "@withstanza/registry";
+import type { CategoryId, ModuleMetadata } from "@withstanza/schema";
 import {
   categoryLabel,
   emptyManifest,
   isMulti,
   KNOWN_CATEGORIES,
   PEER_CATEGORIES,
-  resolveAdapter,
-} from "@stanza/registry";
-import { IconCheck, IconInfoCircle } from "@tabler/icons-react";
-import { Link } from "@tanstack/react-router";
+} from "@withstanza/schema";
 import { memo, useCallback, useMemo } from "react";
 
 import { ModuleLogo } from "@/components/module-logo";

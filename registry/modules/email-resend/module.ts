@@ -1,4 +1,4 @@
-import { defineModule } from "@stanza/registry";
+import { defineModule } from "@withstanza/schema";
 
 // Ships the Resend SDK client + a sample React Email template alongside it in
 // `packages/email/`. Per-framework adapters add the delivery-event webhook

@@ -1,9 +1,9 @@
 import { track } from "@vercel/analytics";
+import type { PackageManager } from "@withstanza/schema";
 
 import { PackageManagerSelect } from "@/components/package-manager-select";
 import { CopyableField } from "@/components/ui/copyable-field";
 import { selectionProperties } from "@/lib/analytics";
-import type { PackageManager } from "@/lib/package-manager";
 import { buildCommand, DEFAULT_NAME, type Selections } from "@/lib/selection";
 
 /**

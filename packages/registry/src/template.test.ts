@@ -1,8 +1,6 @@
+import { type AppSpec, defaultWebApp, defineModule, type Module } from "@withstanza/schema";
 import { describe, expect, it } from "vite-plus/test";
 
-import { defaultWebApp } from "./manifest";
-import type { AppSpec } from "./manifest";
-import { defineModule, type Module } from "./module";
 import type { Resolved } from "./package-json";
 import { synthesizeTemplates } from "./synthesize";
 import { buildRenderContext, renderTemplate } from "./template";

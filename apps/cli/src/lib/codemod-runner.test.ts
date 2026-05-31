@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { defineModule, emptyManifest, type Module } from "@stanza/registry";
+import { defineModule, type Module, emptyManifest } from "@withstanza/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { planSlotPackageBootstrap, recordFor, writeDepKeepingHigher } from "./codemod-runner";

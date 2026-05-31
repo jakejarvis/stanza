@@ -1,6 +1,6 @@
 import { create, insert, search } from "@orama/orama";
-import type { Module, ModuleMetadata, RegistryIndex } from "@stanza/registry";
 import { createFileRoute } from "@tanstack/react-router";
+import type { Module, ModuleMetadata, RegistryIndex } from "@withstanza/schema";
 import { cache } from "react";
 
 import { loadRegistryFile } from "@/server/registry-base.server";

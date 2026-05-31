@@ -1,4 +1,4 @@
-import type { StanzaManifest } from "@stanza/registry";
+import type { StanzaManifest } from "@withstanza/schema";
 
 /**
  * Region ownership operations on a manifest. Pure functions that return a

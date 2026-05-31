@@ -1,17 +1,18 @@
-import { type AppSpec, defaultWebApp } from "./manifest";
 import {
+  type AppSpec,
   categoryHome,
   type CategoryId,
+  defaultWebApp,
   type EnvVar,
   type InstallHome,
   type Module,
   type ModuleAdapter,
   PACKAGE_DIRS,
-} from "./module";
+  type PackageManager,
+} from "@withstanza/schema";
+
 import { categoryOrder } from "./resolver";
 import { pmRecursive } from "./template";
-
-export type PackageManager = "pnpm" | "bun" | "npm";
 
 /** Minimal package.json shape we author. Field order here is the emit order. */
 export type PackageJson = {

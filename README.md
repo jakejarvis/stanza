@@ -45,11 +45,15 @@ apps/
   cli/            # stanza-cli — the CLI binary
   web/            # https://stanza.tools (TanStack Start)
 packages/
-  registry/       # shared schema, slot/peer/capability resolver
+  schema/         # @withstanza/schema — stanza.json + module schema, contract types, category list
+  registry/       # slot/peer/capability resolver + package.json/env/template synthesis
   codemods/       # ts-morph helpers for region-aware patching
+  utils/          # shared path-safety + env-file helpers
   create-stanza/  # `npm init stanza` template shim
 registry/
   modules/        # first-party modules (framework, orm, db, auth, ui, tooling, testing)
+scripts/
+  compile-registry.ts  # builds the static registry JSON the CLI consumes
 ```
 
 ## License

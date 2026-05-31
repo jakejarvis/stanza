@@ -1,4 +1,4 @@
-import type { AppSpec, CategoryId, ModuleId, StanzaManifest } from "@stanza/registry";
+import type { AppSpec, CategoryId, ModuleId, StanzaManifest } from "@withstanza/schema";
 import type { Project } from "ts-morph";
 
 export type CodemodContext = {

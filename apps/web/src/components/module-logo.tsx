@@ -1,4 +1,4 @@
-import type { Logo } from "@stanza/registry";
+import type { Logo } from "@withstanza/schema";
 import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";

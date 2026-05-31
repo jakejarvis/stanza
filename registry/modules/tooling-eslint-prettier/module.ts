@@ -1,4 +1,4 @@
-import { defineModule, type TemplateRef } from "@stanza/registry";
+import { defineModule, type TemplateRef } from "@withstanza/schema";
 
 // Same templates regardless of which framework adapter wins. The eslint config
 // is a single Handlebars template that branches on `{{peers.framework}}`, so

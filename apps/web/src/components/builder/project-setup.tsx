@@ -1,6 +1,6 @@
-import { validateProjectName } from "@stanza/registry";
 import { IconAlertCircle } from "@tabler/icons-react";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { validateProjectName } from "@withstanza/registry";
 import type { ChangeEvent } from "react";
 import { useId, useState } from "react";
 

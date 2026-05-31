@@ -1,5 +1,6 @@
 import * as p from "@clack/prompts";
-import { categoryOrder, DEFAULT_NAMESPACE, isMulti, selectedAll } from "@stanza/registry";
+import { categoryOrder } from "@withstanza/registry";
+import { DEFAULT_NAMESPACE, isMulti, selectedAll } from "@withstanza/schema";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
