@@ -60,4 +60,4 @@ jobs:
         run: git fetch origin "$GITHUB_BASE_REF"
 
       - name: Check module version bumps
-        run: pnpm exec jiti scripts/check-module-versions.ts
+        run: vp exec jiti scripts/check-module-versions.ts

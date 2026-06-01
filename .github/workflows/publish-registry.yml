@@ -33,6 +33,6 @@ jobs:
           cache: true
 
       - name: Publish registry + schema to Blob
-        run: pnpm exec jiti scripts/publish-registry.ts
+        run: vp exec jiti scripts/publish-registry.ts
         env:
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
