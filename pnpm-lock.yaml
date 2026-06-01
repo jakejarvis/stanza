@@ -144,7 +144,7 @@ importers:
         version: 1.167.0(@tanstack/react-router@1.170.10(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@tanstack/router-core@1.171.8)(csstype@3.2.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start':
         specifier: ^1.168.18
-        version: 1.168.18(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 1.168.18(@vitejs/plugin-rsc@0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@vercel/analytics':
         specifier: ^2.0.1
         version: 2.0.1(react@19.2.6)
@@ -247,7 +247,7 @@ importers:
         version: 6.0.2(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))
       '@vitejs/plugin-rsc':
         specifier: ^0.5.26
-        version: 0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        version: 0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1(@noble/hashes@1.8.0)
@@ -1826,9 +1826,6 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@rolldown/pluginutils@1.0.0-rc.18':
-    resolution: {integrity: sha512-CUY5Mnhe64xQBGZEEXQ5WyZwsc1JU3vAZLIxtrsBt3LO6UOb+C8GunVKqe9sT8NeWb4lqSaoJtp2xo6GxT1MNw==}
-
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
@@ -2492,8 +2489,8 @@ packages:
       babel-plugin-react-compiler:
         optional: true
 
-  '@vitejs/plugin-rsc@0.5.26':
-    resolution: {integrity: sha512-T8W8ODEutblw9qXQB512LDPyv1tAbJRD/Gf0QEGsAoydl4nxEtIrghnhoI9oLY9R+7aw+cLk1ZEltxWHWf4aHw==}
+  '@vitejs/plugin-rsc@0.5.27':
+    resolution: {integrity: sha512-s1fd5DUkPXk86DDHPM/kP93WrvI0MoA8klxdDZmD1fMSaA9xujfgunsm8ZoUH0FemR+63vNalFsIDR0AJH4ktg==}
     peerDependencies:
       react: '*'
       react-dom: '*'
@@ -5054,6 +5051,10 @@ packages:
     resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
 
+  tinyglobby@0.2.17:
+    resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
+    engines: {node: '>=12.0.0'}
+
   tinypool@2.1.0:
     resolution: {integrity: sha512-Pugqs6M0m7Lv1I7FtxN4aoyToKg1C4tu+/381vH35y8oENM/Ai7f7C4StcoK4/+BSw9ebcS8jRiVrORFKCALLw==}
     engines: {node: ^20.0.0 || >=22.0.0}
@@ -6632,8 +6633,6 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.0.3':
     optional: true
 
-  '@rolldown/pluginutils@1.0.0-rc.18': {}
-
   '@rolldown/pluginutils@1.0.1': {}
 
   '@sec-ant/readable-stream@0.4.1': {}
@@ -6977,7 +6976,7 @@ snapshots:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
 
-  '@tanstack/react-start-rsc@0.1.17(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@tanstack/react-start-rsc@0.1.17(@vitejs/plugin-rsc@0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@tanstack/react-router': 1.170.10(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start-server': 1.167.13(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -6992,7 +6991,7 @@ snapshots:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
     optionalDependencies:
-      '@vitejs/plugin-rsc': 0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@vitejs/plugin-rsc': 0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     transitivePeerDependencies:
       - '@rsbuild/core'
       - crossws
@@ -7013,11 +7012,11 @@ snapshots:
     transitivePeerDependencies:
       - crossws
 
-  '@tanstack/react-start@1.168.18(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@tanstack/react-start@1.168.18(@vitejs/plugin-rsc@0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@tanstack/react-router': 1.170.10(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start-client': 1.168.7(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@tanstack/react-start-rsc': 0.1.17(@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@tanstack/react-start-rsc': 0.1.17(@vitejs/plugin-rsc@0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/react-start-server': 1.167.13(crossws@0.4.5(srvx@0.11.16))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@tanstack/router-utils': 1.162.1
       '@tanstack/start-client-core': 1.170.6
@@ -7027,7 +7026,7 @@ snapshots:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
     optionalDependencies:
-      '@vitejs/plugin-rsc': 0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@vitejs/plugin-rsc': 0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       vite: '@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3)'
     transitivePeerDependencies:
       - '@rspack/core'
@@ -7318,9 +7317,9 @@ snapshots:
       '@rolldown/pluginutils': 1.0.1
       vite: '@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3)'
 
-  '@vitejs/plugin-rsc@0.5.26(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@vitejs/plugin-rsc@0.5.27(@voidzero-dev/vite-plus-core@0.1.23(@types/node@25.9.1)(esbuild@0.28.0)(jiti@2.7.0)(typescript@6.0.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
-      '@rolldown/pluginutils': 1.0.0-rc.18
+      '@rolldown/pluginutils': 1.0.1
       es-module-lexer: 2.1.0
       estree-walker: 3.0.3
       magic-string: 0.30.21
@@ -10248,6 +10247,11 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
 
+  tinyglobby@0.2.17:
+    dependencies:
+      fdir: 6.5.0(picomatch@4.0.4)
+      picomatch: 4.0.4
+
   tinypool@2.1.0: {}
 
   tldts-core@7.4.2: {}
@@ -10562,7 +10566,7 @@ snapshots:
       picomatch: 4.0.4
       postcss: 8.5.15
       rolldown: 1.0.2
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 25.9.1
       esbuild: 0.28.0
