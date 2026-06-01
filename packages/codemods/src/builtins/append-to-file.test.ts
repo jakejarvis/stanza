@@ -204,6 +204,28 @@ describe("append-to-file", () => {
     expect(claimed).toEqual([{ file: "apps/web/.gitignore", region: "append.monorepo-turbo" }]);
   });
 
+  it("createIfMissing with scope: 'repo' writes to the repo root (monorepo-turbo's path)", () => {
+    const { ctx, claimed } = setup("prisma/schema.prisma", PRISMA_INITIAL);
+    const args = {
+      file: ".gitignore",
+      content: ".turbo/",
+      marker: "monorepo-turbo",
+      createIfMissing: true,
+      scope: "repo" as const,
+    };
+    const result = appendToFile.apply(ctx, args) as { touchedFiles: string[] };
+    expect(result.touchedFiles).toEqual([".gitignore"]);
+
+    const abs = path.join(tmp, ".gitignore");
+    expect(fs.readFileSync(abs, "utf8")).toBe(
+      "# stanza:monorepo-turbo:start\n.turbo/\n# stanza:monorepo-turbo:end\n",
+    );
+    expect(claimed).toEqual([{ file: ".gitignore", region: "append.monorepo-turbo" }]);
+
+    appendToFile.revert!(ctx, args);
+    expect(fs.readFileSync(abs, "utf8")).toBe("");
+  });
+
   it("createIfMissing creates parent directories that don't exist", () => {
     const { ctx } = setup("prisma/schema.prisma", PRISMA_INITIAL);
     appendToFile.apply(ctx, {

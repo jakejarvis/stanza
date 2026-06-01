@@ -12,6 +12,7 @@ on:
     paths:
       - "registry/modules/**"
       - "packages/schema/src/**"
+      - "scripts/**"
   workflow_dispatch:
 
 concurrency:
@@ -22,6 +23,9 @@ permissions: {}
 jobs:
   publish:
     name: Compile & upload to Blob
+    # `workflow_dispatch` can run from any ref; only ever publish from main so a
+    # manual dispatch off a branch can't overwrite the prod "latest" files.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

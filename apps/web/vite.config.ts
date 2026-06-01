@@ -56,7 +56,11 @@ export default defineConfig({
       "compile-registry": {
         cwd: "../..",
         command: "jiti scripts/compile-registry.ts apps/web/.registry",
-        input: [{ pattern: "registry/modules/**", base: "workspace" }],
+        input: [
+          { pattern: "registry/modules/**", base: "workspace" },
+          { pattern: "packages/schema/**", base: "workspace" },
+          { pattern: "scripts/compile-registry.ts", base: "workspace" },
+        ],
         output: [{ pattern: ".registry/**", base: "package" }],
       },
     },
