@@ -27,7 +27,8 @@ export default defineModule({
       // Append `.turbo/` to .gitignore for projects that didn't init with it.
       // Idempotent: fresh `stanza init` already lists `.turbo/`, so the marker
       // block is a no-op there; `stanza add monorepo turbo` on an old project
-      // gains the entry.
+      // gains the entry. `createIfMissing` covers existing projects with no
+      // root .gitignore at all — a marker-only file is a valid result here.
       codemods: [
         {
           id: "append-to-file",
@@ -36,6 +37,7 @@ export default defineModule({
             scope: "repo",
             marker: "monorepo-turbo",
             content: ".turbo/",
+            createIfMissing: true,
           },
         },
       ],

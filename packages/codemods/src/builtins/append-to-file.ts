@@ -68,6 +68,15 @@ export type AppendToFileArgs = {
    * Defaults to `true`.
    */
   leadingBlank?: boolean;
+  /**
+   * When the target file doesn't exist, create it containing just the wrapped
+   * marker block instead of throwing. Only set this for genuinely optional
+   * files where a marker-only file is itself valid (`.gitignore`, `.env`,
+   * `.dockerignore`). Leave it off for files another module owns (a Prisma
+   * schema, a framework's `globals.css`) — there, a missing file is a real
+   * peer-ordering bug and the throw should stand.
+   */
+  createIfMissing?: boolean;
 };
 
 const appendToFile: Codemod<AppendToFileArgs> = {
@@ -76,13 +85,14 @@ const appendToFile: Codemod<AppendToFileArgs> = {
 
   apply(ctx, args) {
     const { fileAbs, fileRel, comment } = resolve(ctx, args);
-    if (!fs.existsSync(fileAbs)) {
+    const exists = fs.existsSync(fileAbs);
+    if (!exists && !args.createIfMissing) {
       throw new Error(
-        `append-to-file: ${fileRel} not found. This is an append primitive; create the file via a template first.`,
+        `append-to-file: ${fileRel} not found. This is an append primitive; create the file via a template first or pass createIfMissing.`,
       );
     }
 
-    const current = fs.readFileSync(fileAbs, "utf8");
+    const current = exists ? fs.readFileSync(fileAbs, "utf8") : "";
     const block = wrapBlock(args.content, args.marker, comment);
     const existingRange = findMarkerRange(current, args.marker, comment);
 
@@ -103,6 +113,7 @@ const appendToFile: Codemod<AppendToFileArgs> = {
       position === "start"
         ? prependBlock(current, block, leadingBlank)
         : appendBlock(current, block, leadingBlank);
+    if (!exists) fs.mkdirSync(path.dirname(fileAbs), { recursive: true });
     fs.writeFileSync(fileAbs, next, "utf8");
 
     ctx.claimRegion(fileRel, `append.${args.marker}`);

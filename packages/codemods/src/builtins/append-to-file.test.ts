@@ -189,6 +189,47 @@ describe("append-to-file", () => {
     ).toThrow(/not found/);
   });
 
+  it("creates the file with just the marker block when createIfMissing is set", () => {
+    const { ctx, claimed } = setup("prisma/schema.prisma", PRISMA_INITIAL);
+    const result = appendToFile.apply(ctx, {
+      file: ".gitignore",
+      content: ".turbo/",
+      marker: "monorepo-turbo",
+      createIfMissing: true,
+    }) as { touchedFiles: string[] };
+    expect(result.touchedFiles).toEqual(["apps/web/.gitignore"]);
+
+    const text = fs.readFileSync(path.join(tmp, "apps/web/.gitignore"), "utf8");
+    expect(text).toBe("# stanza:monorepo-turbo:start\n.turbo/\n# stanza:monorepo-turbo:end\n");
+    expect(claimed).toEqual([{ file: "apps/web/.gitignore", region: "append.monorepo-turbo" }]);
+  });
+
+  it("createIfMissing creates parent directories that don't exist", () => {
+    const { ctx } = setup("prisma/schema.prisma", PRISMA_INITIAL);
+    appendToFile.apply(ctx, {
+      file: "nested/dir/.env",
+      content: "FOO=bar",
+      marker: "m",
+      createIfMissing: true,
+    });
+    const text = fs.readFileSync(path.join(tmp, "apps/web/nested/dir/.env"), "utf8");
+    expect(text).toContain("# stanza:m:start");
+    expect(text).toContain("FOO=bar");
+  });
+
+  it("createIfMissing then revert removes the file's contents back to empty", () => {
+    const { ctx } = setup("prisma/schema.prisma", PRISMA_INITIAL);
+    const args = {
+      file: ".gitignore",
+      content: ".turbo/",
+      marker: "monorepo-turbo",
+      createIfMissing: true,
+    };
+    appendToFile.apply(ctx, args);
+    appendToFile.revert!(ctx, args);
+    expect(fs.readFileSync(path.join(tmp, "apps/web/.gitignore"), "utf8")).toBe("");
+  });
+
   it("prepends with position: 'start' (required for CSS @import)", () => {
     const baseCss = `html, body {\n  margin: 0;\n}\n`;
     const { ctx, abs } = setup("app/globals.css", baseCss);
