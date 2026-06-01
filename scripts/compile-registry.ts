@@ -10,8 +10,8 @@
  * base defaults to `<repoRoot>/dist`. Pass a positional arg to redirect — e.g.
  * the web app's `compile-registry` task points it at `apps/web/.registry`.
  *
- * A standalone build tool (not part of any package): the web prebuild, the
- * Blob upload in CI, and the CLI test harness all invoke it via
+ * A standalone build tool (not part of any package): the web's compile-registry
+ * task, the Blob upload in CI, and the CLI test harness all invoke it via
  * `jiti scripts/compile-registry.ts [outDir]`. `compileRegistry()` is also
  * exported for any in-process caller.
  */

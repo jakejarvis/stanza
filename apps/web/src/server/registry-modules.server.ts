@@ -7,7 +7,7 @@ let modulesPromise: Promise<Record<string, Module>> | undefined;
 /**
  * Per-process cache for the full module catalog. Registry data is immutable
  * per deployment, so cache lifetime = process lifetime (restart the dev server
- * after `vp run @withstanza/web#prebuild` to pick up local edits). Per-module
+ * after the `compile-registry` task reruns to pick up local edits). Per-module
  * failures are isolated — the failing module is dropped and reported.
  */
 export function getAllModules(): Promise<Record<string, Module>> {

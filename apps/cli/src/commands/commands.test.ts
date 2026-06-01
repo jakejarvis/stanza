@@ -29,8 +29,8 @@ let fixtureMain: string;
 beforeAll(() => {
   fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-reg-"));
   // Build the real first-party registry via the standalone build script — the
-  // same entrypoint CI and the web prebuild use — so the test exercises the
-  // production build path rather than an in-process import.
+  // same entrypoint CI and the web's compile-registry task use — so the test
+  // exercises the production build path rather than an in-process import.
   execFileSync(
     path.join(repoRoot, "node_modules/.bin/jiti"),
     ["scripts/compile-registry.ts", fixtureRoot],
