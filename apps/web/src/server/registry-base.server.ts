@@ -1,12 +1,14 @@
 /**
- * Reads registry data from the Nitro server-asset storage. `public/registry/`
- * is registered as a `serverAssets` dir (see vite.config.ts), so its contents
- * are embedded into the server bundle at build time — readable on serverless
- * hosts (Vercel) where `public/` lives only on the CDN, not in the function fs.
- * The same files are still served statically at `/registry/` for the CLI.
+ * Reads registry data from the Nitro server-asset storage. `.registry/` (the
+ * build-time compiled copy, not committed) is registered as a `serverAssets`
+ * dir (see vite.config.ts), so its contents are embedded into the server bundle
+ * at build time — readable on serverless hosts (Vercel) where the function fs
+ * is otherwise empty. This is the web's own render input; the public surface
+ * (CLI, editors) reads the same registry from Vercel Blob via the
+ * `stanza.tools/registry/*.json` rewrites.
  *
- * We read from storage instead of fetching ourselves because prod SSR loopback
- * connections get refused.
+ * We read from storage instead of fetching the public URL because prod SSR
+ * loopback connections get refused.
  *
  * Dev caveat: TanStack Start's server functions execute in Vite's `ssr`
  * environment, but Nitro only injects the real `#nitro/virtual/storage`
@@ -23,13 +25,13 @@ export async function loadRegistryFile<T>(relativePath: string): Promise<T> {
   if (import.meta.env.DEV) {
     const { readFile } = await import("node:fs/promises");
     const { resolve } = await import("node:path");
-    const filePath = resolve(process.cwd(), "public/registry", relativePath);
+    const filePath = resolve(process.cwd(), ".registry", relativePath);
     try {
       const parsed: T = JSON.parse(await readFile(filePath, "utf8"));
       return parsed;
     } catch {
       throw new Error(
-        `Registry asset not found: ${filePath} (run \`pnpm --filter @withstanza/web prebuild\` to populate public/registry/)`,
+        `Registry asset not found: ${filePath} (run \`vp run compile-registry\` to populate apps/web/.registry/)`,
       );
     }
   }

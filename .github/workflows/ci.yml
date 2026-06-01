@@ -35,3 +35,29 @@ jobs:
         run: |
           node apps/cli/dist/bin.mjs --version
           node apps/cli/dist/bin.mjs --help
+
+  # Guards the immutability of the registry's per-module version pins on Blob: a
+  # module whose compiled content changed must bump its package.json version.
+  # Self-gating — no-ops when nothing under registry/modules/** changed, so it's
+  # cheap to run on every PR.
+  verify-module-versions:
+    name: Verify module versions
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # The guard diffs against the PR base via merge-base — needs history.
+          fetch-depth: 0
+
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: 24
+          cache: true
+
+      - name: Fetch base branch
+        run: git fetch origin "$GITHUB_BASE_REF"
+
+      - name: Check module version bumps
+        run: pnpm exec jiti scripts/check-module-versions.ts

@@ -554,14 +554,14 @@ describe("third-party registries", () => {
           };
           return Object.assign({}, m, {
             adapters: (m.adapters ?? []).map((a) => ({ key: a.key, match: a.match })),
-            path: `modules/${key}.json`,
+            path: `${key}.json`,
           });
         });
         sendJson({ generatedAt: "t", schemaVersion: 2, categories: [...CATEGORIES], modules });
         return;
       }
-      // Per-module full manifests at the `path` advertised by the index.
-      const match = /^\/modules\/([^?]+)\.json/.exec(url);
+      // Per-module full manifests at the flat `path` advertised by the index.
+      const match = /^\/([^/?]+)\.json/.exec(url);
       const payload = match ? fixture.modules[match[1]!] : undefined;
       if (!payload) {
         res.statusCode = 404;
@@ -625,7 +625,7 @@ describe("third-party registries", () => {
 
     await cmdRemove(args({ slot: "testing", moduleId: "@fixture/cosmos" }));
     expect(process.exitCode).toBeFalsy();
-    expect(requests).toContain("/modules/testing-cosmos.json");
+    expect(requests).toContain("/testing-cosmos.json");
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(manifest.modules.testing).toBeUndefined();
@@ -650,7 +650,7 @@ describe("third-party registries", () => {
 
     let captured: Record<string, string | string[] | undefined> | undefined;
     fixture.onRequest = ({ url, headers }) => {
-      if (url === "/modules/testing-cosmos.json") captured = headers;
+      if (url === "/testing-cosmos.json") captured = headers;
     };
 
     process.env.STANZA_TEST_TOKEN = "secret-xyz";
@@ -775,7 +775,7 @@ describe("filesystem main-file registry", () => {
   // resolve relative to the file. No directory or filename inference.
   it("loads the index and modules from a main-file URI", async () => {
     const root = path.join(tmp, "reg");
-    fs.mkdirSync(path.join(root, "modules"), { recursive: true });
+    fs.mkdirSync(root, { recursive: true });
     const cosmos = cosmosModule();
     const mainFile = path.join(root, "main.json"); // any filename works
     fs.writeFileSync(
@@ -788,12 +788,12 @@ describe("filesystem main-file registry", () => {
           {
             ...cosmos,
             adapters: cosmos.adapters.map((a) => ({ key: a.key, match: a.match })),
-            path: "modules/testing-cosmos.json",
+            path: "testing-cosmos.json",
           },
         ],
       }),
     );
-    fs.writeFileSync(path.join(root, "modules", "testing-cosmos.json"), JSON.stringify(cosmos));
+    fs.writeFileSync(path.join(root, "testing-cosmos.json"), JSON.stringify(cosmos));
     process.env.STANZA_REGISTRY = mainFile;
 
     const registry = await loadRegistries();

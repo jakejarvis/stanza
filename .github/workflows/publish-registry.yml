@@ -1,0 +1,38 @@
+name: Publish registry
+
+# Publishes the compiled registry + manifest schema to Vercel Blob, the single
+# origin behind the stanza.tools/registry/*.json and /schema*.json rewrites.
+# Runs on every push to main that touches registry data, so a module change
+# goes live without a release. `workflow_dispatch` re-seeds Blob on demand (used
+# once before the rewrites went live). Latest files overwrite; immutable version
+# pins are written once and skipped thereafter.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "registry/modules/**"
+      - "packages/schema/src/**"
+  workflow_dispatch:
+
+concurrency:
+  group: publish-registry-${{ github.ref }}
+
+permissions: {}
+
+jobs:
+  publish:
+    name: Compile & upload to Blob
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: 24
+          cache: true
+
+      - name: Publish registry + schema to Blob
+        run: pnpm exec jiti scripts/publish-registry.ts
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}

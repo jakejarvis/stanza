@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "^/registry/(?<file>[^/]+\\.json)$",
+      "destination": "https://cti6xxqykwjha3x9.public.blob.vercel-storage.com/registry/$file"
+    },
+    {
+      "source": "^/(?<file>schema(?:@[^/]+)?\\.json)$",
+      "destination": "https://cti6xxqykwjha3x9.public.blob.vercel-storage.com/$file"
+    },
+    {
+      "source": "/llms.txt",
+      "destination": "/docs/llms.txt"
+    },
+    {
+      "source": "/llms-full.txt",
+      "destination": "/docs/llms-full.txt"
+    }
+  ]
+}

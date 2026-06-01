@@ -22,12 +22,14 @@ export type {
 } from "./manifest";
 export {
   appsForRecord,
+  compileManifestJsonSchema,
   CURRENT_MANIFEST_VERSION,
   declaredEnvNames,
   defaultWebApp,
   emptyManifest,
   getApp,
   MANIFEST_SCHEMA_URL,
+  REGISTRY_BASE_URL,
   selectedAll,
   selectedOne,
   StanzaManifestSchema,

@@ -36,7 +36,7 @@ export default defineConfig({
       serverAssets: [
         {
           baseName: "registry",
-          dir: "public/registry",
+          dir: ".registry",
         },
       ],
     }),
@@ -55,9 +55,9 @@ export default defineConfig({
     tasks: {
       "compile-registry": {
         cwd: "../..",
-        command: "jiti scripts/compile-registry.ts apps/web/public/registry",
+        command: "jiti scripts/compile-registry.ts apps/web/.registry",
         input: [{ pattern: "registry/modules/**", base: "workspace" }],
-        output: [{ pattern: "public/registry/**", base: "package" }],
+        output: [{ pattern: ".registry/**", base: "package" }],
       },
     },
   },
