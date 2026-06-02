@@ -22,7 +22,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { head, put } from "@vercel/blob";
+import { BlobNotFoundError, head, put } from "@vercel/blob";
 import { compileManifestJsonSchema } from "@withstanza/schema";
 
 import { compileRegistry } from "./compile-registry.ts";
@@ -42,7 +42,7 @@ async function exists(pathname: string): Promise<boolean> {
     await head(pathname, { token });
     return true;
   } catch (err) {
-    if (err instanceof Error && err.name === "BlobNotFoundError") return false;
+    if (err instanceof BlobNotFoundError) return false;
     throw err;
   }
 }
