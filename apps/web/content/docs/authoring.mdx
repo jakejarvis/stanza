@@ -316,11 +316,11 @@ Each per-module JSON is self-contained: template bodies, deps, env vars, codemod
 To run the build:
 
 ```sh
-# Default output: <repoRoot>/dist (writes dist/index.json + dist/modules/*.json)
+# Default output: <repoRoot>/dist (writes flat dist/index.json + dist/<category>-<id>.json)
 jiti scripts/compile-registry.ts
 
-# Or point it elsewhere (this is what the web app's prebuild does):
-jiti scripts/compile-registry.ts apps/web/public/registry
+# Or point it elsewhere (this is what the web app's compile-registry task does):
+jiti scripts/compile-registry.ts apps/web/.registry
 ```
 
 The script is a thin wrapper over `@withstanza/schema` (`CATEGORIES` + the contract types) and SVGO — for a third-party registry, fork it (or copy it) against your own `registry/modules/` tree. `compileRegistry({ outDir })` is also exported for in-process callers. The output shape is identical.

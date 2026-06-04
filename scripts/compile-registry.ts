@@ -1,16 +1,17 @@
 /**
  * Static registry build. Scans `registry/modules/*`, imports each module's
  * default export, writes:
- *   - <out>/index.json               — the main file (per-module
- *                                                metadata, each carrying `path`)
- *   - <out>/modules/<slot>-<id>.json — per-module full manifests
+ *   - <out>/index.json              — the main file (per-module
+ *                                               metadata, each carrying `path`)
+ *   - <out>/<category>-<id>.json    — per-module full manifests
  *
- * The output base defaults to `<repoRoot>/dist`. Pass a positional arg to
- * redirect — e.g. the web app's `compile-registry` task points it at
- * `apps/web/public/registry`.
+ * Output is flat (no `modules/` subdir) so it maps 1:1 onto the Blob store and
+ * the path-transparent `stanza.tools/registry/<file>.json` rewrites. The output
+ * base defaults to `<repoRoot>/dist`. Pass a positional arg to redirect — e.g.
+ * the web app's `compile-registry` task points it at `apps/web/.registry`.
  *
- * A standalone build tool (not part of any package): the web prebuild, the
- * Blob upload in CI, and the CLI test harness all invoke it via
+ * A standalone build tool (not part of any package): the web's compile-registry
+ * task, the Blob upload in CI, and the CLI test harness all invoke it via
  * `jiti scripts/compile-registry.ts [outDir]`. `compileRegistry()` is also
  * exported for any in-process caller.
  */
@@ -34,11 +35,13 @@ export async function compileRegistry(opts: {
   const repoRoot = findRepoRoot(here);
   const modulesDir = opts.modulesDir ?? path.join(repoRoot, "registry", "modules");
 
-  // Wipe + recreate so a renamed module's stale JSON doesn't linger and
-  // ghost-serve from the CDN.
-  const modulesOut = path.join(opts.outDir, "modules");
-  fs.rmSync(modulesOut, { recursive: true, force: true });
-  fs.mkdirSync(modulesOut, { recursive: true });
+  // Clear stale `*.json` (including a previous `index.json`) so a renamed or
+  // removed module's file doesn't linger and ghost-serve. Leaves any other dir
+  // contents alone; the out dir is recreated if absent.
+  fs.mkdirSync(opts.outDir, { recursive: true });
+  for (const f of fs.readdirSync(opts.outDir)) {
+    if (f.endsWith(".json")) fs.rmSync(path.join(opts.outDir, f));
+  }
 
   const dirs = fs
     .readdirSync(modulesDir, { withFileTypes: true })
@@ -59,8 +62,14 @@ export async function compileRegistry(opts: {
     const templatesDir = path.join(modulesDir, dir, "templates");
     const logo = readLogo(path.join(modulesDir, dir), dir);
     const readme = readReadme(path.join(modulesDir, dir));
+    // The module's `package.json` version is the single source of truth — it's
+    // what `stanza add` pins into `stanza.json` and the key the Blob archive
+    // pins each immutable per-module file under. `module.ts`'s own `version`
+    // is vestigial (the two had already drifted), so we override it here.
+    const version = readPackageVersion(path.join(modulesDir, dir));
     const inlined: Module = {
       ...mod,
+      version,
       ...(logo ? { logo } : {}),
       ...(readme ? { readme } : {}),
       adapters: mod.adapters.map((adapter) => ({
@@ -72,11 +81,11 @@ export async function compileRegistry(opts: {
       })),
     };
 
-    // Per-module files live at `modules/<category>-<id>.json`; the index
-    // records each one's relative `path` so the loader never has to infer a
-    // filename. (The physical layout is the build's choice — the contract is
-    // the explicit `path`.)
-    const modulePath = `modules/${mod.category}-${mod.id}.json`;
+    // Per-module files live flat at `<category>-<id>.json`; the index records
+    // each one's relative `path` so the loader never has to infer a filename.
+    // (The physical layout is the build's choice — the contract is the explicit
+    // `path`, resolved relative to the index URL.)
+    const modulePath = `${mod.category}-${mod.id}.json`;
     fs.writeFileSync(path.join(opts.outDir, modulePath), JSON.stringify(inlined, null, 2));
 
     // The index keeps lightweight metadata — no template `content`, no
@@ -160,6 +169,21 @@ function readReadme(moduleDir: string): string | undefined {
   const file = path.join(moduleDir, "readme.md");
   if (fs.existsSync(file)) return fs.readFileSync(file, "utf8");
   return undefined;
+}
+
+/**
+ * Each module dir is a private workspace package; its `package.json` version is
+ * the source of truth for the module's published version (pinned into
+ * `stanza.json` and used as the Blob archive key). Throws if missing so a new
+ * module can't ship without a version.
+ */
+function readPackageVersion(moduleDir: string): string {
+  const file = path.join(moduleDir, "package.json");
+  const pkg: { version?: unknown } = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (typeof pkg.version !== "string" || pkg.version.length === 0) {
+    throw new Error(`Module ${moduleDir} has no \`version\` in package.json.`);
+  }
+  return pkg.version;
 }
 
 function findRepoRoot(start: string): string {

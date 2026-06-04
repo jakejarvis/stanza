@@ -28,7 +28,7 @@ export default defineConfig({
       "**/.source/**",
       "**/routeTree.gen.ts",
       "**/coverage/**",
-      "apps/web/public/registry/**",
+      "apps/web/.registry/**",
       "registry/modules/*/logo*.svg",
       "registry/modules/*/templates/**",
     ],

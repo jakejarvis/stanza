@@ -27,6 +27,31 @@ export const SUPPORTED_MANIFEST_VERSIONS = ["0.3", "0.4"] as const;
 export const MANIFEST_SCHEMA_URL = "https://stanza.tools/schema.json";
 
 /**
+ * Base URL the first-party registry is served from. Path-transparent rewrites
+ * map `stanza.tools/registry/<file>.json` onto the Vercel Blob store, so the
+ * store stays a swappable implementation detail behind this branded origin. The
+ * index lives at `<base>/index.json`, each module's latest at `<base>/<slug>.json`,
+ * and immutable version pins at `<base>/<slug>@<version>.json`. The CLI read
+ * path for pinned versions is deferred to `update`/`swap`.
+ */
+export const REGISTRY_BASE_URL = "https://stanza.tools/registry";
+
+/**
+ * Compile the published JSON Schema for `stanza.json` from the Zod source of
+ * truth. The release-time publish script serializes this to Blob (`schema.json`
+ * + `schema@<version>.json`); it's exported so any caller produces byte-
+ * identical output. Returns a plain JSON-Schema object.
+ */
+export function compileManifestJsonSchema(): Record<string, unknown> {
+  return {
+    $id: MANIFEST_SCHEMA_URL,
+    title: "Stanza manifest",
+    description: "Schema for stanza.json — a Stanza monorepo manifest.",
+    ...z.toJSONSchema(StanzaManifestSchema),
+  };
+}
+
+/**
  * An app inside the monorepo. The `id` doubles as the workspace-package suffix
  * (`@<manifest.name>/<id>`), the URL/CLI handle (`--app=<id>`), and the key
  * module records use in their `apps` field. `dir` is repo-relative; `kind`

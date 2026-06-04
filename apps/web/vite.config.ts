@@ -17,6 +17,32 @@ export default defineConfig({
   plugins: lazyPlugins(async () => [
     mdx(await import("./source.config.ts")),
     devtools(),
+    nitro({
+      serverAssets: [
+        {
+          baseName: "registry",
+          dir: ".registry",
+        },
+      ],
+      vercel: {
+        config: {
+          version: 3,
+          routes: [
+            {
+              src: "^/(llms(?:-full)?\\.txt)$",
+              dest: "/docs/$1",
+            },
+            {
+              src: "^/(schema(@[\\d.]+)?\\.json|registry/.*(@[\\d.]+)?\\.json)$",
+              dest: "https://cti6xxqykwjha3x9.public.blob.vercel-storage.com/$1",
+              headers: {
+                "x-vercel-enable-rewrite-caching": "1",
+              },
+            },
+          ],
+        },
+      },
+    }),
     tailwindcss(),
     tanstackStart({
       rsc: { enabled: true },
@@ -32,14 +58,6 @@ export default defineConfig({
     }),
     rsc(),
     react(),
-    nitro({
-      serverAssets: [
-        {
-          baseName: "registry",
-          dir: "public/registry",
-        },
-      ],
-    }),
   ]),
   resolve: {
     tsconfigPaths: true,
@@ -55,9 +73,13 @@ export default defineConfig({
     tasks: {
       "compile-registry": {
         cwd: "../..",
-        command: "jiti scripts/compile-registry.ts apps/web/public/registry",
-        input: [{ pattern: "registry/modules/**", base: "workspace" }],
-        output: [{ pattern: "public/registry/**", base: "package" }],
+        command: "jiti scripts/compile-registry.ts apps/web/.registry",
+        input: [
+          { pattern: "registry/modules/**", base: "workspace" },
+          { pattern: "packages/schema/**", base: "workspace" },
+          { pattern: "scripts/compile-registry.ts", base: "workspace" },
+        ],
+        output: [{ pattern: ".registry/**", base: "package" }],
       },
     },
   },

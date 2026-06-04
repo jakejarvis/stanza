@@ -29,20 +29,20 @@ function listDocsPaths(): string[] {
   return out.toSorted();
 }
 
-// Read the registry from disk (populated by the `prebuild` script before vite
-// runs). We avoid `@/server/registry-base.server` because it goes through
+// Read the registry from disk (populated by the `compile-registry` task before
+// vite runs). We avoid `@/server/registry-base.server` because it goes through
 // Nitro's `useStorage`, which only exists at request time. Returns both the
 // category landing pages (`/registry/<cat>`) and per-module detail pages
 // (`/registry/<cat>/<id>`) so every public registry URL prerenders.
 function listRegistryPaths(): string[] {
-  const registryPath = resolve(appRoot, "public/registry/index.json");
+  const registryPath = resolve(appRoot, ".registry/index.json");
   let raw: string;
   try {
     raw = readFileSync(registryPath, "utf8");
   } catch (error) {
     throw new Error(
       `Prerender enumeration failed: ${registryPath} is missing. ` +
-        `Run \`jiti scripts/compile-registry.ts apps/web/public/registry\` first.`,
+        `Run \`jiti scripts/compile-registry.ts apps/web/.registry\` first.`,
       { cause: error },
     );
   }
@@ -67,7 +67,6 @@ export function listPrerenderPages() {
     "/docs/llms-full.txt",
     ...registry,
     "/stats",
-    "/schema.json",
   ];
   return paths.map((path) => ({ path, prerender: { enabled: true } }));
 }
