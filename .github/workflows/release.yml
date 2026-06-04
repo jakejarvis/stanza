@@ -10,8 +10,8 @@ concurrency:
 permissions: {}
 
 jobs:
-  release:
-    name: Version & publish
+  npm:
+    name: Publish to NPM
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -51,3 +51,35 @@ jobs:
           commit: "chore: release"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  registry:
+    name: Compile & upload registry
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect registry changes
+        id: changes
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if git diff --name-only "$BEFORE" "$GITHUB_SHA" | grep -qE '^(registry/modules/|packages/schema/src/|scripts/)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: voidzero-dev/setup-vp@v1
+        if: steps.changes.outputs.changed == 'true'
+        with:
+          node-version: 24
+          cache: true
+
+      - name: Publish registry + schema to Blob
+        if: steps.changes.outputs.changed == 'true'
+        run: vp exec jiti scripts/publish-registry.ts
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}

@@ -40,8 +40,8 @@ jobs:
   # module whose compiled content changed must bump its package.json version.
   # Self-gating — no-ops when nothing under registry/modules/** changed, so it's
   # cheap to run on every PR.
-  verify-module-versions:
-    name: Verify module versions
+  verify-registry:
+    name: Verify registry
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     timeout-minutes: 10
