@@ -247,7 +247,7 @@ function StatsPage() {
           >
             CLI docs
           </Link>{" "}
-          or{" "}
+          (or{" "}
           <a
             href="https://github.com/jakejarvis/stanza/blob/main/apps/cli/src/lib/telemetry.ts"
             target="_blank"
@@ -256,7 +256,7 @@ function StatsPage() {
           >
             audit the code
           </a>{" "}
-          yourself.
+          yourself).
         </p>
       </section>
     </div>

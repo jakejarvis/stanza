@@ -41,13 +41,22 @@ pnpm dev
 
 ## Add a module
 
-Every category — `framework`, `ui`, `db`, `orm`, `auth`, `tooling`, `testing` — is one command away:
+Every category is one command away — `framework`, `ui`, `db`, `orm`, `auth`, `tooling`, `testing`, [and more](/docs/registry):
 
 ```sh
 npx stanza-cli add auth better-auth
 ```
 
-Stanza resolves peer constraints, picks the adapter that matches your stack, and writes the module's templates, dependencies, and environment variables into the appropriate place. For `auth`, `db`, and `orm` that's an internal workspace package (e.g. `packages/auth/`, named `@my-app/auth`) that your app consumes via `workspace:*`. After adding a package-scoped module, re-run your package manager's install so the new workspace package links:
+Stanza resolves peer constraints, picks the adapter that matches your stack, and writes the module's templates, dependencies, and environment variables into the appropriate place.
+
+<Callout type="info">
+  Some modules require one or more peer modules to be set up first. Better Auth, for example, peers
+  on `framework` and `orm`, so the command above assumes your project already has an ORM like
+  Drizzle or Prisma. If it doesn't, Stanza fails with `missing-peer` and directs you to add a module
+  from the absent category first.
+</Callout>
+
+After adding a module, re-run your package manager's install so the new workspace package(s) are linked:
 
 ```sh
 pnpm install

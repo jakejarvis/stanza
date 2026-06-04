@@ -1,70 +1,462 @@
-# Stanza
+# Stanza Agent Guide
 
-Shadcn-style CLI that assembles modular full-stack TS monorepos. Two unusual properties: (1) generated code is vendored verbatim — no `@stanza/runtime` dep — and (2) `stanza add` works on existing projects, not just at init. Verbs today: `init`, `add`, `remove`, `list`, `search` (`swap` + `update` planned — manifest already reserves `modules[category][].version` and `regions`). The canonical category list lives in [packages/schema/src/category.ts](packages/schema/src/category.ts) (`CATEGORIES`); module roadmap in [registry.mdx](apps/web/content/docs/registry.mdx).
+Stanza is a shadcn-style CLI for assembling modular full-stack TypeScript monorepos. It has two core product constraints that should shape every change:
 
-## Layout
+- Generated code is vendored into the user's repo. Do not introduce a `@stanza/runtime` dependency or any hidden runtime contract.
+- `stanza add` must work against an existing Stanza project, not only during `init`. Treat additions and removals as reversible edits to user-owned code.
 
-- `apps/cli/` — `stanza-cli`, entry `src/bin.ts` (publishable, ESM via tsdown)
-- `apps/web/` — `@withstanza/web`, TanStack Start visual builder (private, deployed to Vercel)
-- `packages/schema/` — `@withstanza/schema`: the `stanza.json` + module schemas, contract types, `CATEGORIES` list, package-manager + registry-config schemas (publishable; also inlined into CLI bundle). The single Zod source of truth — `StanzaManifestSchema` backs the published JSON Schema
-- `packages/registry/` — `@withstanza/registry`: peer/adapter resolver + `package.json`/env/README/template synthesis (private; inlined into CLI bundle). Depends on `@withstanza/schema` + `@withstanza/utils`
-- `packages/codemods/` — ts-morph helpers, idempotent + reversible (private; inlined)
-- `packages/utils/` — `@withstanza/utils`: path-safety (`safeRelativePath`) + env-file (`appendEnvVar`) helpers shared by schema/registry/codemods (private; inlined)
-- `packages/create-stanza/` — `pnpm create stanza` shim (publishable)
-- `registry/modules/<category>-<id>/` — first-party modules: `module.ts` + `templates/` (private; data, not code)
-- `scripts/compile-registry.ts` — standalone static-registry build (not part of any package; imports `@withstanza/schema`). Run via `jiti`; exports `compileRegistry()` for in-process callers
-- `skills/stanza-cli/SKILL.md` — agent skill for the published CLI. Update whenever the public CLI contract changes; agents using this skill won't have the source repo
+Current CLI verbs are `init`, `add`, `remove`, `list`, `search`, and `doctor`. `swap` and `update` are planned; the manifest already preserves `modules[category][].version` and `regions` for them.
 
-## Commands
+## Start Here
 
-The repo runs on the **Vite+ toolchain** (`vp`). All config lives in the root [`vite.config.ts`](vite.config.ts) — there is no `turbo.json`, `.oxlintrc.json`, `.oxfmtrc.json`, or per-package `vitest.config.ts`. `vite`/`vitest` are catalog-aliased to `@voidzero-dev/vite-plus-core` / `@voidzero-dev/vite-plus-test` in `pnpm-workspace.yaml` — **never add standalone `vite`/`vitest`**. Source imports use `vite-plus` / `vite-plus/test`; template files under `registry/modules/*/templates/` stay on stock `vite`/`vitest` (they target user projects).
+- Read the local source before making architectural assumptions. The schemas in `packages/schema/src/` are the public contract; module manifests and CLI behavior should derive from them.
+- Prefer focused changes. The registry, schema, codemods, CLI runner, and web preview share contracts; update every affected boundary together.
+- Validate with the Vite+ toolchain. This repo is not a Turbo/Vite/Vitest standalone setup.
+- Keep template output realistic. Files under `registry/modules/*/templates/` target generated user projects, not this repo's toolchain.
+- Update `skills/stanza-cli/SKILL.md` whenever the public CLI contract changes. Agents using that skill may not have access to this source repo.
 
-- `tsx apps/cli/src/bin.ts <verb>` — run CLI in dev (no build step; `tsx watch` for a loop)
-- `vp check` — format + lint + type-check (oxfmt + oxlint + type-aware `tsgolint`). **Use this for validation loops.** `--fix` autofixes
-- `vp test` — Vitest 4 via `vite-plus/test`; project selection via `test.projects` in root config
-- `vp run -r build` — build everything (`vp pack` per package, wraps tsdown)
-- `vp run @withstanza/web#dev` — TanStack Start dev server. Its `dev`/`build` scripts first run the `compile-registry` vp task (defined under `run.tasks` in [`apps/web/vite.config.ts`](apps/web/vite.config.ts)) → `jiti scripts/compile-registry.ts apps/web/.registry`, emitting flat `apps/web/.registry/{index.json,<category>-<id>.json}` (gitignored, Nitro `serverAssets` — the web's own render input). The public registry + manifest schema are served from Vercel Blob, not this dir (see "Registry serving" below)
-- `src/routeTree.gen.ts` is generated by `vp run @withstanza/web#build` — run it before the first `vp check` if missing
-- E2E smoke: build the registry (`jiti scripts/compile-registry.ts $TMPDIR/reg` → writes flat `$TMPDIR/reg/{index.json,<category>-<id>.json}` directly under the out dir, no `modules/` subdir), seed `$TMPDIR/x` with `stanza.json` + `apps/web/package.json`, then `STANZA_REGISTRY=$TMPDIR/reg/index.json tsx apps/cli/src/bin.ts add <category> <module>`. The CLI reads a built registry **main file** (full path/URL, any filename) — there is no source-tree loader; `STANZA_REGISTRY` unset hits the production registry
-- `pnpm changeset` — drop a markdown file after a substantive PR; the release workflow handles versioning + publish. `stanza-cli`, `create-stanza`, and `@withstanza/schema` ship to npm; every other workspace is private
+## Repository Map
 
-Use `agent-browser` for web automation (`agent-browser --help`); prefer it over built-in browser tools.
+| Path                                | Role                                                                                                                                                           |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/cli/`                         | `stanza-cli`; binary entry is `src/bin.ts`; publishable ESM built by tsdown through `vp pack`.                                                                 |
+| `apps/web/`                         | `@withstanza/web`; TanStack Start visual builder and docs site; private, deployed to Vercel.                                                                   |
+| `packages/schema/`                  | `@withstanza/schema`; Zod source of truth for `stanza.json`, module manifests, registry config, package managers, and categories. Publishes the JSON Schema.   |
+| `packages/registry/`                | Resolver and synthesis layer: adapter selection, package/env/script/README/template rendering, package JSON previews. Private and inlined into the CLI bundle. |
+| `packages/codemods/`                | Generic ts-morph codemod catalog. Codemods must be idempotent and reversible where removal depends on them.                                                    |
+| `packages/utils/`                   | Shared path-safety and env-file helpers such as `safeRelativePath` and `appendEnvVar`.                                                                         |
+| `packages/create-stanza/`           | `pnpm create stanza` / create-package shim; publishable.                                                                                                       |
+| `registry/modules/<category>-<id>/` | First-party registry modules. Each module is data: `package.json`, `module.ts`, optional logos/readme, and templates.                                          |
+| `scripts/compile-registry.ts`       | Standalone static registry compiler. Emits flat JSON registry files and exports `compileRegistry()`.                                                           |
+| `scripts/publish-registry.ts`       | Publishes registry and manifest schema JSON to Vercel Blob.                                                                                                    |
+| `skills/stanza-cli/SKILL.md`        | Source-repo-independent agent instructions for the published CLI.                                                                                              |
 
-## Toolchain invariants
+## Toolchain
 
-- **Node-only at runtime.** CLI is dev-run via `tsx`, published as plain ESM JS (`#!/usr/bin/env node`). Bun shebangs on `scripts/*.ts` are convenience only — those scripts use no `Bun.*` APIs
-- **Build pipeline**: `vp pack` → tsdown → ESM `dist/`. Source `main`/`types` point at `./src/` for dev resolution across workspaces; `publishConfig` overrides for the tarball. External npm deps are NOT bundled; workspace deps ARE inlined — transitive runtime deps (`ts-morph`, `zod`) MUST be direct `dependencies` of the publishable package
-- **pnpm 10 + `node-linker: isolated`** — every workspace MUST declare `@types/node` in its own devDeps and set `types: ["node"]` in tsconfig
-- **TypeScript 6** — `allowImportingTsExtensions: true` + `noEmit: true` repo-wide; `tsconfig.json` excludes `**/templates/**` (those target user projects)
-- **Zod 4**: use `z.partialRecord(K, V)` for finite-key partial records
-- **TanStack Start**: `verbatimModuleSyntax: false` in `apps/web/tsconfig.json`; `tanstackStart()` MUST precede `react()` in vite plugins
+The repo runs on Vite+ (`vp`). Configuration lives in the root `vite.config.ts` and package-level Vite+ config where needed. Do not add `turbo.json`, `.oxlintrc.json`, `.oxfmtrc.json`, or per-package `vitest.config.ts`.
 
-## Architecture rules
+Repo source should import from `vite-plus` and `vite-plus/test`. Template files under `registry/modules/*/templates/` should keep using stock `vite` and `vitest` imports because they are copied into user projects.
 
-- **Modules are vendored, not runtime-linked.** Templates land in the user's repo verbatim
-- **Registry is data; CLI is the runtime.** Per-module JSON ships templates (text), deps, env, scripts, logos (SVG markup), and codemod _invocations_ (`{ id, args }`) — never codemod _code_. The catalog of generic codemods lives in [packages/codemods/src/builtins/](packages/codemods/src/builtins/) and is statically imported into the CLI bundle at build time, so distribution shape (single binary, pnpm-isolated, npx, etc.) doesn't matter
-- **Adding a generic codemod**: drop `<id>.ts` under `builtins/`, default-export a `Codemod<TArgs>`, register in [`builtins/index.ts`](packages/codemods/src/builtins/index.ts). Module-specific identifiers don't belong — factor them into args
-- **Codemod catalog ids are part of the public contract.** Once published, renaming an id breaks third-party manifests. Treat ids like npm package names — additions are free, renames need a deprecation cycle, removals need a manifest schema version bump
-- **Third-party codemods are deferred** until a sandboxed-execution + signing model lands. Third-party modules can invoke existing catalog ids but can't add new ones
-- **Template distribution**: [`scripts/compile-registry.ts`](scripts/compile-registry.ts) (the standalone registry build) inlines each template file's contents into `templates[].content` so HTTP-loaded manifests are self-contained. The runner prefers `tpl.content` and only reads from `templates/` when absent (local dev). New templates need no build wiring
-- **Categories** carry orthogonal **`cardinality`** (`one` / `many`) and **`home`** (`app` / `repo` / `package`); both are declared on each entry in `CATEGORIES`. Adding a category is a one-line edit there — `KNOWN_CATEGORIES`, `PEER_CATEGORIES`, `PACKAGE_DIRS`, and `categoryHome()`/`categoryLabel()` all derive. Peer-resolution iterates **`PEER_CATEGORIES`** (the `one`-cardinality ids) only — a `many` category never participates in others' dispatch. `CATEGORIES` order is topological (each category appears after everything it peers on; `many` categories last)
-- **Manifest layout**: selections live in one `modules` record keyed by `CategoryId`, each an array of `StanzaModuleRecord`. Records carry optional `apps?: string[]` — **required** for `home: app`, **optional** for `home: package` (omitted means "ship app-scoped shims into every app"; an explicit list restricts), **forbidden** for `home: repo`. The app `id` doubles as the workspace package suffix (`id: "web"` → `@<project>/web`, regardless of `dir`). `cardinality: "one"` enforcement is **per-app** for `home: app` categories (`selectedOne(m, cat, appId)`), per-project otherwise
-- **Install home routing**: `categoryHome(id)` is the single decision point, read by both the CLI runner and the web's `synthesizePackageJsons`. `home: package` → `packages/<dir>/` workspace package named `@<manifest.name>/<dir>` (auto-bootstrapped by `ensureSlotPackage`); every consuming app gets a `workspace:*` dep. `home: repo` → repo-root config + scripts in root `package.json`. `home: app` → the targeted app
-- **Generated projects don't share a tsconfig base.** Every `apps/*/tsconfig.json` and `packages/*/tsconfig.json` is self-contained. The Stanza repo's root `tsconfig.json` exists only for this repo — never emit one into generated trees
-- **Cross-package wiring**: declare `consumesPackages: ["<dir>"]` at the **module level** (not per-adapter) when source imports another internal package. Reference other packages in templates / codemod `args` via `{{packages.<dir>.name}}` (e.g. `{{packages.db.name}}` → `@my-app/db`). Full template context: `{ project, app, package, packages }`; `app.*` is rebound per target app in the apply loop. `renderTemplate` lives in `@withstanza/registry` so CLI apply and web preview produce byte-identical output
-- **Region ownership** in `stanza.json` is the source of truth for `stanza remove`. Two modules claiming the same region throws `RegionConflictError`. Regions key on `module.id`, so disjoint dot-paths (vitest `scripts.test` vs playwright `scripts.test:e2e`) coexist. Package bootstrap files (`package.json`, `tsconfig.json`, workspace deps) are system-owned, not tracked in regions — `stanza remove`'s sweep over `PACKAGE_DIRS` cleans them when no claims remain. _Regions are not yet sufficient for `swap`_ — that verb needs adapter-region remapping; design pending
-- **Reserved manifest fields**: `modules[category][].version` and `regions` are written today but only fully consumed by upcoming `swap`/`update`. Don't drop them
-- **Web previews are SSR.** Shiki runs in [`highlighter.server.ts`](apps/web/src/server/highlighter.server.ts); the client-safe `Preview` type lives in [`highlighter.ts`](apps/web/src/server/highlighter.ts). Never import `shiki` from a client component. After `vp run @withstanza/web#build`, grep `.output/public/assets/*.js` for the runtime (`createHighlighter`/`codeToHtml`/`loadWasm`) — must be absent. A bare `grep shiki` yields false positives because MDX docs ship statically-rendered code blocks with `class="shiki"` + CSS vars (fine)
-- **Vercel Blob is the canonical registry origin.** [`scripts/publish-registry.ts`](scripts/publish-registry.ts) compiles the registry and uploads it to Blob on **every push to `main`** (the self-gating `registry` job — "Compile & upload registry" — in [`.github/workflows/release.yml`](.github/workflows/release.yml), filtered to `registry/modules/**` + `packages/schema/**` + `scripts/**`, running in parallel with the release) — decoupled from releases, so a module change goes live on merge. Blob layout: `registry/index.json`, `registry/<category>-<id>.json` (latest, overwritten), `registry/<category>-<id>@<version>.json` (immutable pin, write-if-absent), `schema.json` + `schema@<version>.json`. `stanza.tools` serves these **path-transparently** via [`vercel.json`](vercel.json) **`routes`** scoped to `.json` — `stanza.tools/registry/<file>.json` and `stanza.tools/schema*.json` → Blob. Legacy `routes` (not `rewrites`) are required: on a Build Output API deploy, `rewrites` are appended _after_ the Nitro catch-all and never match, whereas `routes` run _before_ the filesystem and framework, so they win. That's exactly why the patterns are scoped to `.json` — the HTML browse routes (`/registry`, `/registry/<cat>`, `/registry/<cat>/<id>` — no `.json`) carry no extension and fall through to the framework untouched. Because `routes` win over the filesystem, keep nothing compiled at a matching `.json` path under `public/` (it would be shadowed by the Blob route). `DEFAULT_REGISTRY_URL` = `https://stanza.tools/registry/index.json` and `MANIFEST_SCHEMA_URL` = `https://stanza.tools/schema.json` are unchanged; `REGISTRY_BASE_URL` (`@withstanza/schema`) is the branded base. The web app reads its **own** build-time compiled copy at `apps/web/.registry/` (gitignored, Nitro `serverAssets`, via `useStorage("assets:registry")` in [`registry-base.server.ts`](apps/web/src/server/registry-base.server.ts)) for prerender + SSR — never the public URL (prod SSR loopback is refused). `STANZA_REGISTRY` (URL or FS path) overrides the CLI default for self-hosters / CI. **Seeding caveat:** `index.json`/`schema.json` have no static fallback (the `routes` rule points straight at Blob), so Blob must be seeded — run the publish job once via `workflow_dispatch` — before the routes go live
-- **Third-party registries**: namespaces declared under `stanza.json#registries`. Modules addressed as `<category> @<ns>/<id>`. `telemetry.captureModule` redacts non-`@stanza` ids to `<redacted>`; stderr still prints full ids (CI log forwarders will see them)
+Common commands:
 
-## Module authoring
+```sh
+vpx jiti apps/cli/src/bin.ts <verb>
+vp check
+vp check --fix
+vp test
+vp run -r build
+vp run @withstanza/web#dev
+vp run @withstanza/web#build
+pnpm changeset
+```
 
-- Modules live in `registry/modules/<category>-<id>/`. `module.ts` exports `defineModule({...})` with one `category` and ≥1 adapter (`match: {}` for "default / no peer"). For `many`-cardinality categories, give co-existing modules disjoint `scripts` keys / file paths so region claims don't collide
-- **Template `scope`**: `"app"` (default) → each targeted app's `dir`; `"repo"` → repo root; `"package"` → `packages/<dir>/` (only valid for `home: package` categories). For package-home modules, default to `scope: "package"` for everything that fits inside the package; reach for `"app"` only when framework convention forces it (e.g. Next `proxy.ts`). App-scoped files should be thin shims that import from `{{package.name}}` with `template: true`
-- **Hoist shared install fields** (`dependencies`, `devDependencies`, `env`, `scripts`, `consumesPackages`) to the module level. Adapter-level values still override per-key (`env` merges by `name`)
-- **Never ship `package.json` or `tsconfig.json` templates** — they collide with the runner's `ensureSlotPackage` / `addPackageDependency`. Framework modules must not ship `package.json.tpl`; package-home modules must not ship `packages/<dir>/package.json`
-- **Codemod invocations**: `codemods: [{ id, args }]` on the adapter. String values in `args` go through mustache (same template context). For codemods operating on files inside a slot's package, pass `base: "package:<dir>"` (honored by `re-export` and `append-to-file`)
-- **Adapter `match` keys** encode peer choices (e.g. `next+drizzle`); the resolver picks the most specific match. A module can declare a one-way `peers` (e.g. `{ framework: [...] }`) and framework-varying adapters regardless of its own cardinality
-- **Logos**: drop `logo.svg` (theme-agnostic) or `logo-light.svg` + `logo-dark.svg` (theme pair) in the module dir. The registry build auto-detects and inlines as `mod.logo`. First-party logos come from [svgl.app](https://svgl.app)
-- **`version` field**: declare on every manifest; pinned into `stanza.json` at install. Bump per semver on schema-affecting changes (templates, dep upgrades). Consumed by upcoming `swap`/`update`
+Command notes:
+
+- Use `vpx jiti apps/cli/src/bin.ts <verb>` for CLI development; no build step is required.
+- Use `vp check` for validation loops. It runs format, lint, type checking, and type-aware `tsgolint`.
+- Use `vp test` for Vitest 4 through `vite-plus/test`; project selection comes from root `vite.config.ts`.
+- `vp run -r build` runs package builds through `vp pack` and tsdown.
+- The web app's `dev` and `build` scripts first run its `compile-registry` Vite+ task, which writes `apps/web/.registry/{index.json,<slug>.json}`.
+- `src/routeTree.gen.ts` is generated by the web build. If it is missing, run `vp run @withstanza/web#build` before the first `vp check`.
+- Add a changeset after substantive publishable changes. `stanza-cli`, `create-stanza`, and `@withstanza/schema` publish to npm; other workspaces are private.
+
+For web automation, use `agent-browser --help` and prefer `agent-browser` over built-in browser tooling unless the immediate environment requires otherwise.
+
+## Runtime And Packaging Invariants
+
+- Runtime is Node only. The CLI is published as plain ESM JavaScript with a `#!/usr/bin/env node` binary. Bun shebangs in `scripts/*.ts` are convenience only; do not use `Bun.*` APIs.
+- Root package manager is pnpm. The current root `packageManager` field is the source of truth for the exact version.
+- The build pipeline is `vp pack` -> tsdown -> ESM `dist/`.
+- Source `main` and `types` point at `./src/` for workspace development. `publishConfig` overrides tarball entrypoints.
+- External npm dependencies are not bundled. Workspace dependencies are inlined into publishable packages, so transitive runtime packages such as `zod` and `ts-morph` must be direct `dependencies` of any publishable package that needs them.
+- The workspace uses isolated pnpm linking. Every workspace package needs its own `@types/node` dev dependency and `types: ["node"]` in its tsconfig when it uses Node globals or APIs.
+- TypeScript is configured for `allowImportingTsExtensions: true` and `noEmit: true`. The repo tsconfig excludes `**/templates/**`; templates have their own target environment after generation.
+- Zod 4 finite-key partial maps should use `z.partialRecord(K, V)`.
+- TanStack Start must run before React in Vite plugins. In `apps/web`, keep `tanstackStart()` before `react()` and keep `verbatimModuleSyntax: false` in its tsconfig.
+
+## Core Architecture
+
+Stanza has three layers:
+
+1. Schema: `@withstanza/schema` defines the manifest, registry, category, and module contracts.
+2. Registry data: module JSON describes templates, deps, env vars, scripts, logos, README text, and codemod invocations.
+3. CLI runtime: the runner resolves adapters, renders templates, applies codemods, writes manifests, tracks regions, and performs rollback/removal.
+
+Important boundaries:
+
+- Registry JSON must never ship executable codemod code. It may only reference codemods by `{ id, args }`.
+- Generic codemod implementations live in `packages/codemods/src/builtins/` and are statically imported into the CLI bundle.
+- `renderTemplate` lives in `@withstanza/registry` so CLI apply and web preview render byte-identical output.
+- `safeRelativePath` and related path guards are part of the safety boundary. Do not replace them with ad hoc string checks.
+- Generated projects should not share a root tsconfig base. Emit self-contained `apps/*/tsconfig.json` and `packages/*/tsconfig.json` files; the Stanza repo root tsconfig is only for this repo.
+
+## Categories And Install Homes
+
+The canonical category list is `CATEGORIES` in `packages/schema/src/category.ts`. Add or change categories there first.
+
+Each category has:
+
+- `cardinality`: `"one"` or `"many"`
+- `home`: `"app"`, `"repo"`, or `"package"` with a package dir
+
+Derived helpers include `KNOWN_CATEGORIES`, `PEER_CATEGORIES`, `PACKAGE_DIRS`, `categoryHome()`, `categoryLabel()`, and `categoryCardinality()`. Do not maintain hand-written duplicate lists.
+
+Ordering matters. `CATEGORIES` is topological: a category appears after everything it can peer on, and `many` categories are leaves.
+
+Peer-resolution rules:
+
+- Only `cardinality: "one"` categories are peer candidates.
+- The resolver iterates `PEER_CATEGORIES`.
+- A `many` category never dispatches other modules.
+
+Install routing:
+
+- `home: "app"` writes to targeted app dirs.
+- `home: "repo"` writes root config, root scripts, and root files.
+- `home: "package"` writes `packages/<dir>/`, names it `@<manifest.name>/<dir>`, bootstraps the package through the runner, and adds `workspace:*` dependencies from consuming apps.
+
+`categoryHome(id)` is the single decision point for CLI apply/remove and web package JSON synthesis.
+
+## Manifest Rules
+
+`StanzaManifestSchema` is the single source of truth for `stanza.json`.
+
+Selections live in:
+
+```ts
+modules: Partial<Record<CategoryId, StanzaModuleRecord[]>>;
+```
+
+Every module record stores at least `id`, `version`, and `adapter`. It may also store `apps`, `namespace`, `codemods`, and `consumesPackages`.
+
+`apps` semantics:
+
+- Required for `home: "app"` module records.
+- Optional for `home: "package"` records. Omitted means app-scoped shims apply to every app; an explicit list restricts shim targets.
+- Forbidden for `home: "repo"` records.
+
+Cardinality enforcement:
+
+- For `home: "app"` single-choice categories, cardinality is per app.
+- For `home: "repo"` and `home: "package"` single-choice categories, cardinality is per project.
+- `selectedOne(manifest, category, appId)` is the app-aware read helper.
+
+Reserved and runner-managed fields:
+
+- Preserve `modules[category][].version`; `swap` and `update` will consume it.
+- Preserve `regions`; remove and future update flows rely on ownership data.
+- Preserve `readmeChecksum`; it protects user-edited README files from automatic overwrites.
+- `registries`, `apps`, and `packageManager` are user configuration, but schema validation still applies.
+
+The app `id` doubles as the workspace package suffix:
+
+- `id: "web"` -> `@<project>/web`
+- This is true regardless of the app's `dir`.
+
+## Regions And Removal
+
+Region ownership in `stanza.json` is the source of truth for `stanza remove`. Two modules claiming the same region should throw `RegionConflictError`.
+
+Region keys are per-file dot paths owned by module id. Disjoint paths can coexist, for example `scripts.test` and `scripts.test:e2e`.
+
+Package bootstrap files are system-owned, not region-owned:
+
+- generated `package.json`
+- generated `tsconfig.json`
+- workspace dependency edges created for slot packages
+
+`stanza remove` sweeps package dirs derived from `PACKAGE_DIRS` when no claims remain. Do not add per-module region ownership for bootstrap files just to make removal work.
+
+Regions are not enough for `swap` yet. That verb needs adapter-region remapping; do not imply it is already designed.
+
+## Registry Build And Serving
+
+`scripts/compile-registry.ts` compiles first-party modules into a flat registry:
+
+```txt
+<out>/index.json
+<out>/<category>-<id>.json
+```
+
+There is no `modules/` subdirectory in compiled output. The CLI reads a registry main file from a full URL or filesystem path. The index carries each module's relative `path`; loaders must resolve that path relative to the index file rather than infer filenames.
+
+Compilation behavior:
+
+- Imports `registry/modules/*/module.ts`.
+- Reads each module's `package.json` version as the module version source of truth.
+- Inlines template file contents into `templates[].content`.
+- Inlines optional `readme.md`.
+- Optimizes and inlines `logo.svg` or `logo-light.svg` plus `logo-dark.svg`.
+- Writes lightweight metadata to `index.json` and full module JSON to each module file.
+
+Runner behavior:
+
+- Prefer `tpl.content` when present.
+- Fall back to local `templates/` files only when content is absent in local dev/test contexts.
+- New templates do not need extra build wiring.
+
+Public serving:
+
+- Vercel Blob is the canonical registry and schema origin.
+- `DEFAULT_REGISTRY_URL` is `https://stanza.tools/registry/index.json`.
+- `MANIFEST_SCHEMA_URL` is `https://stanza.tools/schema.json`.
+- `REGISTRY_BASE_URL` in `@withstanza/schema` is the branded registry base.
+- `scripts/publish-registry.ts` uploads:
+  - `registry/index.json`
+  - `registry/<slug>.json`
+  - `registry/<slug>@<version>.json`
+  - `schema.json`
+  - `schema@<version>.json`
+
+Vercel routing:
+
+- `apps/web/vite.config.ts` uses legacy `routes`, not `rewrites`, for `schema*.json` and `registry/*.json`.
+- These routes must stay scoped to `.json` so HTML pages such as `/registry`, `/registry/<cat>`, and `/registry/<cat>/<id>` fall through to TanStack Start.
+- Keep matching `.json` files out of `public/`; `routes` would shadow them.
+- Blob must be seeded before these routes go live because `index.json` and `schema.json` have no static fallback.
+
+The web app does not fetch the public registry during SSR. It reads the build-time compiled copy at `apps/web/.registry/` through Nitro server assets and `useStorage("assets:registry")`.
+
+`STANZA_REGISTRY=<url-or-path>` overrides the first-party registry source for the CLI. It must point to a registry main file, not a directory.
+
+## Third-Party Registries
+
+Third-party registry namespaces are declared under `stanza.json#registries`. Modules are addressed as:
+
+```txt
+<category> @<namespace>/<id>
+```
+
+Rules:
+
+- `@stanza` is reserved and cannot be redeclared in `registries`.
+- Unknown namespaces fail fast.
+- `STANZA_REGISTRY` only overrides the first-party source; it does not enable third-party modules.
+- Registry config can include headers and params with environment-variable expansion.
+- Telemetry redacts non-`@stanza` module ids to `<redacted>`, but stderr still prints full ids; CI log forwarders may see them.
+
+Third-party codemod implementations are intentionally deferred until a sandboxing and signing model exists. Third-party modules may invoke existing catalog codemod ids but may not ship new codemod code.
+
+## Module Authoring Checklist
+
+Modules live at `registry/modules/<category>-<id>/`.
+
+A normal module directory contains:
+
+```txt
+package.json
+module.ts
+templates/
+readme.md          # optional
+logo.svg           # optional
+logo-light.svg     # optional, pair with logo-dark.svg
+logo-dark.svg      # optional, pair with logo-light.svg
+```
+
+Authoring rules:
+
+- `module.ts` default-exports `defineModule({...})`.
+- Each module belongs to exactly one category.
+- Each module has one or more adapters.
+- Use `match: {}` for the default/no-peer adapter.
+- Adapter `match` keys encode peer choices; the resolver picks the most specific matching adapter.
+- A module can declare one-way `peers`, such as `{ framework: [...] }`, and can have framework-varying adapters regardless of its own category cardinality.
+- For `many` categories, make scripts, files, env vars, and regions disjoint so modules can coexist.
+- Declare `consumesPackages: ["<dir>"]` at module level when source imports another internal package. Do not hide cross-package imports in an adapter.
+- Reference internal packages in templates and codemod args with `{{packages.<dir>.name}}`, for example `{{packages.db.name}}`.
+- Full template context is `{ project, app, package, packages }`.
+- `app.*` is rebound per target app in the apply loop.
+- Hoist shared `dependencies`, `devDependencies`, `env`, `scripts`, and `consumesPackages` to module level. Adapter-level fields merge over them per key; `env` merges by `name`.
+- Every module package needs a semver `version` in its `package.json`. Bump it when templates, dependencies, env, scripts, README output, or schema-relevant behavior changes.
+
+Template `scope`:
+
+- Omitted or `"app"` resolves `dest` inside each targeted app dir.
+- `"repo"` resolves `dest` at repo root.
+- `"package"` resolves `dest` inside `packages/<dir>/` for package-home categories only.
+
+For package-home modules, default to `scope: "package"` for package-owned source. Use app-scoped templates only for thin framework shims that must live in the consuming app, such as a Next route/proxy file. App shims should import from `{{package.name}}` and usually use `template: true`.
+
+Do not ship these templates:
+
+- `package.json`
+- `tsconfig.json`
+- framework module `package.json.tpl`
+- package-home `packages/<dir>/package.json`
+
+The runner owns package bootstrap through helpers such as `ensureSlotPackage` and dependency synthesis. Shipping bootstrap templates causes collisions and breaks removal.
+
+Logo rules:
+
+- Use `logo.svg` for a theme-agnostic mark, or `logo-light.svg` and `logo-dark.svg` for a theme pair.
+- First-party logos can usually be pulled from <https://api.svgl.app>.
+- The registry compiler optimizes, namespaces, and inlines SVG markup.
+
+README rules:
+
+- Put module README contribution in sidecar `readme.md`.
+- The compiler inlines it; module authors should not set `readme` directly in `module.ts`.
+- README content renders with the same template context as templates.
+
+## Codemod Rules
+
+Codemod catalog ids are public API. Once published, renaming an id breaks third-party manifests and existing installed records.
+
+To add a generic codemod:
+
+1. Add `packages/codemods/src/builtins/<id>.ts`.
+2. Default-export a `Codemod<TArgs>`.
+3. Add focused tests beside it.
+4. Register it in `packages/codemods/src/builtins/index.ts`.
+5. Invoke it from modules as `codemods: [{ id, args }]`.
+
+Rules:
+
+- Codemods must be generic and parameterized by args. Module-specific ids do not belong in the catalog.
+- String values in codemod `args` are template-rendered with the same context as files.
+- For codemods operating inside a package slot, pass `base: "package:<dir>"` where supported, for example by `re-export` and `append-to-file`.
+- Additions are free. Renames need a deprecation cycle. Removals need a manifest schema version bump and migration plan.
+- Keep apply and revert behavior aligned with region ownership and `remove`.
+
+## CLI Behavior To Preserve
+
+Mutation safety:
+
+- Mutating commands refuse dirty git worktrees unless the user explicitly opts into the dangerous dirty-worktree flag.
+- `add` uses a file transaction and should roll back on failure.
+- `remove` should use installed manifest snapshots where needed so it can work even after the upstream registry changes.
+- `doctor` is read-only and should exit non-zero on drift.
+
+Dependency resolution:
+
+- `init` and `add` may refresh compatible npm ranges unless disabled by env.
+- Keep `STANZA_NO_NPM_LOOKUP` and `STANZA_NPM_REGISTRY` behavior intact.
+- Workspace dependencies between generated packages should use `workspace:*`.
+
+Telemetry:
+
+- Honor `--no-telemetry`, `STANZA_TELEMETRY=0`, `DO_NOT_TRACK=1`, and CI auto-disable.
+- Do not persist identifiers.
+- Redact third-party module ids in telemetry.
+
+When changing public flags, command names, manifest fields, registry config, module addressing, telemetry behavior, or error semantics, update:
+
+- CLI implementation and tests
+- `packages/schema` types/schemas if contract-shaped
+- docs in `apps/web/content/docs/`
+- `skills/stanza-cli/SKILL.md`
+
+## Web App Rules
+
+The web app is a TanStack Start application with SSR/RSC enabled through its Vite config.
+
+Registry data:
+
+- Web dev/build runs `vp run compile-registry` first.
+- Compiled registry data lives in `apps/web/.registry/` and is gitignored.
+- Nitro serves that folder as server assets.
+- SSR reads registry data through `apps/web/src/server/registry-base.server.ts` and `useStorage("assets:registry")`.
+- Do not fetch `https://stanza.tools/registry/index.json` from production SSR; production loopback to the public site is intentionally avoided.
+
+Syntax highlighting:
+
+- Shiki must stay server-side.
+- `apps/web/src/server/highlighter.server.ts` may import Shiki.
+- `apps/web/src/server/highlighter.ts` contains client-safe preview types.
+- Never import `shiki`, `createHighlighter`, `codeToHtml`, or WASM-loading Shiki runtime from client components.
+- After `vp run @withstanza/web#build`, inspect `.output/public/assets/*.js` for `createHighlighter`, `codeToHtml`, or `loadWasm`. They should be absent. A plain `grep shiki` can produce false positives from static MDX code-block classes and CSS vars.
+
+Vite plugin order:
+
+- Keep `tanstackStart()` before `react()`.
+- Keep the Vercel Blob JSON route rules in Nitro/Vercel config scoped to JSON.
+
+## Release And Publishing
+
+The release workflow has two independent jobs on pushes to `main`.
+
+NPM job:
+
+- Installs with `voidzero-dev/setup-vp`.
+- Builds, checks, and tests.
+- Uses Changesets to create a release PR or publish.
+- Publishes `stanza-cli`, `create-stanza`, and `@withstanza/schema`.
+
+Registry job:
+
+- Detects changes under `registry/modules/`, `packages/schema/`, or `scripts/`.
+- Runs `vpx jiti scripts/publish-registry.ts` when needed.
+- Uploads latest registry/schema JSON plus immutable version pins to Vercel Blob.
+- Is decoupled from npm releases so module changes can go live on merge.
+
+If a registry change modifies an already-published module version, bump that module's package version. Immutable Blob pins are expected not to drift.
+
+## Validation Recipes
+
+Default validation:
+
+```sh
+vp check
+vp test
+```
+
+Build everything:
+
+```sh
+vp run -r build
+```
+
+Run the CLI from source:
+
+```sh
+vpx jiti apps/cli/src/bin.ts --help
+vpx jiti apps/cli/src/bin.ts search
+```
+
+Smoke-test `stanza add` against a compiled local registry:
+
+```sh
+vpx jiti scripts/compile-registry.ts "$TMPDIR/stanza-reg"
+mkdir -p "$TMPDIR/stanza-smoke/apps/web"
+# Seed a minimal stanza.json and apps/web/package.json appropriate for the module under test.
+STANZA_REGISTRY="$TMPDIR/stanza-reg/index.json" \
+  vpx jiti apps/cli/src/bin.ts add <category> <module>
+```
+
+Important details:
+
+- `STANZA_REGISTRY` points at the full `index.json` path, not the registry dir.
+- Compiled registry output is flat under the out dir.
+- The CLI has no source-tree registry loader when `STANZA_REGISTRY` is unset; it hits the production registry.
+
+Web build checks:
+
+```sh
+vp run @withstanza/web#build
+rg "createHighlighter|codeToHtml|loadWasm" apps/web/.output/public/assets
+```
+
+The `rg` command above should not find Shiki runtime code in client assets.
+
+## Quick Do / Do Not
+
+Do:
+
+- Derive category behavior from `CATEGORIES`.
+- Keep registry modules as data.
+- Keep codemods generic and cataloged.
+- Preserve manifest `version`, `regions`, `readmeChecksum`, module `namespace`, and module version pins.
+- Use structured parsers/helpers for JSON, JSONC, tsconfig, package JSON, env, and TypeScript edits.
+- Keep generated project files self-contained.
+- Validate with `vp check` and focused tests.
+
+Do not:
+
+- Add a Stanza runtime package to generated projects.
+- Add standalone Vite/Vitest config or dependencies to this repo.
+- Import Shiki in client code.
+- Ship package bootstrap files as module templates.
+- Make a `many` category participate in peer dispatch.
+- Infer compiled registry filenames instead of reading `path` from the index.
+- Rename or remove published codemod ids casually.
+- Drop reserved manifest fields because the current verb does not consume them.

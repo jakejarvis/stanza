@@ -19,7 +19,7 @@ npx stanza-cli init [name] --yes --framework=next --orm=drizzle --db=postgres --
 
 - `name` — project directory name (positional; prompted if omitted).
 - `--yes` — non-interactive; take selections from category flags.
-- `--<category>=<ids>` — pick modules for a category. One flag per category (`--framework`, `--ui`, `--db`, `--orm`, `--auth`, `--tooling`, `--testing`); single-choice categories take one id, multi-choice categories take a comma-separated list. Omitted categories are skipped — `--yes` chooses no defaults.
+- `--<category>=<ids>` — pick modules for a category. There's one flag per category in the [registry](/docs/registry) (`--framework`, `--ui`, `--db`, `--orm`, `--auth`, `--ai`, `--payments`, `--email`, `--tooling`, `--testing`, `--deploy`, `--monorepo`, …); single-choice categories take one id, multi-choice categories take a comma-separated list. Omitted categories are skipped — `--yes` chooses no defaults.
 - `--pm=<pnpm|bun|npm>` — package manager recorded in the manifest.
 
 `init` always scaffolds a **single web app** today — `{ id: "web", dir: "apps/web", kind: "web" }` in `stanza.json` — and tags every app-home record with `apps: ["web"]`. Multi-app init (scaffolding `apps/native` alongside `apps/web`, for example) is planned; the schema and runtime already support it. See [Concepts → Apps](/docs/concepts#apps).

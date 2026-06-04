@@ -3,7 +3,9 @@ title: Registry
 description: The roadmap of first-party modules Stanza ships — what's available today and what's planned.
 ---
 
-Every module fills exactly one **category**. This page is the canonical roadmap of the first-party modules Stanza ships: what's available today, and what's on the way. Third parties can publish their own modules under any `@scope` and have users pull them in alongside these — see the [Authoring manual](/docs/authoring) for the full surface, or jump to [Third-party modules](/docs/registry#third-party-modules) below for a pointer.
+Every module fills exactly one **category**. This page is the canonical roadmap of the first-party modules Stanza ships: what's available today, and what's on the way.
+
+Inspired by [shadcn/ui](https://ui.shadcn.com), third parties can publish their own modules under any `@scope` and have users pull them in alongside these. See [Third-party registries](/docs/registry#third-party-registries) below, or the [Authoring manual](/docs/authoring) for the full implementation details.
 
 ## Categories
 
@@ -153,7 +155,7 @@ Coexisting, repo-scoped. Currently hardcoded as Turborepo; becomes a real config
 
 | Module      | Status            | Notes                                                              |
 | ----------- | ----------------- | ------------------------------------------------------------------ |
-| `turborepo` | 🟢&nbsp;Available | Turbo 2.x                                                          |
+| `turbo`     | 🟢&nbsp;Available | Turborepo v2                                                       |
 | `vite-plus` | 🟨&nbsp;Planned   | Locked to Vite-compatible frameworks (TanStack, etc.) and modules. |
 
 ## Package manager
@@ -167,7 +169,7 @@ Not a category — a top-level field in `stanza.json` (`packageManager: "pnpm" |
 | npm     | 🟢&nbsp;Available           |
 | yarn    | 🛑&nbsp;Not Planned         |
 
-## Third-party modules
+## Third-party registries
 
 The categories above are first-party — Stanza ships them under the default `@stanza` namespace. Anyone can publish additional modules under their own `@scope` and have users install them with `stanza add <category> @scope/<id>`. The category taxonomy itself stays first-party (third-party registries can't redefine it).
 
