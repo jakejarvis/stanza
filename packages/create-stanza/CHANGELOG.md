@@ -1,5 +1,12 @@
 # create-stanza
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`04a196e`](https://github.com/jakejarvis/stanza/commit/04a196e4e9f3e4ea65445a191421f643d1fe3510), [`ea2d8c4`](https://github.com/jakejarvis/stanza/commit/ea2d8c45bdde5df23005f4b739b7c5d029e9be2d), [`04a196e`](https://github.com/jakejarvis/stanza/commit/04a196e4e9f3e4ea65445a191421f643d1fe3510)]:
+  - stanza-cli@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes

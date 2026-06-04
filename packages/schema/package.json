@@ -1,6 +1,6 @@
 {
   "name": "@withstanza/schema",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "JSON Schema and contract types for the Stanza manifest (stanza.json).",
   "keywords": [
     "json-schema",
