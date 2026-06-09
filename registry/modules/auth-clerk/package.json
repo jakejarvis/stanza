@@ -9,6 +9,6 @@
     "@withstanza/schema": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.1"
+    "@types/node": "^25.9.2"
   }
 }

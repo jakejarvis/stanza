@@ -19,7 +19,7 @@ import { getDocMeta } from "@/server/docs-meta.functions";
 // they flow through React Flight natively. Client components in the tree ship
 // as `'use client'` references and hydrate normally.
 const getDocLayout = createServerFn({ method: "GET" })
-  .inputValidator((slugs: string[]) => slugs)
+  .validator((slugs: string[]) => slugs)
   .handler(async ({ data: slugs }) => {
     const page = source.getPage(slugs);
     if (!page) throw notFound();
