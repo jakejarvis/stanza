@@ -2,7 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import * as p from "@clack/prompts";
-import { PACKAGE_DIRS } from "@withstanza/schema";
+import type { AppSpec, StanzaManifest } from "@withstanza/schema";
+import { categoryHome, isCategoryId, PACKAGE_DIRS } from "@withstanza/schema";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
@@ -82,7 +83,7 @@ export async function cmdDoctor(): Promise<void> {
       continue;
     }
     const depName = `@${manifest.name}/${dir}`;
-    for (const app of manifest.apps) {
+    for (const app of expectedConsumerApps(manifest, dir)) {
       const appPkg = path.join(projectRoot, app.dir, "package.json");
       if (!fs.existsSync(appPkg)) continue;
       if (!pkgHasKey(appPkg, "dependencies", depName)) {
@@ -97,6 +98,27 @@ export async function cmdDoctor(): Promise<void> {
   }
   p.log.error(`${issues.length} issue(s) found:\n` + issues.map((i) => `  • ${i}`).join("\n"));
   process.exitCode = 1;
+}
+
+// The install path wires the workspace dep only into the apps a package-home
+// record targets (`apps` omitted = every app), so only expect it there.
+// Multiple categories can share a dir (db + orm); union their targets.
+function expectedConsumerApps(manifest: StanzaManifest, dir: string): AppSpec[] {
+  const ids = new Set<string>();
+  let any = false;
+  for (const [category, records] of Object.entries(manifest.modules)) {
+    if (!isCategoryId(category)) continue;
+    const home = categoryHome(category);
+    if (home.kind !== "package" || home.dir !== dir) continue;
+    for (const record of records ?? []) {
+      any = true;
+      if (!record.apps?.length) return manifest.apps;
+      for (const id of record.apps) ids.add(id);
+    }
+  }
+  // Claims with no surviving record is itself drift; fall back to every app.
+  if (!any) return manifest.apps;
+  return manifest.apps.filter((a) => ids.has(a.id));
 }
 
 function envHasVar(file: string, name: string): boolean {

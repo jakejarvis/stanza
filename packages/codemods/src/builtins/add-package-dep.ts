@@ -34,10 +34,12 @@ const addPackageDep: Codemod<AddPackageDepArgs> = {
     const rel = path.relative(ctx.projectRoot, pkgJsonPath);
     const range = args.range ?? "workspace:*";
 
-    addPackageDependency(pkgJsonPath, args.name, range, { dev: args.dev });
-
+    // Claim before writing: the runner snapshots the file on claim, and the
+    // snapshot must capture the pre-write bytes for rollback to restore them.
     const depKey = args.dev ? "devDependencies" : "dependencies";
     ctx.claimRegion(rel, `${depKey}.${args.name}`);
+
+    addPackageDependency(pkgJsonPath, args.name, range, { dev: args.dev });
 
     return { touchedFiles: [rel] };
   },

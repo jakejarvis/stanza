@@ -90,8 +90,10 @@ const setTsconfigPaths: Codemod<SetTsconfigPathsArgs> = {
     const allPresent = Object.entries(args.paths).every(
       ([k, v]) => existing[k] !== undefined && arraysEqual(toArray(existing[k]), v),
     );
+    // Claim before writing: the runner snapshots the file on claim, and the
+    // snapshot must capture the pre-write bytes for rollback to restore them.
+    ctx.claimRegion(rel, regionKeyFor(args));
     if (allPresent && compilerOptions.baseUrl !== undefined) {
-      ctx.claimRegion(rel, regionKeyFor(args));
       return { touchedFiles: [] };
     }
 
@@ -101,7 +103,6 @@ const setTsconfigPaths: Codemod<SetTsconfigPathsArgs> = {
     for (const [key, val] of Object.entries(args.paths)) {
       setJsonPathSegments(abs, ["compilerOptions", "paths", key], val);
     }
-    ctx.claimRegion(rel, regionKeyFor(args));
     return { touchedFiles: [rel] };
   },
 

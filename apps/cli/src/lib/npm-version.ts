@@ -1,6 +1,11 @@
 import semver from "semver";
 
-const NPM_REGISTRY = process.env.STANZA_NPM_REGISTRY ?? "https://registry.npmjs.org";
+import { assertSecureFetchUrl } from "./secure-url";
+
+/** Read lazily so the scheme guard sees the configured value at lookup time. */
+function npmRegistry(): string {
+  return process.env.STANZA_NPM_REGISTRY ?? "https://registry.npmjs.org";
+}
 
 // pkg name -> available versions, or null when a prior lookup failed. Lives for
 // the CLI process so a multi-module `init` hits npm at most once per package.
@@ -27,8 +32,12 @@ function encodeName(name: string): string {
 async function fetchVersions(name: string): Promise<string[] | null> {
   const cached = cache.get(name);
   if (cached !== undefined) return cached;
+  const registry = npmRegistry();
+  // Reject cleartext http:// before the try below, which would otherwise turn a
+  // security rejection into a silent verbatim-range fallback.
+  assertSecureFetchUrl(registry, "npm registry URL");
   try {
-    const res = await fetch(`${NPM_REGISTRY}/${encodeName(name)}`, {
+    const res = await fetch(`${registry}/${encodeName(name)}`, {
       headers: { accept: "application/vnd.npm.install-v1+json" },
       // Bound the slow path (offline, captive portal) so init/add doesn't hang.
       signal: AbortSignal.timeout(10_000),

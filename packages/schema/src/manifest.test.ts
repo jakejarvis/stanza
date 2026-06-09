@@ -2,6 +2,7 @@ import { assert, describe, expect, it } from "vite-plus/test";
 
 import {
   appsForRecord,
+  compileManifestJsonSchema,
   CURRENT_MANIFEST_VERSION,
   declaredEnvNames,
   defaultWebApp,
@@ -75,6 +76,87 @@ describe("StanzaManifestSchema", () => {
         regions: {},
       }),
     ).toThrow(/apps/);
+  });
+
+  it("rejects an app whose `dir` escapes the project root", () => {
+    const base = {
+      version: CURRENT_MANIFEST_VERSION,
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "acme",
+      modules: {},
+      regions: {},
+    } as const;
+    for (const dir of ["../../etc", "a/../b", "/etc/cron.d", "C:\\Windows", ""]) {
+      const result = StanzaManifestSchema.safeParse({
+        ...base,
+        apps: [{ id: "web", dir, kind: "web" }],
+      });
+      expect(result.success, `dir=${JSON.stringify(dir)} should be rejected`).toBe(false);
+    }
+  });
+
+  it("rejects a manifest whose region file key escapes the project root", () => {
+    const base = {
+      version: CURRENT_MANIFEST_VERSION,
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "acme",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      modules: {},
+    } as const;
+    for (const file of ["../../etc/evil", "a/../b", "/etc/cron.d/x", "C:\\Windows\\x", ""]) {
+      const result = StanzaManifestSchema.safeParse({
+        ...base,
+        regions: { [file]: { file: "next@web" } },
+      });
+      expect(result.success, `region key=${JSON.stringify(file)} should be rejected`).toBe(false);
+    }
+  });
+
+  it("accepts normal region file keys", () => {
+    const result = StanzaManifestSchema.safeParse({
+      version: CURRENT_MANIFEST_VERSION,
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "acme",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      modules: {},
+      regions: {
+        "apps/web/src/db/client.ts": { file: "postgres@web" },
+        ".env.example": { DATABASE_URL: "postgres@web" },
+        "package.json": { "scripts.dev": "monorepo-turbo" },
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("still serializes to JSON Schema with the `dir` + region-key refines (published contract)", () => {
+    // The field-level `.superRefine`s live in Zod's runtime layer; like the
+    // existing top-level refine, they drop out of `z.toJSONSchema` rather than
+    // throwing. `dir` and the `regions` keys stay plain strings/objects in the
+    // published schema.
+    const schema = compileManifestJsonSchema();
+    const dir = (
+      schema as { properties?: { apps?: { items?: { properties?: { dir?: { type?: string } } } } } }
+    ).properties?.apps?.items?.properties?.dir;
+    expect(dir?.type).toBe("string");
+    const regions = (schema as { properties?: { regions?: { type?: string } } }).properties
+      ?.regions;
+    expect(regions?.type).toBe("object");
+  });
+
+  it("accepts a normal nested app `dir`", () => {
+    const result = StanzaManifestSchema.safeParse({
+      version: CURRENT_MANIFEST_VERSION,
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "acme",
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      modules: {},
+      regions: {},
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects two home:app framework records targeting the same app", () => {

@@ -85,7 +85,7 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 ## Dependency Versions
 
 - `init`/`add` bump each `^`/`~` dep range to the latest npm version satisfying it (keeping the modifier); other ranges and `workspace:*` are written as-is. Falls back to the declared range when offline.
-- `STANZA_NO_NPM_LOOKUP=1` skips lookups (verbatim ranges); `STANZA_NPM_REGISTRY=<url>` overrides the npm registry.
+- `STANZA_NO_NPM_LOOKUP=1` skips lookups (verbatim ranges); `STANZA_NPM_REGISTRY=<url>` overrides the npm registry (must be `https://`; remote `http://` is refused — see [Registries](#registries)).
 
 ## Safety Flags
 
@@ -129,6 +129,8 @@ Editing `stanza.json#registries` is an expected user-driven edit (the rest of th
 
 `STANZA_REGISTRY=<url-or-path>` overrides the `@stanza` namespace's source only — set it to the **full URL or filesystem path to a registry's main JSON file** (not a directory), for a self-hosted mirror, air-gapped install, or CI fixture. It does NOT enable third-party modules.
 
+**Cleartext is refused.** Registry and npm payloads carry no integrity check beyond TLS, so a remote `http://` endpoint — the `@stanza` default, `STANZA_REGISTRY`, any third-party `registries[*].url`, or `STANZA_NPM_REGISTRY` — is rejected. `https://`, `file://`, bare filesystem paths, and loopback (`localhost`/`127.0.0.1`) are always allowed. To knowingly use a trusted internal `http://` mirror, set `STANZA_ALLOW_INSECURE_REGISTRY=1`; the CLI then prints a one-time stderr warning. A third-party `http://` registry is skipped (with a warning) while the rest of the CLI keeps working; an `http://` value for `STANZA_REGISTRY` or `STANZA_NPM_REGISTRY` is a hard error.
+
 ## Telemetry
 
 - The CLI sends anonymous usage events (command run, modules installed/removed — no PII, no identifier persisted). Disable per-invocation with `--no-telemetry`, or persistently with `STANZA_TELEMETRY=0` or `DO_NOT_TRACK=1`. Telemetry is auto-skipped in CI.
@@ -144,7 +146,7 @@ Editing `stanza.json#registries` is an expected user-driven edit (the rest of th
 ## Agent Rules
 
 - Treat generated files as user-owned project code after Stanza writes them.
-- Don't synthesize `modules`, `regions`, or `readmeChecksum` in `stanza.json` — those are runner-managed. `registries`, `apps`, and `packageManager` are user config and may be edited.
+- Don't synthesize `modules`, `regions`, or `readmeChecksum` in `stanza.json` — those are runner-managed. `registries`, `apps`, and `packageManager` are user config and may be edited. Each app's `dir` must be a repo-relative path inside the project (no `..` or absolute paths); Stanza rejects the manifest otherwise.
 - Prefer CLI commands over reconstructing Stanza's template output yourself.
 - After mutating a project (or editing generated files), run `stanza doctor` to confirm `stanza.json` still matches the filesystem; it exits non-zero on drift.
 - When reporting results, include the exact command run, whether it wrote files, and any follow-up package-manager command needed.

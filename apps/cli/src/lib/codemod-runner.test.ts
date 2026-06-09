@@ -7,8 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import {
   applyModule,
-  type PlanAction,
+  assertWithinRoot,
   planSlotPackageBootstrap,
+  type PlanAction,
   recordFor,
   writeDepKeepingHigher,
 } from "./codemod-runner";
@@ -217,6 +218,97 @@ describe("planSlotPackageBootstrap", () => {
     for (const w of result.writes) w();
     const slotPkg = readJson(path.join(packageRoot, "package.json"));
     expect(slotPkg.dependencies?.["@acme/ghost"]).toBeUndefined();
+  });
+});
+
+describe("assertWithinRoot", () => {
+  it("accepts a normal relative target, existing or not", () => {
+    fs.mkdirSync(path.join(tmp, "apps", "web"), { recursive: true });
+    expect(() => assertWithinRoot(tmp, "apps/web", "app dir")).not.toThrow();
+    // A not-yet-created tail under a contained parent is fine.
+    expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "template dest")).not.toThrow();
+    // The root itself is contained.
+    expect(() => assertWithinRoot(tmp, ".", "root")).not.toThrow();
+  });
+
+  it("rejects a `..` traversal segment", () => {
+    expect(() => assertWithinRoot(tmp, "../../etc", "app dir")).toThrow(/escapes the project root/);
+    expect(() => assertWithinRoot(tmp, "a/../../b", "app dir")).toThrow(/escapes the project root/);
+  });
+
+  it("rejects a symlinked app dir pointing outside the root", () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-outside-"));
+    try {
+      fs.mkdirSync(path.join(tmp, "apps"), { recursive: true });
+      fs.symlinkSync(outside, path.join(tmp, "apps", "web"));
+      expect(() => assertWithinRoot(tmp, "apps/web", "app dir")).toThrow(
+        /escapes the project root/,
+      );
+      // ...and any write that would land through it.
+      expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "template dest")).toThrow(
+        /escapes the project root/,
+      );
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a dangling symlink pointing outside the root", () => {
+    fs.mkdirSync(path.join(tmp, "apps"), { recursive: true });
+    // Target doesn't exist — `mkdirSync -p` would otherwise create it outside.
+    fs.symlinkSync(path.join(os.tmpdir(), "stanza-ghost-target"), path.join(tmp, "apps", "web"));
+    expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "template dest")).toThrow(
+      /escapes the project root/,
+    );
+  });
+
+  it("rejects a two-hop symlink chain that escapes (both hops exist)", () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-outside-"));
+    try {
+      fs.mkdirSync(path.join(tmp, "apps"), { recursive: true });
+      fs.mkdirSync(path.join(tmp, "real"), { recursive: true });
+      // apps/web -> real/web (lexically in-root) -> outside (escapes). A guard
+      // that only checks the first hop's target would miss this.
+      fs.symlinkSync(outside, path.join(tmp, "real", "web"));
+      fs.symlinkSync(path.join(tmp, "real", "web"), path.join(tmp, "apps", "web"));
+      expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "template dest")).toThrow(
+        /escapes the project root/,
+      );
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a chain whose escape hides in a link target's own path", () => {
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-outside-"));
+    try {
+      fs.mkdirSync(path.join(tmp, "apps"), { recursive: true });
+      // real -> outside, then apps/web -> real/web. apps/web's immediate target
+      // (`real/web`) is lexically in-root, but `real` itself redirects outside.
+      // Leave `outside/web` missing so apps/web is a dangling link.
+      fs.symlinkSync(outside, path.join(tmp, "real"));
+      fs.symlinkSync(path.join(tmp, "real", "web"), path.join(tmp, "apps", "web"));
+      expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "region file key")).toThrow(
+        /escapes the project root/,
+      );
+    } finally {
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("accepts a symlink that stays inside the root", () => {
+    fs.mkdirSync(path.join(tmp, "real", "web"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "apps"), { recursive: true });
+    fs.symlinkSync(path.join(tmp, "real", "web"), path.join(tmp, "apps", "web"));
+    expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "template dest")).not.toThrow();
+  });
+
+  it("accepts a dangling in-root symlink (tail not yet created)", () => {
+    fs.mkdirSync(path.join(tmp, "real"), { recursive: true });
+    fs.mkdirSync(path.join(tmp, "apps"), { recursive: true });
+    // apps/web -> real/web, which doesn't exist yet but stays inside the root.
+    fs.symlinkSync(path.join(tmp, "real", "web"), path.join(tmp, "apps", "web"));
+    expect(() => assertWithinRoot(tmp, "apps/web/src/foo.ts", "template dest")).not.toThrow();
   });
 });
 

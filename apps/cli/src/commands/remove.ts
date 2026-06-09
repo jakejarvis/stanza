@@ -16,10 +16,11 @@ import {
   parseModuleSpec,
   selectedAll,
 } from "@withstanza/schema";
+import { assertSafeRelativePath } from "@withstanza/utils";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
-import { revertCodemods } from "../lib/codemod-runner";
+import { assertWithinRoot, revertCodemods } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
@@ -188,13 +189,27 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   // driven by whatever region claims remain after the codemod reverts.
   // Owner is composite (`<id>@<app>`) for home:app installs so cross-app
   // installs of the same module don't collide. Bare `<id>` covers older
-  // manifests + the non-app homes that never used a composite owner.
+  // manifests + the non-app homes that never used a composite owner — but
+  // only when no sibling record of the same id remains: a legacy bare claim
+  // can't be attributed to one app, so sweeping it while the module is still
+  // installed elsewhere would delete the other app's files.
+  const hasSiblingInstall = (manifest.modules[category] ?? []).some(
+    (r) => r.id === installed.id && !sameAppSet(r.apps, installed.apps),
+  );
   const ownerKeys =
     home.kind === "app" && installed.apps?.length === 1
-      ? [`${installed.id}@${installed.apps[0]}`, installed.id]
+      ? hasSiblingInstall
+        ? [`${installed.id}@${installed.apps[0]}`]
+        : [`${installed.id}@${installed.apps[0]}`, installed.id]
       : [installed.id];
   const owned = regionsOwnedBy(manifest, ownerKeys);
   for (const { file, region } of owned) {
+    // Defense in depth — the schema rejects traversal region keys at parse, but
+    // re-check before every delete sink for in-memory/stale manifests and
+    // resolve symlinks so a planted link can't redirect the unlink outside the
+    // project root.
+    assertSafeRelativePath(file, "region file key");
+    assertWithinRoot(projectRoot, file, "region file key");
     const abs = path.join(projectRoot, file);
     if (file === ".env.example") {
       if (!dryRun) removeEnvVar(abs, region);
@@ -268,6 +283,10 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     if (stillUsed) continue;
     const pkgRoot = path.join(projectRoot, "packages", dir);
     if (!fs.existsSync(pkgRoot)) continue;
+    // `dir` is a trusted constant (from PACKAGE_DIRS), but the sweep recurses
+    // and deletes — assert the slot dir resolves inside the root so a planted
+    // `packages/<dir>` symlink can't redirect the scan/rm outside it.
+    assertWithinRoot(projectRoot, path.join("packages", dir), "package slot dir");
     const consumers = protectors.get(dir);
     if (consumers && consumers.length > 0) {
       manualCleanup.push(
@@ -338,8 +357,11 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
 }
 
-// Skips records whose registry entry can't be re-loaded (offline, rename) —
-// failing open here beats blocking remove on a transient network error.
+// Prefers the `consumesPackages` snapshot persisted on each record so the
+// guard holds offline and after upstream registry changes; the live registry
+// fetch only backfills legacy records that predate the snapshot. Records that
+// can't be resolved either way fail open — better than blocking remove on a
+// transient network error.
 async function collectConsumesPackagesProtectors(
   manifest: StanzaManifest,
   registry: Registries,
@@ -350,11 +372,12 @@ async function collectConsumesPackagesProtectors(
     for (const record of records ?? []) {
       tasks.push(
         (async () => {
-          const mod = await registry
-            .loadModule(category, record.id, record.namespace)
-            .catch(() => null);
-          if (!mod?.consumesPackages?.length) return;
-          for (const dir of mod.consumesPackages) {
+          const dirs =
+            record.consumesPackages ??
+            (await registry.loadModule(category, record.id, record.namespace).catch(() => null))
+              ?.consumesPackages;
+          if (!dirs?.length) return;
+          for (const dir of dirs) {
             const arr = protectors.get(dir) ?? [];
             arr.push(`${category}/${record.id}`);
             protectors.set(dir, arr);

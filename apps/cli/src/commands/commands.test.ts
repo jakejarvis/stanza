@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { CATEGORIES } from "@withstanza/schema";
+import { CATEGORIES, CURRENT_MANIFEST_VERSION } from "@withstanza/schema";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -280,6 +280,109 @@ describe("cmdRemove", () => {
     expect(fs.existsSync("packages/db")).toBe(true);
     expect(fs.readFileSync("packages/db/.env.local", "utf8")).toContain("USER_SECRET=hunter2");
     expect(fs.existsSync("packages/db/scratch/notes.md")).toBe(true);
+  });
+});
+
+describe("cmdRemove path-traversal hardening", () => {
+  it("refuses to delete through a symlinked region path that escapes the root", async () => {
+    const projectRoot = path.join(tmp, "proj");
+    fs.mkdirSync(path.join(projectRoot, "apps"), { recursive: true });
+
+    // A sentinel that lives OUTSIDE the project root.
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-outside-"));
+    const sentinel = path.join(outside, "evil.ts");
+    fs.writeFileSync(sentinel, "// attacker-controlled\n");
+    // `apps/web` is a symlink at the outside dir, so the lexically-valid region
+    // key `apps/web/evil.ts` resolves to the sentinel only once the link is
+    // followed — the schema can't catch this, but the delete sink must.
+    fs.symlinkSync(outside, path.join(projectRoot, "apps", "web"));
+
+    const manifest = {
+      version: CURRENT_MANIFEST_VERSION,
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "proj",
+      // `ghost` isn't in the registry, so revert is skipped and we fall through
+      // to the declarative delete loop where the symlink guard fires.
+      modules: {
+        framework: [{ id: "ghost", version: "0.0.0", adapter: "default", apps: ["web"] }],
+      },
+      apps: [{ id: "web", dir: "apps/web", kind: "web" }],
+      regions: { "apps/web/evil.ts": { file: "ghost@web" } },
+    };
+    fs.writeFileSync(path.join(projectRoot, "stanza.json"), JSON.stringify(manifest, null, 2));
+
+    try {
+      process.chdir(projectRoot);
+      await expect(cmdRemove(args({ slot: "framework" }))).rejects.toThrow(
+        /escapes the project root/,
+      );
+      // The file outside the root must be untouched.
+      expect(fs.existsSync(sentinel)).toBe(true);
+    } finally {
+      process.chdir(tmp);
+      fs.rmSync(outside, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("cmdRemove legacy bare-owner claims", () => {
+  it("does not sweep a sibling app's claims when the same module is installed elsewhere", async () => {
+    const projectRoot = path.join(tmp, "proj");
+    fs.mkdirSync(path.join(projectRoot, "apps", "web"), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, "apps", "native"), { recursive: true });
+
+    const webFile = path.join(projectRoot, "apps/web/ghost.config.ts");
+    const nativeFile = path.join(projectRoot, "apps/native/ghost.config.ts");
+    fs.writeFileSync(webFile, "// web install\n");
+    fs.writeFileSync(nativeFile, "// native install\n");
+
+    // Pre-composite-owner manifest: both installs' claims use the bare module
+    // id, so neither claim can be attributed to a single app. `ghost` isn't in
+    // the registry, mirroring the offline/renamed-upstream scenario.
+    const manifest = {
+      version: CURRENT_MANIFEST_VERSION,
+      projectShape: "monorepo",
+      packageManager: "pnpm",
+      name: "proj",
+      modules: {
+        testing: [
+          { id: "ghost", version: "0.0.0", adapter: "default", apps: ["web"] },
+          { id: "ghost", version: "0.0.0", adapter: "default", apps: ["native"] },
+        ],
+      },
+      apps: [
+        { id: "web", dir: "apps/web", kind: "web" },
+        { id: "native", dir: "apps/native", kind: "native" },
+      ],
+      regions: {
+        "apps/web/ghost.config.ts": { file: "ghost" },
+        "apps/native/ghost.config.ts": { file: "ghost" },
+      },
+    };
+    fs.writeFileSync(path.join(projectRoot, "stanza.json"), JSON.stringify(manifest, null, 2));
+
+    process.chdir(projectRoot);
+    await cmdRemove(args({ slot: "testing", moduleId: "ghost", app: "web" }));
+    process.chdir(tmp);
+
+    // The sibling install's file (and even web's own, since the bare claims
+    // can't be attributed) must survive; only the web record is dropped.
+    expect(fs.existsSync(nativeFile)).toBe(true);
+    const after = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(after.modules.testing).toEqual([
+      { id: "ghost", version: "0.0.0", adapter: "default", apps: ["native"] },
+    ]);
+
+    // Removing the last record (no sibling left) applies the bare-id fallback
+    // and sweeps the legacy claims.
+    process.chdir(projectRoot);
+    await cmdRemove(args({ slot: "testing", moduleId: "ghost", app: "native" }));
+    process.chdir(tmp);
+    expect(fs.existsSync(nativeFile)).toBe(false);
+    const final = JSON.parse(fs.readFileSync(path.join(projectRoot, "stanza.json"), "utf8"));
+    expect(final.modules.testing).toBeUndefined();
+    expect(final.regions).toEqual({});
   });
 });
 

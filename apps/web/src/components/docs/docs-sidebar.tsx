@@ -24,7 +24,7 @@ function NavLink({ url, name, pathname }: { url: string; name: ReactNode; pathna
         params={{ _splat: toSplat(url) }}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "block rounded px-2 py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          "block px-2 py-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           active && "bg-accent font-medium text-accent-foreground",
         )}
       >
@@ -82,7 +82,7 @@ export function DocsSidebar({ tree }: { tree: Root }) {
     <>
       {/* Mobile: a disclosure above the content so docs stay navigable < md. */}
       <details className="group my-4 md:hidden">
-        <summary className="flex cursor-pointer list-none items-center justify-between rounded-md border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between border border-border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent [&::-webkit-details-marker]:hidden">
           Documentation
           <IconChevronRight
             aria-hidden="true"

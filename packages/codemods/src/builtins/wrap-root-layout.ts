@@ -42,10 +42,13 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
   description: "Wrap the root layout's children with a provider element.",
 
   apply(ctx, args) {
-    const target = frameworkTarget(selectedOne(ctx.manifest, "framework")?.id);
+    // App-scoped read: each dispatch targets one app, and apps can run
+    // different frameworks — the global pick would wrap the wrong layout.
+    const frameworkId = selectedOne(ctx.manifest, "framework", ctx.app.id)?.id;
+    const target = frameworkTarget(frameworkId);
     if (!target) {
       throw new Error(
-        `wrap-root-layout: framework "${selectedOne(ctx.manifest, "framework")?.id ?? "<unset>"}" not supported. ` +
+        `wrap-root-layout: framework "${frameworkId ?? "<unset>"}" not supported. ` +
           `Add a case in frameworkTarget() to enable.`,
       );
     }
@@ -92,7 +95,7 @@ const wrapRootLayout: Codemod<WrapRootLayoutArgs> = {
   },
 
   revert(ctx, args) {
-    const target = frameworkTarget(selectedOne(ctx.manifest, "framework")?.id);
+    const target = frameworkTarget(selectedOne(ctx.manifest, "framework", ctx.app.id)?.id);
     if (!target) return { touchedFiles: [] };
 
     const layoutAbs = path.join(ctx.appRoot, target.relPath);

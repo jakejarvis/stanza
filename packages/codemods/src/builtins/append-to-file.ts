@@ -113,10 +113,12 @@ const appendToFile: Codemod<AppendToFileArgs> = {
       position === "start"
         ? prependBlock(current, block, leadingBlank)
         : appendBlock(current, block, leadingBlank);
+    // Claim before writing: the runner snapshots the file on claim, and the
+    // snapshot must capture the pre-write bytes for rollback to restore them.
+    ctx.claimRegion(fileRel, `append.${args.marker}`);
     if (!exists) fs.mkdirSync(path.dirname(fileAbs), { recursive: true });
     fs.writeFileSync(fileAbs, next, "utf8");
 
-    ctx.claimRegion(fileRel, `append.${args.marker}`);
     return { touchedFiles: [fileRel] };
   },
 

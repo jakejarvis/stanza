@@ -1,0 +1,5 @@
+---
+"stanza-cli": minor
+---
+
+Refuse cleartext `http://` for remote registry and npm endpoints. Registry and npm payloads have no integrity check beyond TLS, so a cleartext endpoint — set via `STANZA_REGISTRY`, a third-party `stanza.json#registries[*].url`, or `STANZA_NPM_REGISTRY` — let an on-path attacker swap module content or steer dependency versions, reaching code execution when the user installs/builds the vendored output. The loader now rejects remote `http://` and requires `https://`. `file://` URLs, bare filesystem paths, and loopback hosts (`localhost`/`127.0.0.1`/`::1`) stay allowed untouched, so local-dev, air-gapped, and CI-fixture workflows (including a local npm proxy) are unaffected. A third-party `http://` registry is skipped with a warning while the rest of the CLI keeps working; an `http://` value for `STANZA_REGISTRY`/`STANZA_NPM_REGISTRY` is a hard error. Set the new `STANZA_ALLOW_INSECURE_REGISTRY=1` to opt into a trusted internal `http://` mirror — the CLI prints a one-time stderr warning when it does.

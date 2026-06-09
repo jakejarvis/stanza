@@ -37,7 +37,7 @@ export type BuilderState = {
 export const getBuilderState = createServerFn({ method: "GET" })
   // Server functions are HTTP-reachable; share the route's allow-list so a
   // direct POST can't bypass it.
-  .inputValidator(validateBuilderSearch)
+  .validator(validateBuilderSearch)
   .handler(async ({ data }): Promise<BuilderState> => {
     // Warm the Shiki singleton during the initial empty-state load (which
     // renders zero previews and so would otherwise never touch the

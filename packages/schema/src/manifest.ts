@@ -1,3 +1,4 @@
+import { safeRelativePath } from "@withstanza/utils";
 import { z } from "zod";
 
 import {
@@ -157,9 +158,19 @@ export type StanzaManifest = {
   readmeChecksum?: string;
 };
 
+// Path-traversal defense for manifest-supplied paths that get joined onto the
+// project root — rejects `..`, absolute paths, and null bytes so a hostile or
+// attacker-authored manifest can't escape the project. Reused for `app.dir`
+// (every write into an app) and every `regions` file key (the `stanza remove`
+// delete target).
+const safeRelativePathSchema = z.string().superRefine((s, ctx) => {
+  const err = safeRelativePath(s);
+  if (err) ctx.addIssue({ code: "custom", message: err });
+});
+
 const appSpecSchema = z.object({
   id: z.string(),
-  dir: z.string(),
+  dir: safeRelativePathSchema,
   kind: z.enum(APP_KINDS),
 }) satisfies z.ZodType<AppSpec>;
 
@@ -196,7 +207,11 @@ export const StanzaManifestSchema = z
         }),
       ),
     ),
-    regions: z.record(z.string(), z.record(z.string(), z.string())),
+    // Outer (file) keys are joined onto the project root and unlinked by
+    // `stanza remove`, so they get the same traversal guard as `app.dir`.
+    // Inner keys are region names (dot-paths inside the file), never
+    // filesystem paths.
+    regions: z.record(safeRelativePathSchema, z.record(z.string(), z.string())),
     registries: RegistriesSchema.optional(),
     readmeChecksum: z.string().optional(),
   })

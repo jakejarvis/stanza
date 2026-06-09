@@ -24,14 +24,14 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.0",
-    "@types/node": "^25.9.1",
+    "@types/node": "catalog:",
     "@vercel/blob": "^2.4.0",
     "@withstanza/schema": "workspace:*",
     "jiti": "^2.7.0",
     "svgo": "^4.0.1",
-    "typescript": "^6.0.3",
+    "typescript": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@11.5.1"
+  "packageManager": "pnpm@11.5.2"
 }

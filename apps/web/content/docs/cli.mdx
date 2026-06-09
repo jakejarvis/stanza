@@ -94,9 +94,10 @@ These apply to the mutating verbs (`init`, `add`, `remove`):
 
 ## Environment variables
 
-- `STANZA_REGISTRY=<url-or-path>` — override the `@stanza` default namespace's source: the full URL or filesystem path to a registry's **main JSON file** (not a directory). For per-namespace third-party registries, use the `registries` field in `stanza.json` instead — see [Third-party registries](/docs/registry#third-party-registries).
+- `STANZA_REGISTRY=<url-or-path>` — override the `@stanza` default namespace's source: the full URL or filesystem path to a registry's **main JSON file** (not a directory). A remote URL must be `https://` (see `STANZA_ALLOW_INSECURE_REGISTRY` below). For per-namespace third-party registries, use the `registries` field in `stanza.json` instead — see [Third-party registries](/docs/registry#third-party-registries).
 - `STANZA_NO_NPM_LOOKUP=1` — skip npm version lookups and write dependency ranges verbatim.
-- `STANZA_NPM_REGISTRY=<url>` — override the npm registry used for version lookups.
+- `STANZA_NPM_REGISTRY=<url>` — override the npm registry used for version lookups. Must be `https://` (or a loopback host); a remote `http://` registry is refused unless `STANZA_ALLOW_INSECURE_REGISTRY=1` is set.
+- `STANZA_ALLOW_INSECURE_REGISTRY=1` — opt into cleartext `http://` registry and npm endpoints. By default Stanza refuses remote `http://` because registry and npm payloads have no integrity check beyond TLS, so an on-path attacker could swap module content or steer dependency versions. `https://`, `file://`, bare filesystem paths, and loopback (`localhost`/`127.0.0.1`) are always allowed; this flag is only for a trusted internal `http://` mirror, and the CLI prints a stderr warning when it's used.
 - `STANZA_TELEMETRY=0` / `DO_NOT_TRACK=1` — disable telemetry persistently. Telemetry is also auto-skipped in CI.
 - `STANZA_TELEMETRY_URL=<url>` — point telemetry at a self-hosted ingest endpoint instead of `https://stanza.tools/api/events`.
 

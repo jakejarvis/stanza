@@ -14,7 +14,7 @@ A Stanza project contains one or more **apps** — each a buildable thing under 
 ```
 
 - **`id`** — short, stable handle. Doubles as the workspace-package suffix (`@<your-app>/web`) and as the value you pass to `--app=<id>` in the CLI.
-- **`dir`** — repo-relative directory the app lives in.
+- **`dir`** — repo-relative directory the app lives in. Must stay inside the project: Stanza rejects a manifest whose `dir` is absolute or contains `..`, since the value is joined onto your repo root for every file it writes.
 - **`kind`** — `web` or `native`. Lets Stanza reject obviously-wrong installs (e.g. installing Next.js into a `kind: "native"` app).
 
 `stanza init` scaffolds a single web app today (`{ id: "web", dir: "apps/web", kind: "web" }`). Multi-app projects — a web app and an Expo native app sharing a `packages/db/`, for example — are on the roadmap, and the schema is already shaped for them. App-home module records carry an `apps: ["<id>"]` field so `add`/`remove` know which app to target; package-home modules ship their core code once and route shims into the apps that consume them.

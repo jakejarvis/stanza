@@ -1,7 +1,6 @@
 import { create, insert, search } from "@orama/orama";
 import { createFileRoute } from "@tanstack/react-router";
 import type { Module, ModuleMetadata, RegistryIndex } from "@withstanza/schema";
-import { cache } from "react";
 
 import { loadRegistryFile } from "@/server/registry-base.server";
 
@@ -22,10 +21,13 @@ type ModuleIndex = {
   metadata: Map<string, ModuleMetadata>;
 };
 
-// React `cache()` dedupes the (async) build across any concurrent callers
-// within the same server render. The returned promise is reused on warm
-// calls so the registry-load + Orama-insert work only runs once.
-const getModuleIndex = cache((): Promise<ModuleIndex> => buildIndex());
+// Process-lifetime singleton: registry data is immutable per deployment, so
+// the registry-load + Orama-insert work runs once per server instance.
+let moduleIndexPromise: Promise<ModuleIndex> | undefined;
+function getModuleIndex(): Promise<ModuleIndex> {
+  if (!moduleIndexPromise) moduleIndexPromise = buildIndex();
+  return moduleIndexPromise;
+}
 
 async function buildIndex(): Promise<ModuleIndex> {
   const index = await loadRegistryFile<RegistryIndex>("index.json");

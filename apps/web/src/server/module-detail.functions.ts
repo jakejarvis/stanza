@@ -65,7 +65,7 @@ export type ModuleDetail = {
 };
 
 export const getModuleDetail = createServerFn({ method: "GET" })
-  .inputValidator((data: ModuleDetailInput) => {
+  .validator((data: ModuleDetailInput) => {
     // category + id are used to look the entry up in the index; constrain them
     // to the known shape anyway (the module file is then loaded via the entry's
     // own `path`, which the index schema already guards against traversal).

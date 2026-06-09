@@ -29,7 +29,7 @@ const SEARCH_KEYS = ["name", "pm", ...KNOWN_CATEGORIES] as const;
 
 /**
  * Shared by the route's `validateSearch` and the server function's
- * `inputValidator` so direct HTTP calls can't bypass the allow-list.
+ * `validator` so direct HTTP calls can't bypass the allow-list.
  */
 // Cap to keep a hostile URL from cramming thousands of comma-joined ids into
 // any single search param. Well above any legitimate selection.
