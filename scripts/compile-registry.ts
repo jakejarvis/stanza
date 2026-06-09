@@ -22,15 +22,21 @@ import { fileURLToPath } from "node:url";
 import { CATEGORIES, type Logo, type Module, type RegistryIndex } from "@withstanza/schema";
 import { optimize } from "svgo";
 
+/** One compiled module: its source dir basename, output slug, and version. */
+export type CompiledModule = { dir: string; slug: string; version: string };
+
 /**
  * Build the static registry into `<outDir>`. `modulesDir` defaults to the
  * repo's `registry/modules`; tests can point it elsewhere. Returns the final
- * module count.
+ * module count plus a `dir → slug/version` mapping — the source dir name is a
+ * convention (`<category>-<id>`), not a contract, so callers correlating
+ * source dirs with compiled output (e.g. the version-pin guard) must go
+ * through this mapping rather than infer filenames.
  */
 export async function compileRegistry(opts: {
   modulesDir?: string;
   outDir: string;
-}): Promise<{ count: number }> {
+}): Promise<{ count: number; modules: CompiledModule[] }> {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = findRepoRoot(here);
   const modulesDir = opts.modulesDir ?? path.join(repoRoot, "registry", "modules");
@@ -49,6 +55,7 @@ export async function compileRegistry(opts: {
     .map((d) => d.name);
 
   const metadata = [];
+  const compiledModules: CompiledModule[] = [];
   for (const dir of dirs) {
     const entry = path.join(modulesDir, dir, "module.ts");
     const imported: { default: Module } = await import(entry);
@@ -87,6 +94,7 @@ export async function compileRegistry(opts: {
     // `path`, resolved relative to the index URL.)
     const modulePath = `${mod.category}-${mod.id}.json`;
     fs.writeFileSync(path.join(opts.outDir, modulePath), JSON.stringify(inlined, null, 2));
+    compiledModules.push({ dir, slug: `${mod.category}-${mod.id}`, version });
 
     // The index keeps lightweight metadata — no template `content`, no
     // per-adapter payloads — but it DOES carry top-level fields like `logo`
@@ -108,7 +116,7 @@ export async function compileRegistry(opts: {
 
   fs.writeFileSync(path.join(opts.outDir, "index.json"), JSON.stringify(index, null, 2));
 
-  return { count: metadata.length };
+  return { count: metadata.length, modules: compiledModules };
 }
 
 // Direct invocation: `jiti scripts/compile-registry.ts [outDir]`. Skipped when
@@ -152,8 +160,11 @@ function optimizeLogo(svg: string, prefix: string): string {
     plugins: [
       "preset-default",
       { name: "prefixIds", params: { prefix, delim: "-" } },
-      // Strip every `on*` event handler so we can render via dangerouslySetInnerHTML
-      // without smuggling JS through a hostile (third-party) logo.
+      // Logos render via dangerouslySetInnerHTML: `removeScripts` drops
+      // `<script>` elements, every spec-defined event attribute, and
+      // `javascript:` hrefs; the `removeAttrs` pass additionally catches
+      // nonstandard `on*` attributes the spec groups don't cover.
+      "removeScripts",
       { name: "removeAttrs", params: { attrs: "on[a-zA-Z]+" } },
     ],
   }).data;

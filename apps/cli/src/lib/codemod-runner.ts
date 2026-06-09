@@ -172,6 +172,7 @@ export async function applyModule(args: {
       projectName: manifest.name,
       app,
       packageName,
+      packageManager: manifest.packageManager,
       peers: activePeerIds(manifest, app.id),
       envNames: declaredEnvNames(manifest),
       consumesPackages: module.consumesPackages,
@@ -243,14 +244,18 @@ export async function applyModule(args: {
     // The slot's package.json may be deferred-bootstrapped by planSlotPackageBootstrap;
     // that's fine — the file will exist by the time deferredWrites flush.
     const slotBootstrapTarget = packageDir !== null ? `packages/${packageDir}/package.json` : null;
-    for (const target of installTargets) {
-      if (target === slotBootstrapTarget) continue;
-      const pkgJsonPath = path.join(projectRoot, target);
-      if (!fs.existsSync(pkgJsonPath)) {
-        throw new Error(
-          `Cannot apply ${module.id}: ${target} doesn't exist. ` +
-            `For \`stanza add\` in an existing project, create it manually first.`,
-        );
+    // Skip on dry-run: nothing is written, and `init --dry-run` plans modules
+    // before the monorepo shell (and these files) would exist.
+    if (!dryRun) {
+      for (const target of installTargets) {
+        if (target === slotBootstrapTarget) continue;
+        const pkgJsonPath = path.join(projectRoot, target);
+        if (!fs.existsSync(pkgJsonPath)) {
+          throw new Error(
+            `Cannot apply ${module.id}: ${target} doesn't exist. ` +
+              `For \`stanza add\` in an existing project, create it manually first.`,
+          );
+        }
       }
     }
     // Re-pin declared `^`/`~` ranges to the latest published version that still
@@ -308,10 +313,12 @@ export async function applyModule(args: {
     Object.keys(appFields.scripts).length > 0;
   if (hasAppInstall) {
     const appTargets = targetApps.map((a) => `${a.dir.replace(/\/+$/, "")}/package.json`);
-    for (const target of appTargets) {
-      const pkgJsonPath = path.join(projectRoot, target);
-      if (!fs.existsSync(pkgJsonPath)) {
-        throw new Error(`Cannot apply ${module.id} app overlay: ${target} doesn't exist.`);
+    if (!dryRun) {
+      for (const target of appTargets) {
+        const pkgJsonPath = path.join(projectRoot, target);
+        if (!fs.existsSync(pkgJsonPath)) {
+          throw new Error(`Cannot apply ${module.id} app overlay: ${target} doesn't exist.`);
+        }
       }
     }
     const appDeps = dryRun ? appFields.dependencies : await resolveRanges(appFields.dependencies);
@@ -808,6 +815,7 @@ export async function revertCodemods(args: {
       projectName: manifest.name,
       app,
       packageName,
+      packageManager: manifest.packageManager,
       peers: activePeerIds(manifest, app.id),
       envNames: declaredEnvNames(manifest),
       consumesPackages: args.consumesPackages,
@@ -948,7 +956,9 @@ function realpathAllowingMissing(p: string, depth = 0): string {
  */
 export function assertWithinRoot(projectRoot: string, relativePath: string, label: string): void {
   const root = path.resolve(projectRoot);
-  const realRoot = fs.realpathSync(root);
+  // Missing-tolerant: dry-run init vets paths under a project root that
+  // doesn't exist yet (equivalent to realpathSync when the root exists).
+  const realRoot = realpathAllowingMissing(root);
   const segments = relativePath.split(/[/\\]+/).filter((s) => s !== "" && s !== ".");
   // Reject `..` lexically before any join — a traversal segment must never be
   // resolved against the root, and isn't something symlink resolution vets.

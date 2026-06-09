@@ -79,11 +79,14 @@ export const Route = createFileRoute("/api/events")({
         if (!posthog) return new Response(null, { status: 204 });
 
         for (const e of payload.events) {
+          // Drop unparseable timestamps — an Invalid Date would throw inside
+          // posthog-node's serialization, turning bad input into a 500.
+          const ts = e.timestamp ? new Date(e.timestamp) : undefined;
           posthog.capture({
             distinctId: payload.distinctId,
             event: e.event,
             properties: e.properties ?? {},
-            timestamp: e.timestamp ? new Date(e.timestamp) : undefined,
+            timestamp: ts && !Number.isNaN(ts.getTime()) ? ts : undefined,
           });
         }
 

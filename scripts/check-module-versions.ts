@@ -32,26 +32,30 @@ try {
   range = "HEAD~1"; // local fallback
 }
 
-const slugs = new Set<string>();
+const changedDirs = new Set<string>();
 for (const f of git(["diff", "--name-only", range, "HEAD"]).split("\n")) {
   const m = /^registry\/modules\/([^/]+)\//.exec(f);
-  if (m) slugs.add(m[1]!);
+  if (m) changedDirs.add(m[1]!);
 }
 
-if (slugs.size === 0) {
+if (changedDirs.size === 0) {
   console.log("Module version guard passed (no module changes).");
   process.exit(0);
 }
 
 const compiledDir = fs.mkdtempSync(path.join(os.tmpdir(), "stanza-check-"));
-await compileRegistry({ outDir: compiledDir });
+const { modules } = await compileRegistry({ outDir: compiledDir });
+// Correlate source dirs with compiled output through the compiler's own
+// mapping — inferring `<dir>.json` would silently skip (and so bypass the
+// guard for) any module whose dir name doesn't match its `<category>-<id>`.
+const byDir = new Map(modules.map((m) => [m.dir, m]));
 
 const errors: string[] = [];
-for (const slug of slugs) {
-  const file = path.join(compiledDir, `${slug}.json`);
-  if (!fs.existsSync(file)) continue; // module deleted — nothing to pin
-  const text = fs.readFileSync(file, "utf8");
-  const { version }: { version: string } = JSON.parse(text);
+for (const dir of changedDirs) {
+  const entry = byDir.get(dir);
+  if (!entry) continue; // module deleted — nothing to pin
+  const { slug, version } = entry;
+  const text = fs.readFileSync(path.join(compiledDir, `${slug}.json`), "utf8");
   const res = await fetch(`${registryBase}/${slug}@${version}.json`);
   if (res.status === 404) continue; // new version or new module
   if (!res.ok) {
@@ -61,7 +65,7 @@ for (const slug of slugs) {
   if ((await res.text()) !== text) {
     errors.push(
       `Module "${slug}" changed but version ${version} is already published with different ` +
-        `content. Bump "version" in registry/modules/${slug}/package.json.`,
+        `content. Bump "version" in registry/modules/${dir}/package.json.`,
     );
   }
 }

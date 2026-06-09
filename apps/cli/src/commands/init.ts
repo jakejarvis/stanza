@@ -17,6 +17,7 @@ import type { AppSpec, CategoryId, Module, PackageManager } from "@withstanza/sc
 import {
   categoryHome,
   DEFAULT_NAMESPACE,
+  emptyManifest,
   KNOWN_CATEGORIES,
   PEER_CATEGORIES,
 } from "@withstanza/schema";
@@ -91,21 +92,29 @@ export async function cmdInit(args: CliArgs): Promise<void> {
     return;
   }
 
-  fs.mkdirSync(projectRoot, { recursive: true });
+  if (!dryRun) {
+    fs.mkdirSync(projectRoot, { recursive: true });
 
-  // Bootstrap the empty monorepo shell.
-  await bootstrapShell(projectRoot, {
-    name: result.name,
-    packageManager: result.packageManager,
-    apps: result.apps,
-  });
+    // Bootstrap the empty monorepo shell.
+    await bootstrapShell(projectRoot, {
+      name: result.name,
+      packageManager: result.packageManager,
+      apps: result.apps,
+    });
+  }
 
-  let manifest = initManifest({
-    projectRoot,
-    name: result.name,
-    apps: result.apps,
-    packageManager: result.packageManager,
-  });
+  let manifest = dryRun
+    ? emptyManifest({
+        name: result.name,
+        apps: result.apps,
+        packageManager: result.packageManager,
+      })
+    : initManifest({
+        projectRoot,
+        name: result.name,
+        apps: result.apps,
+        packageManager: result.packageManager,
+      });
 
   if (dryRun) p.log.info(pc.yellow("[dry-run] no files will be written"));
 
