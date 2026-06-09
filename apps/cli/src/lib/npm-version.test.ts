@@ -6,6 +6,7 @@ import {
   resolveRange,
   resolveRanges,
 } from "./npm-version";
+import { clearInsecureWarningsForTests } from "./secure-url";
 
 const VERSIONS = ["1.6.11", "1.6.20", "1.7.0", "1.8.3", "2.0.0"];
 
@@ -24,12 +25,18 @@ function mockFetch(versions: string[] = VERSIONS) {
 
 beforeEach(() => {
   clearVersionCacheForTests();
+  clearInsecureWarningsForTests();
   delete process.env.STANZA_NO_NPM_LOOKUP;
+  delete process.env.STANZA_NPM_REGISTRY;
+  delete process.env.STANZA_ALLOW_INSECURE_REGISTRY;
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   delete process.env.STANZA_NO_NPM_LOOKUP;
+  delete process.env.STANZA_NPM_REGISTRY;
+  delete process.env.STANZA_ALLOW_INSECURE_REGISTRY;
 });
 
 describe("resolveRange", () => {
@@ -140,5 +147,32 @@ describe("resolveRanges", () => {
       "better-auth": "^1.8.3",
       zod: ">=3",
     });
+  });
+});
+
+describe("STANZA_NPM_REGISTRY scheme enforcement", () => {
+  it("rejects a remote http:// npm registry without the opt-in (no fetch)", async () => {
+    process.env.STANZA_NPM_REGISTRY = "http://npm.example";
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(resolveRange("better-auth", "^1.6.11")).rejects.toThrow(/must use https:\/\//);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a remote http:// npm registry with the opt-in and warns", async () => {
+    process.env.STANZA_NPM_REGISTRY = "http://npm.example";
+    process.env.STANZA_ALLOW_INSECURE_REGISTRY = "1";
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", mockFetch());
+    expect(await resolveRange("better-auth", "^1.6.11")).toBe("^1.8.3");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("cleartext http://"));
+  });
+
+  it("accepts a loopback http:// npm registry without the opt-in", async () => {
+    process.env.STANZA_NPM_REGISTRY = "http://127.0.0.1:4873";
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await resolveRange("better-auth", "^1.6.11")).toBe("^1.8.3");
+    expect(fetchMock).toHaveBeenCalled();
   });
 });

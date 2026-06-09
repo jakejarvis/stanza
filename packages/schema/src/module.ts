@@ -1,4 +1,4 @@
-import { safeRelativePath } from "@withstanza/utils";
+import { safeEnvName, safeEnvValue, safeRelativePath } from "@withstanza/utils";
 import { z } from "zod";
 
 import {
@@ -229,11 +229,24 @@ const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
   ]),
 );
 
+// Env names/values are written verbatim into `.env.example`. Without these
+// guards, a newline in `name`/`example`/`description` would inject extra lines
+// into the generated file (smuggling keys past `.env` parsers). Mirrors the
+// defense-in-depth check in `appendEnvVar`.
+const envNameSchema = z.string().superRefine((s, ctx) => {
+  const err = safeEnvName(s);
+  if (err) ctx.addIssue({ code: "custom", message: err });
+});
+const envValueSchema = z.string().superRefine((s, ctx) => {
+  const err = safeEnvValue(s);
+  if (err) ctx.addIssue({ code: "custom", message: err });
+});
+
 const envVarSchema = z.object({
-  name: z.string(),
-  example: z.string(),
+  name: envNameSchema,
+  example: envValueSchema,
   required: z.boolean(),
-  description: z.string().optional(),
+  description: envValueSchema.optional(),
 });
 
 const appInstallFieldsSchema = {

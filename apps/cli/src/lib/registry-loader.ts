@@ -10,6 +10,8 @@ import {
   RegistryIndexSchema,
 } from "@withstanza/schema";
 
+import { assertSecureFetchUrl } from "./secure-url";
+
 /**
  * The published Stanza website hosts the canonical first-party registry. A
  * registry is addressed by the full URL to its **main JSON file** (the index);
@@ -128,6 +130,9 @@ function buildCustomLoader(cfg: RegistryConfig): Promise<NamespaceLoader> {
  * over `http(s)://` or the filesystem (bare path or `file://`), identically.
  */
 async function loadRegistry(mainUri: string, opts: FetchOpts): Promise<NamespaceLoader> {
+  // Refuse cleartext http:// before the try so the scheme error isn't wrapped
+  // in the misleading "not a directory" frame below.
+  assertSecureFetchUrl(mainUri, "Registry URL");
   let text: string;
   try {
     text = await readText(mainUri, opts);
@@ -149,6 +154,9 @@ async function loadRegistry(mainUri: string, opts: FetchOpts): Promise<Namespace
         throw new Error(`Module not found in registry: ${category}/${id}`);
       }
       const moduleUri = resolveModuleUri(mainUri, entry.path);
+      // Backstop a malicious index that downgrades an https index to an
+      // absolute http:// module URL (`new URL` would honor the cross-origin host).
+      assertSecureFetchUrl(moduleUri, "Registry module URL");
       const body = await readText(moduleUri, opts);
       return ModuleSchema.parse(JSON.parse(body));
     },

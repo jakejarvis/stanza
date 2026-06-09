@@ -179,4 +179,6 @@ For consumers, declaring a registry is the full URL of its main JSON file in `st
 { "registries": { "@acme": "https://reg.acme.example/index.json" } }
 ```
 
+A registry `url` must be served over `https://` — module payloads have no integrity check beyond TLS, so a cleartext `http://` registry is refused (it would let an on-path attacker tamper with the modules you install). `file://` URLs, bare filesystem paths, and loopback hosts (`localhost`/`127.0.0.1`) stay allowed for local development; set `STANZA_ALLOW_INSECURE_REGISTRY=1` only if you knowingly need a trusted internal `http://` mirror. A third-party registry that fails this check is skipped with a warning rather than breaking the whole CLI.
+
 For authors, the full module surface — `defineModule`, templates, codemods, the build pipeline, hosting, namespace conventions, and a worked example — lives in the [Authoring manual](/docs/authoring).

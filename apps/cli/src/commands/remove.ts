@@ -16,10 +16,11 @@ import {
   parseModuleSpec,
   selectedAll,
 } from "@withstanza/schema";
+import { assertSafeRelativePath } from "@withstanza/utils";
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
-import { revertCodemods } from "../lib/codemod-runner";
+import { assertWithinRoot, revertCodemods } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
@@ -195,6 +196,12 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
       : [installed.id];
   const owned = regionsOwnedBy(manifest, ownerKeys);
   for (const { file, region } of owned) {
+    // Defense in depth — the schema rejects traversal region keys at parse, but
+    // re-check before every delete sink for in-memory/stale manifests and
+    // resolve symlinks so a planted link can't redirect the unlink outside the
+    // project root.
+    assertSafeRelativePath(file, "region file key");
+    assertWithinRoot(projectRoot, file, "region file key");
     const abs = path.join(projectRoot, file);
     if (file === ".env.example") {
       if (!dryRun) removeEnvVar(abs, region);
@@ -268,6 +275,10 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     if (stillUsed) continue;
     const pkgRoot = path.join(projectRoot, "packages", dir);
     if (!fs.existsSync(pkgRoot)) continue;
+    // `dir` is a trusted constant (from PACKAGE_DIRS), but the sweep recurses
+    // and deletes — assert the slot dir resolves inside the root so a planted
+    // `packages/<dir>` symlink can't redirect the scan/rm outside it.
+    assertWithinRoot(projectRoot, path.join("packages", dir), "package slot dir");
     const consumers = protectors.get(dir);
     if (consumers && consumers.length > 0) {
       manualCleanup.push(

@@ -239,6 +239,8 @@ defineModule({
 });
 ```
 
+Env var `name` must be a valid dotenv/shell key (`^[A-Za-z_][A-Za-z0-9_]*$`), and neither `example` nor `description` may contain control characters or newlines — these values are written verbatim into the generated `.env.example`, so anything else is rejected at load time to prevent line injection.
+
 ### The `app` overlay
 
 Package-home modules sometimes need to install a dep into the consuming app, not the package itself — e.g. shadcn's theme provider lives in `packages/ui/` but imports `next-themes` from `apps/web/`. Use the `app:` overlay for that:

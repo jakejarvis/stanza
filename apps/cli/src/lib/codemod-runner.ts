@@ -102,6 +102,16 @@ export async function applyModule(args: {
     );
   }
 
+  // `app.dir` is manifest-supplied and is joined onto projectRoot for every
+  // write below (templates, package.json, codemod project roots). Zod guards it
+  // at parse, but re-check here for in-memory/stale manifests and resolve
+  // symlinks so a planted symlinked app dir can't redirect writes outside the
+  // project.
+  for (const app of targetApps) {
+    assertSafeRelativePath(app.dir, `app "${app.id}" dir`);
+    assertWithinRoot(projectRoot, app.dir, `app "${app.id}" dir`);
+  }
+
   // `home: app` records can coexist across apps for multi-cardinality
   // categories (e.g. testing). Composite owner disambiguates so a remove on
   // one app doesn't sweep another app's claims. Non-app homes stay on bare
@@ -184,6 +194,7 @@ export async function applyModule(args: {
         const dest = path.join(projectRoot, app.dir, tpl.dest);
         // Forward-slash so the manifest stays portable across Windows + Unix.
         const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
+        assertWithinRoot(projectRoot, rel, `${module.id} template dest`);
         manifest = claim(manifest, rel, "file", owner);
         if (!dryRun) {
           const source = readTemplateSource(tpl);
@@ -205,6 +216,7 @@ export async function applyModule(args: {
       category: module.category,
     });
     const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
+    assertWithinRoot(projectRoot, rel, `${module.id} template dest`);
     manifest = claim(manifest, rel, "file", owner);
     if (!dryRun) {
       const source = readTemplateSource(tpl);
@@ -881,4 +893,81 @@ function shouldKeepExisting(existing: string, incoming: string): boolean {
 
 function isSemverishRange(v: string): boolean {
   return semver.validRange(v) !== null;
+}
+
+/**
+ * Fully resolve symlinks in `p`, tolerating a non-existent tail. Like
+ * `fs.realpathSync`, but it doesn't throw when the path (or a dangling link
+ * along it) is missing — we need to vet not-yet-created write destinations.
+ *
+ * It finds the deepest ancestor that exists *as a node* (using `lstat`, so a
+ * dangling symlink still counts — `existsSync` would follow it and wrongly
+ * treat it as absent), canonicalizes that ancestor, and appends the remaining
+ * tail verbatim. The tail holds no symlinks because those components don't
+ * exist. A dangling symlink is resolved through its own target so a link
+ * *inside the target's path* can't hide an escape. Symlink cycles surface as
+ * `ELOOP` from `realpathSync` and propagate — refusing the op is the safe
+ * outcome.
+ */
+function realpathAllowingMissing(p: string, depth = 0): string {
+  if (depth > 40) throw new Error(`too many symbolic links resolving ${JSON.stringify(p)}`);
+  let existing = path.resolve(p);
+  const tail: string[] = [];
+  for (;;) {
+    if (fs.lstatSync(existing, { throwIfNoEntry: false })) break;
+    const parent = path.dirname(existing);
+    if (parent === existing) return path.resolve(p); // nothing along the path exists
+    tail.unshift(path.basename(existing));
+    existing = parent;
+  }
+  let realBase: string;
+  try {
+    realBase = fs.realpathSync(existing);
+  } catch (err) {
+    // A dangling symlink: `realpathSync` can't follow it. Resolve its target's
+    // existing portion ourselves. Any non-ENOENT error (e.g. an `ELOOP` cycle)
+    // propagates, which safely aborts the operation.
+    const isMissing =
+      typeof err === "object" && err !== null && "code" in err && err.code === "ENOENT";
+    if (!isMissing) throw err;
+    const linkTarget = path.resolve(path.dirname(existing), fs.readlinkSync(existing));
+    realBase = realpathAllowingMissing(linkTarget, depth + 1);
+  }
+  return tail.length > 0 ? path.join(realBase, ...tail) : realBase;
+}
+
+/**
+ * Assert a project-relative write/delete target stays inside `projectRoot`
+ * after symlink resolution. `assertSafeRelativePath` rejects `..`/absolute
+ * inputs lexically; this adds the filesystem leg — a symlinked directory along
+ * the path (even a dangling one, which `mkdirSync -p` would follow) can still
+ * redirect the operation outside the root. The target need not exist yet: its
+ * symlink-free tail is resolved verbatim. Resolution is full (it follows
+ * symlinks nested inside a link's own target, and dangling links), so a
+ * multi-hop chain can't smuggle an escape past a single-hop check.
+ */
+export function assertWithinRoot(projectRoot: string, relativePath: string, label: string): void {
+  const root = path.resolve(projectRoot);
+  const realRoot = fs.realpathSync(root);
+  const segments = relativePath.split(/[/\\]+/).filter((s) => s !== "" && s !== ".");
+  // Reject `..` lexically before any join — a traversal segment must never be
+  // resolved against the root, and isn't something symlink resolution vets.
+  if (segments.includes("..")) {
+    throw new Error(
+      `${label}: path escapes the project root (got ${JSON.stringify(relativePath)})`,
+    );
+  }
+  const resolved = realpathAllowingMissing(path.join(realRoot, ...segments));
+  // The resolved path may be spelled against the real root or an aliased
+  // ancestor (e.g. macOS `/var` -> `/private/var`); it's an escape only when it
+  // falls outside *both* spellings of the root.
+  const under = (base: string): boolean => {
+    const r = path.relative(base, resolved);
+    return r === "" || (r !== ".." && !r.startsWith(`..${path.sep}`) && !path.isAbsolute(r));
+  };
+  if (!under(realRoot) && !under(root)) {
+    throw new Error(
+      `${label}: ${JSON.stringify(relativePath)} escapes the project root (resolves to ${JSON.stringify(resolved)})`,
+    );
+  }
 }
