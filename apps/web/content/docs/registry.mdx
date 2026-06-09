@@ -11,21 +11,24 @@ Inspired by [shadcn/ui](https://ui.shadcn.com), third parties can publish their 
 
 A category has two independent properties: its **cardinality** — `one` (single-choice, like `framework` or `auth`) or `many` (coexisting, like `testing`) — and its **home**, where a module's output lands (`app`, `repo`, or `package`). See [Concepts](/docs/concepts#categories) for the full mental model.
 
-| Category    | Cardinality | Home    | What it covers                                              |
-| ----------- | ----------- | ------- | ----------------------------------------------------------- |
-| `framework` | one         | app     | App shell + router (Next, TanStack Start, Expo, …)          |
-| `api`       | one         | package | Typed RPC layer between framework and services              |
-| `ai`        | one         | package | AI SDK + provider wiring                                    |
-| `auth`      | one         | package | Authentication (Better Auth, Clerk, …)                      |
-| `db`        | one         | package | Database driver (Postgres, SQLite)                          |
-| `orm`       | one         | package | Schema + query layer (Drizzle, Prisma)                      |
-| `ui`        | one         | package | Styling system + component primitives (Tailwind, shadcn, …) |
-| `payments`  | one         | package | Checkout + webhooks (Stripe, Polar, …)                      |
-| `email`     | one         | package | Transactional email (Resend)                                |
-| `tooling`   | one         | repo    | Lint/format toolchain                                       |
-| `testing`   | many        | app     | Unit + e2e (Vitest, Playwright)                             |
-| `deploy`    | many        | repo    | Deploy targets (Vercel, Cloudflare, …)                      |
-| `monorepo`  | one         | repo    | Monorepo task runner (Turborepo)                            |
+| Category        | Cardinality | Home    | What it covers                                 |
+| --------------- | ----------- | ------- | ---------------------------------------------- |
+| `framework`     | one         | app     | Web app shell + router                         |
+| `api`           | one         | package | Typed RPC layer between framework and services |
+| `ai`            | one         | package | AI SDK + provider wiring                       |
+| `auth`          | one         | package | Authentication, user accounts                  |
+| `db`            | one         | package | Database driver                                |
+| `orm`           | one         | package | Schema + query layer                           |
+| `ui`            | one         | package | Styling system + component primitives          |
+| `payments`      | one         | package | Checkout + webhooks                            |
+| `email`         | one         | package | Transactional email                            |
+| `storage`       | one         | package | Object / file storage                          |
+| `observability` | many        | app     | Product analytics, error tracking              |
+| `analytics`     | many        | app     | Privacy-friendly site analytics                |
+| `tooling`       | one         | repo    | Lint/format toolchain                          |
+| `testing`       | many        | app     | Unit + E2E                                     |
+| `deploy`        | many        | repo    | Deployment targets                             |
+| `monorepo`      | one         | repo    | Monorepo task runner                           |
 
 Single-choice categories with `home: "app"` (currently `framework`) are enforced **per app** — a multi-app project can pick `next` for the web app and `expo` for a native app side by side. See [Concepts → Apps](/docs/concepts#apps).
 
@@ -69,6 +72,7 @@ Single-choice, installs into `packages/auth/`.
 | `better-auth` | 🟢&nbsp;Available | Local data. Peers on `orm` and `framework`. |
 | `clerk`       | 🟢&nbsp;Available | Hosted database & UI. Peers on `framework`. |
 | `workos`      | 🟨&nbsp;Planned   | WorkOS AuthKit.                             |
+| `supabase`    | 🟨&nbsp;Planned   | Supabase Auth; constrains `db`.             |
 
 ## Database
 
@@ -78,6 +82,8 @@ Single-choice, installs into `packages/db/`.
 | ---------- | ----------------- | ------------------------ |
 | `postgres` | 🟢&nbsp;Available | `postgres` driver.       |
 | `sqlite`   | 🟢&nbsp;Available | `better-sqlite3` driver. |
+| `supabase` | 🟨&nbsp;Planned   | Hosted Postgres.         |
+| `turso`    | 🟨&nbsp;Planned   | libSQL (edge SQLite).    |
 
 ## ORM
 
@@ -115,9 +121,40 @@ Single-choice, constraint-bearing. Installs into `packages/payments/`, plus a Be
 
 Single-choice, installs into `packages/email/`.
 
-| Module   | Status            | Notes                                                                                                 |
-| -------- | ----------------- | ----------------------------------------------------------------------------------------------------- |
-| `resend` | 🟢&nbsp;Available | `resend` SDK + a sample `react-email` template; framework-native `/api/webhook/resend` Svix-verifier. |
+| Module     | Status            | Notes                                                                                                 |
+| ---------- | ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `resend`   | 🟢&nbsp;Available | `resend` SDK + a sample `react-email` template; framework-native `/api/webhook/resend` Svix-verifier. |
+| `postmark` | 🟨&nbsp;Planned   | `postmark` SDK + framework-native webhook handler.                                                    |
+
+## Storage
+
+Single-choice, installs into `packages/storage/`.
+
+| Module        | Status          | Notes                          |
+| ------------- | --------------- | ------------------------------ |
+| `s3`          | 🟨&nbsp;Planned | AWS S3 (`@aws-sdk/client-s3`). |
+| `r2`          | 🟨&nbsp;Planned | Cloudflare R2 (S3-compatible). |
+| `uploadthing` | 🟨&nbsp;Planned | Managed uploads (UploadThing). |
+
+## Observability
+
+Coexisting, app-scoped.
+
+| Module    | Status          | Notes                                   |
+| --------- | --------------- | --------------------------------------- |
+| `posthog` | 🟨&nbsp;Planned | Product analytics, error tracking, etc. |
+| `sentry`  | 🟨&nbsp;Planned | Heavier focus on error tracking         |
+| `axiom`   | 🟨&nbsp;Planned | Logs + event analytics.                 |
+
+## Analytics
+
+Coexisting, app-scoped — privacy-friendly site analytics, distinct from `observability`'s product analytics and error tracking.
+
+| Module      | Status          | Notes                       |
+| ----------- | --------------- | --------------------------- |
+| `plausible` | 🟨&nbsp;Planned | Privacy-first, open source. |
+| `umami`     | 🟨&nbsp;Planned | Self-hostable, open source. |
+| `fathom`    | 🟨&nbsp;Planned | Privacy-first, hosted.      |
 
 ## Tooling
 
@@ -137,6 +174,7 @@ Coexisting, app-scoped. Vitest and Playwright are independent and routinely run 
 | ------------ | ----------------- | ----------------------------------------------------------------- |
 | `vitest`     | 🟢&nbsp;Available | Unit + integration; `jsdom` + RTL; `test`/`test:watch` scripts.   |
 | `playwright` | 🟢&nbsp;Available | e2e; per-framework `webServer`; `test:e2e`/`test:e2e:ui` scripts. |
+| `storybook`  | 🟨&nbsp;Planned   | Component workshop + stories.                                     |
 
 ## Deploy
 
@@ -148,6 +186,9 @@ Coexisting, repo-scoped.
 | `cloudflare` | 🟨&nbsp;Planned | Workers / Pages adapter per framework (e.g. Vite plugins, `wrangler.json`, …). |
 | `railway`    | 🟨&nbsp;Planned | `railway.toml` + Dockerfile.                                                   |
 | `docker`     | 🟨&nbsp;Planned | Generic `Dockerfile` + compose for self-host.                                  |
+| `netlify`    | 🟨&nbsp;Planned | `netlify.toml` + framework adapter.                                            |
+| `render`     | 🟨&nbsp;Planned | `render.yaml` + Dockerfile.                                                    |
+| `fly`        | 🟨&nbsp;Planned | `fly.toml` + Dockerfile (Fly.io).                                              |
 
 ## Monorepo
 
