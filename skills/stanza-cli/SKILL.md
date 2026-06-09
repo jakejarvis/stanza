@@ -89,7 +89,7 @@ For `init --yes`, pass each category's module ids as a comma-separated value; si
 
 ## Safety Flags
 
-- Use `--dry-run` before a mutating command when the user wants a preview. It writes nothing.
+- Use `--dry-run` before a mutating command when the user wants a preview. It writes nothing. For `add` it prints a grouped plan of every file it would create, modify, or skip (skips show the reason, e.g. a dependency the user already pins higher), including the source files its codemods would edit. Because it rehearses codemods against your source, a dry run can surface blockers (like a missing root layout) before any real apply. A real `add` prints the same created/modified/skipped tally as a one-line summary.
 - Mutating commands refuse to run in a dirty git worktree. Ask the user before using `--dangerously-allow-dirty`; it intentionally allows Stanza edits to mix with existing changes.
 - A failed `add` rolls back automatically — if any step throws (including a codemod), Stanza restores the worktree to its pre-`add` state.
 

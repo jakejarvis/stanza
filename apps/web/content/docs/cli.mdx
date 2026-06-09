@@ -36,6 +36,7 @@ Resolves peers, selects the matching adapter, and writes the module's templates,
 
 - `--app=<id>` — pick which app the install targets. Required for app-relevant modules when the project has multiple apps and you're not running inside one of them. Single-app projects auto-target; multi-app projects also auto-pick when `cwd` is inside one app's directory. Interactive runs (TTY, no `--yes`) fall back to a prompt; non-interactive runs error out asking for the flag.
 - The flag is meaningless for `home: "repo"` modules like `tooling`.
+- `--dry-run` — preview the plan (created/modified/skipped files, including codemod edits) without writing. A real `add` prints the same tally as a one-line summary when it finishes.
 
 ## `remove`
 
@@ -87,7 +88,7 @@ Walks every [region](/docs/concepts#regions) claim in the manifest and verifies 
 
 These apply to the mutating verbs (`init`, `add`, `remove`):
 
-- `--dry-run` — print the actions that would be taken and write nothing.
+- `--dry-run` — print the actions that would be taken and write nothing. `add` renders a grouped plan of every file it would **create**, **modify**, or **skip** (with the reason — e.g. a dependency you already pin higher), including the source files its codemods would edit. To enumerate those accurately the dry run reads your source, so it surfaces blockers (like a missing root layout) before a real apply.
 - `--dangerously-allow-dirty` — allow a mutating command to run with a dirty git working tree. By default Stanza refuses, so its edits never mix with uncommitted changes. Commit or stash first when you can.
 - `--no-telemetry` — disable anonymous usage events for this invocation.
 

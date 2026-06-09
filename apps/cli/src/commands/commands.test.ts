@@ -149,6 +149,22 @@ describe("cmdAdd", () => {
     expect(fs.existsSync("packages/db/package.json")).toBe(true);
   });
 
+  it("dry-run previews a package-home add without writing anything", async () => {
+    await cmdAdd(args({ slot: "db", moduleId: "postgres", "dry-run": true }));
+    expect(process.exitCode).toBeFalsy();
+
+    // The manifest still has no db selection and no package was bootstrapped.
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.db).toBeUndefined();
+    expect(fs.existsSync("packages/db/package.json")).toBe(false);
+
+    // A real add afterwards still succeeds — dry-run left no partial state.
+    await cmdAdd(args({ slot: "db", moduleId: "postgres" }));
+    expect(process.exitCode).toBeFalsy();
+    expect(JSON.parse(fs.readFileSync("stanza.json", "utf8")).modules.db[0].id).toBe("postgres");
+    expect(fs.existsSync("packages/db/package.json")).toBe(true);
+  });
+
   it("rejects a slot that is already filled", async () => {
     await cmdAdd(args({ slot: "db", moduleId: "postgres" }));
     process.exitCode = undefined;
