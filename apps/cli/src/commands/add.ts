@@ -1,8 +1,9 @@
 import * as p from "@clack/prompts";
 import { resolveAdapter } from "@withstanza/registry";
-import type { AppSpec, StanzaManifest } from "@withstanza/schema";
+import type { AppKind, AppSpec, CategoryId, StanzaManifest } from "@withstanza/schema";
 import {
   categoryHome,
+  categoryLabel,
   DEFAULT_NAMESPACE,
   isCategoryId,
   isLikelyNamespaceTypo,
@@ -15,12 +16,13 @@ import {
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
+import { type Candidate, categoryCandidates } from "../lib/candidates";
 import { applyModule, RegionConflictError } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
 import { formatPlanLines, summarizePlan } from "../lib/plan-format";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
-import { loadRegistries } from "../lib/registry-loader";
+import { loadRegistries, type Registries } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
 import { commonArgs, type CliArgs } from "./_args";
 
@@ -28,7 +30,11 @@ export const add = defineCommand({
   meta: { name: "add", description: "Add a module to the current project." },
   args: {
     slot: { type: "positional", required: true, description: "Category." },
-    moduleId: { type: "positional", required: true, description: "Module id." },
+    moduleId: {
+      type: "positional",
+      required: false,
+      description: "Module id (omit to pick interactively).",
+    },
     app: {
       type: "string",
       description: "Target app id (required for multi-app projects; auto-picked otherwise).",
@@ -41,8 +47,8 @@ export const add = defineCommand({
 export async function cmdAdd(args: CliArgs): Promise<void> {
   const slot = typeof args.slot === "string" ? args.slot : undefined;
   const rawModuleId = typeof args.moduleId === "string" ? args.moduleId : undefined;
-  if (!slot || !rawModuleId) {
-    p.log.error("Usage: stanza add <category> [@<namespace>/]<module>");
+  if (!slot) {
+    p.log.error("Usage: stanza add <category> [[@<namespace>/]<module>]");
     process.exitCode = 1;
     return;
   }
@@ -54,33 +60,6 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   }
   const category = slot;
   const group = category;
-
-  // Catch the `@bare` typo before parsing — without this, the spec falls
-  // through to a literal id of "@bare" and the registry returns an opaque
-  // 404. Explicit hint is friendlier.
-  if (isLikelyNamespaceTypo(rawModuleId)) {
-    p.log.error(
-      `"${rawModuleId}" looks like a namespace but is missing the module id. ` +
-        `Did you mean \`${rawModuleId}/<id>\`?`,
-    );
-    process.exitCode = 1;
-    return;
-  }
-  // Split `@ns/id` into a namespace + id. Bare ids implicitly mean `@stanza`,
-  // which we leave as `undefined` on the record (omitted = default).
-  const { namespace, id: moduleId } = parseModuleSpec(rawModuleId);
-
-  // The id is about to be interpolated into a registry URL — reject anything
-  // that could escape its segment (path traversal, query strings, encoded
-  // bytes). See `isValidModuleId` in @withstanza/registry for the exact shape.
-  if (!isValidModuleId(moduleId)) {
-    p.log.error(
-      `Invalid module id "${moduleId}". Ids must be alphanumeric segments ` +
-        `(letters, digits, dashes, underscores) joined by "/".`,
-    );
-    process.exitCode = 1;
-    return;
-  }
 
   const projectRoot = findProjectRoot();
   if (!projectRoot) {
@@ -98,6 +77,9 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   const manifest = readManifest(projectRoot);
   const home = categoryHome(category);
   const appFlag = typeof args.app === "string" ? args.app : undefined;
+  // Loaded before the module id is resolved — the picker needs the registry
+  // index (plus the target app + manifest below) to compute compatibility.
+  const registry = await loadRegistries(manifest);
 
   // Pick target apps based on the module's home.
   //  - home: "app"     — exactly one app, picked via cwd/flag/prompt.
@@ -112,7 +94,7 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
       appFlag,
       cwd: process.cwd(),
       projectRoot,
-      reason: `Which app should ${pc.cyan(`${category}/${moduleId}`)} install into?`,
+      reason: `Which app should ${pc.cyan(category)} install into?`,
     });
     if (!picked) {
       process.exitCode = 1;
@@ -146,14 +128,9 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   // second package-home pick slip past, only to fail on the next read.
   const cardinalityScopeApp = home.kind === "app" ? pickedAppId : undefined;
   const existing = selectedAll(manifest, category, cardinalityScopeApp);
-  if (isMulti(category)) {
-    if (existing.some((r) => r.id === moduleId)) {
-      const where = cardinalityScopeApp ? ` in app "${cardinalityScopeApp}"` : "";
-      p.log.error(`"${category}/${moduleId}" is already added${where}.`);
-      process.exitCode = 1;
-      return;
-    }
-  } else if (existing.length > 0) {
+  // A filled single-choice slot has nothing left to pick — bail before opening
+  // a doomed picker.
+  if (!isMulti(category) && existing.length > 0) {
     const where = cardinalityScopeApp ? ` (app "${cardinalityScopeApp}")` : "";
     p.log.error(
       `Category "${category}"${where} is already filled by "${existing[0]!.id}". ` +
@@ -163,7 +140,105 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     return;
   }
 
-  const registry = await loadRegistries(manifest);
+  // Resolve the module spec — an explicit id, or an interactive picker. The
+  // picker disables incompatible/installed modules, so it shares the same
+  // compatibility inputs the post-load checks below re-verify for the
+  // explicit path.
+  const installedIds = new Set(existing.map((r) => r.id));
+  const targetAppKind = home.kind === "app" ? targetApps[0]!.kind : undefined;
+  let namespace: string | undefined;
+  let moduleId: string;
+  if (rawModuleId !== undefined) {
+    // Catch the `@bare` typo before parsing — without this, the spec falls
+    // through to a literal id of "@bare" and the registry returns an opaque
+    // 404. Explicit hint is friendlier.
+    if (isLikelyNamespaceTypo(rawModuleId)) {
+      p.log.error(
+        `"${rawModuleId}" looks like a namespace but is missing the module id. ` +
+          `Did you mean \`${rawModuleId}/<id>\`?`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    // Split `@ns/id` into a namespace + id. Bare ids implicitly mean `@stanza`,
+    // which we leave as `undefined` on the record (omitted = default).
+    const spec = parseModuleSpec(rawModuleId);
+    namespace = spec.namespace;
+    moduleId = spec.id;
+    // The id is about to be interpolated into a registry URL — reject anything
+    // that could escape its segment (path traversal, query strings, encoded
+    // bytes). See `isValidModuleId` in @withstanza/registry for the exact shape.
+    if (!isValidModuleId(moduleId)) {
+      p.log.error(
+        `Invalid module id "${moduleId}". Ids must be alphanumeric segments ` +
+          `(letters, digits, dashes, underscores) joined by "/".`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    // If the id's namespace publishes a browsable index and the id isn't in it,
+    // the id is unknown (typo). On a TTY, drop into the picker so the user can
+    // recover; otherwise list what's available. Name-only namespaces (no index)
+    // skip this — the loader below surfaces a 404 for a bad id.
+    const effectiveNs = namespace ?? DEFAULT_NAMESPACE;
+    const browsable = registry.searchableIndices().find((s) => s.namespace === effectiveNs);
+    const known =
+      !browsable ||
+      browsable.index.modules.some((m) => m.category === category && m.id === moduleId);
+    if (!known) {
+      if (process.stdin.isTTY) {
+        p.log.warn(`No ${category} module "${namespace ? `${namespace}/` : ""}${moduleId}".`);
+        const picked = await pickModuleInCategory({
+          registry,
+          category,
+          manifest,
+          targetAppId: pickedAppId,
+          targetAppKind,
+          installedIds,
+        });
+        if (!picked) {
+          process.exitCode = 1;
+          return;
+        }
+        namespace = picked.namespace;
+        moduleId = picked.moduleId;
+      } else {
+        const ids = browsable.index.modules.filter((m) => m.category === category).map((m) => m.id);
+        p.log.error(
+          `No ${category} module "${moduleId}"${namespace ? ` in ${namespace}` : ""}. ` +
+            `Available: ${ids.length ? ids.join(", ") : "(none)"}.`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+    }
+  } else {
+    const picked = await pickModuleInCategory({
+      registry,
+      category,
+      manifest,
+      targetAppId: pickedAppId,
+      targetAppKind,
+      installedIds,
+    });
+    if (!picked) {
+      process.exitCode = 1;
+      return;
+    }
+    namespace = picked.namespace;
+    moduleId = picked.moduleId;
+  }
+
+  // Multi-choice "already added" guard — single-choice is handled by the filled
+  // check above, and the picker disables installed ids, so this only catches a
+  // re-add on the explicit-id path.
+  if (isMulti(category) && existing.some((r) => r.id === moduleId)) {
+    const where = cardinalityScopeApp ? ` in app "${cardinalityScopeApp}"` : "";
+    p.log.error(`"${category}/${moduleId}" is already added${where}.`);
+    process.exitCode = 1;
+    return;
+  }
+
   let mod;
   try {
     mod = await registry.loadModule(group, moduleId, namespace);
@@ -269,6 +344,102 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   } else {
     p.log.info(pc.dim(summarizePlan(result.plan)));
   }
+}
+
+/**
+ * Resolve which module to add when the id was omitted (or typed wrong on a
+ * TTY). Lists every module in the category across all configured registries,
+ * rendering incompatible/installed ones as disabled with a terse reason.
+ * Returns the chosen `{ namespace, moduleId }`, or null to bail (with the exit
+ * code left for the caller to set):
+ *  - 0 candidates           → error "no modules available".
+ *  - all candidates disabled → error with the dominant reason; no prompt.
+ *  - non-TTY                 → error listing the available ids; no prompt.
+ *  - TTY                     → `p.select` (Esc cancels).
+ */
+async function pickModuleInCategory(args: {
+  registry: Registries;
+  category: CategoryId;
+  manifest: StanzaManifest;
+  targetAppId: string | undefined;
+  targetAppKind: AppKind | undefined;
+  installedIds: ReadonlySet<string>;
+}): Promise<{ namespace: string | undefined; moduleId: string } | null> {
+  const { registry, category, manifest, targetAppId, targetAppKind, installedIds } = args;
+  const candidates = categoryCandidates({
+    indices: registry.searchableIndices(),
+    category,
+    manifest,
+    targetAppId,
+    targetAppKind,
+    installedIds,
+  });
+
+  if (candidates.length === 0) {
+    p.log.error(`No "${category}" modules are available.`);
+    return null;
+  }
+  if (!candidates.some((c) => c.compatible)) {
+    p.log.error(dominantDisabledReason(category, candidates));
+    return null;
+  }
+  if (!process.stdin.isTTY) {
+    const ids = candidates.map(specFor).join(", ");
+    p.log.error(`Pick a module: \`stanza add ${category} <module>\`. Available: ${ids}.`);
+    return null;
+  }
+
+  // `select` renders disabled options grayed-out with the hint shown as the
+  // `(reason)`. `value` is the spec string so it round-trips `parseModuleSpec`.
+  const picked = await p.select({
+    message: `Which ${categoryLabel(category)} module?`,
+    options: candidates.map((c) => {
+      const nsTag = c.namespace === DEFAULT_NAMESPACE ? "" : ` ${pc.dim(c.namespace)}`;
+      return {
+        value: specFor(c),
+        label: `${c.entry.label}${nsTag}`,
+        hint: c.compatible ? c.entry.description : c.reason,
+        disabled: !c.compatible,
+      };
+    }),
+  });
+  if (p.isCancel(picked)) {
+    p.cancel("Cancelled.");
+    return null;
+  }
+  const spec = parseModuleSpec(picked);
+  return { namespace: spec.namespace, moduleId: spec.id };
+}
+
+/** Registry spec string for a candidate: bare `id` for `@stanza`, else `@ns/id`. */
+function specFor(c: Candidate): string {
+  return c.namespace === DEFAULT_NAMESPACE ? c.entry.id : `${c.namespace}/${c.entry.id}`;
+}
+
+/**
+ * When every candidate is disabled, explain why using the most common reason —
+ * usually a missing peer ("add a framework first"). Falls back to a generic
+ * line when reasons are mixed or absent.
+ */
+function dominantDisabledReason(category: CategoryId, candidates: Candidate[]): string {
+  const counts = new Map<string, number>();
+  for (const c of candidates) {
+    if (c.compatible || !c.reason) continue;
+    counts.set(c.reason, (counts.get(c.reason) ?? 0) + 1);
+  }
+  let top: string | undefined;
+  let max = 0;
+  for (const [reason, n] of counts) {
+    if (n > max) {
+      max = n;
+      top = reason;
+    }
+  }
+  const label = categoryLabel(category).toLowerCase();
+  if (top === "already added") return `Every ${label} module is already added.`;
+  return top
+    ? `No ${label} module is compatible yet — ${top}.`
+    : `No ${label} module is compatible yet.`;
 }
 
 /**
