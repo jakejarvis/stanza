@@ -2,12 +2,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { defineModule, type Module, emptyManifest } from "@withstanza/schema";
+import { defineModule, type AppSpec, type Module, emptyManifest } from "@withstanza/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import {
+  applyModule,
   assertWithinRoot,
   planSlotPackageBootstrap,
+  type PlanAction,
   recordFor,
   writeDepKeepingHigher,
 } from "./codemod-runner";
@@ -409,5 +411,80 @@ describe("recordFor", () => {
     const record = recordFor(mod, mod.adapters[0]!, [seedApp], undefined);
     expect(record.codemods).toBeUndefined();
     expect(record.consumesPackages).toBeUndefined();
+  });
+});
+
+// An app-home `testing` module exercising every plan branch: a fresh template
+// (create), an over-an-existing template (modify), a new dep (modify), a dep
+// the user already pins higher (skip), and a new env var (create).
+function probeModule(): Module {
+  return defineModule({
+    id: "probe",
+    category: "testing",
+    label: "Probe",
+    description: "",
+    version: "0.1.0",
+    devDependencies: { "left-pad": "^1.0.0" },
+    env: [{ name: "PROBE_TOKEN", example: "x", required: false }],
+    adapters: [
+      {
+        key: "default",
+        match: {},
+        dependencies: { react: "^18.0.0" },
+        templates: [
+          { src: "new.ts", dest: "probe-new.ts", scope: "app" },
+          { src: "existing.ts", dest: "probe-existing.ts", scope: "app" },
+        ],
+      },
+    ],
+  });
+}
+
+function findAction(plan: PlanAction[], pathSuffix: string, detailNeedle: string): PlanAction {
+  const hit = plan.find((a) => a.path.endsWith(pathSuffix) && a.detail.includes(detailNeedle));
+  if (!hit) throw new Error(`no plan action for ${pathSuffix} / ${detailNeedle}`);
+  return hit;
+}
+
+describe("applyModule dry-run plan", () => {
+  const webApp: AppSpec = { id: "web", dir: "apps/web", kind: "web" };
+
+  it("classifies create/modify/skip and writes nothing", async () => {
+    const projectRoot = tmp;
+    const appDir = path.join(projectRoot, "apps/web");
+    // Target package.json must exist; the user already pins react higher than
+    // the module's declared range, so that dep should be skipped.
+    writePkg(appDir, { name: "@app/web", dependencies: { react: "^19.0.0" } });
+    // An on-disk template target → the template would overwrite it (modify).
+    fs.writeFileSync(path.join(appDir, "probe-existing.ts"), "// user code\n");
+
+    const mod = probeModule();
+    const result = await applyModule({
+      projectRoot,
+      manifest: emptyManifest({ name: "app", apps: [webApp] }),
+      module: mod,
+      adapter: mod.adapters[0]!,
+      targetApps: [webApp],
+      dryRun: true,
+    });
+
+    expect(result.dryRun).toBe(true);
+    expect(findAction(result.plan, "apps/web/probe-new.ts", "template").op).toBe("create");
+    expect(findAction(result.plan, "apps/web/probe-existing.ts", "template").op).toBe("modify");
+    expect(findAction(result.plan, "apps/web/package.json", "left-pad").op).toBe("modify");
+    const reactSkip = findAction(result.plan, "apps/web/package.json", "react");
+    expect(reactSkip.op).toBe("skip");
+    expect(reactSkip.reason).toMatch(/newer version/i);
+    expect(findAction(result.plan, ".env.example", "PROBE_TOKEN").op).toBe("create");
+
+    // Nothing was written: no manifest, no new template file, no env file, and
+    // the user's package.json is untouched (no left-pad, react still ^19).
+    expect(fs.existsSync(path.join(projectRoot, "stanza.json"))).toBe(false);
+    expect(fs.existsSync(path.join(appDir, "probe-new.ts"))).toBe(false);
+    expect(fs.existsSync(path.join(projectRoot, ".env.example"))).toBe(false);
+    const pkg = readJson(path.join(appDir, "package.json"));
+    expect(pkg.dependencies?.react).toBe("^19.0.0");
+    expect(pkg.devDependencies?.["left-pad"]).toBeUndefined();
+    expect(fs.readFileSync(path.join(appDir, "probe-existing.ts"), "utf8")).toBe("// user code\n");
   });
 });

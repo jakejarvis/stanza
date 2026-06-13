@@ -32,10 +32,28 @@ import { manifestPath, writeManifest } from "./manifest";
 import { resolveRanges } from "./npm-version";
 import { claim, release, RegionConflictError } from "./region-tracker";
 
+/**
+ * A single entry in the human-facing preview of what an apply would do. Built
+ * during the same walk that stages the real writes, so the preview can't drift
+ * from what apply actually does. Surfaced by `add` on `--dry-run` and as the
+ * post-apply summary.
+ */
+export type PlanAction = {
+  op: "create" | "modify" | "skip";
+  /** Repo-relative, forward-slashed (matches region keys). */
+  path: string;
+  /** Human label, e.g. "template", "dependency @clerk/nextjs", "codemod wrap-root-layout". */
+  detail: string;
+  /** Present for op:"skip" (e.g. "newer version already pinned"). */
+  reason?: string;
+};
+
 export type RunResult = {
   manifest: StanzaManifest;
   touchedFiles: string[];
   dryRun: boolean;
+  /** Ordered preview of file actions this apply would take (templates, deps, env, codemods). */
+  plan: PlanAction[];
   /**
    * Non-null when this add caused a new `packages/<dir>/` package to be
    * bootstrapped — used by `add.ts` to print a `pnpm install` hint.
@@ -184,6 +202,12 @@ export async function applyModule(args: {
   // knows how to sweep — the old single-pass ordering didn't.
   const deferredWrites: Array<() => void> = [];
 
+  // Human-facing preview, accumulated alongside the staged writes so it can't
+  // drift from what apply does. `create` vs `modify` is decided by
+  // `fs.existsSync` at walk time — accurate in both modes since writes are
+  // deferred (nothing on disk has changed yet when we look).
+  const plan: PlanAction[] = [];
+
   // 1. Templates (claim regions per-template-file). App-scoped templates loop
   //    over `targetApps`; package/repo-scoped templates emit once.
   for (const tpl of adapter.templates ?? []) {
@@ -197,6 +221,7 @@ export async function applyModule(args: {
         const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
         assertWithinRoot(projectRoot, rel, `${module.id} template dest`);
         manifest = claim(manifest, rel, "file", owner);
+        plan.push(templateAction(rel, dest));
         if (!dryRun) {
           const source = readTemplateSource(tpl);
           const rendered = tpl.template ? renderTemplate(source, renderContextFor(app)) : source;
@@ -219,6 +244,7 @@ export async function applyModule(args: {
     const rel = path.relative(projectRoot, dest).replaceAll(path.sep, "/");
     assertWithinRoot(projectRoot, rel, `${module.id} template dest`);
     manifest = claim(manifest, rel, "file", owner);
+    plan.push(templateAction(rel, dest));
     if (!dryRun) {
       const source = readTemplateSource(tpl);
       const rendered = tpl.template ? renderTemplate(source, renderContextFor(seedApp)) : source;
@@ -273,16 +299,19 @@ export async function applyModule(args: {
       const pkgJsonPath = path.join(projectRoot, target);
       for (const [name, range] of Object.entries(deps)) {
         manifest = claim(manifest, target, `dependencies.${name}`, owner);
+        plan.push(depAction(target, pkgJsonPath, name, range, false));
         if (!dryRun)
           deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, false));
       }
       for (const [name, range] of Object.entries(devDeps)) {
         manifest = claim(manifest, target, `devDependencies.${name}`, owner);
+        plan.push(depAction(target, pkgJsonPath, name, range, true));
         if (!dryRun)
           deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, true));
       }
       for (const [name, command] of Object.entries(installFields.scripts)) {
         manifest = claim(manifest, target, `scripts.${name}`, owner);
+        plan.push({ op: "modify", path: target, detail: `script ${name}` });
         if (!dryRun) deferredWrites.push(() => addPackageScript(pkgJsonPath, name, command));
       }
       touchedFiles.add(target);
@@ -292,8 +321,10 @@ export async function applyModule(args: {
   // 3. Env vars in .env.example at repo root.
   if (installFields.env.length > 0) {
     const envFile = path.join(projectRoot, ".env.example");
+    const envOp = fs.existsSync(envFile) ? "modify" : "create";
     for (const v of installFields.env) {
       manifest = claim(manifest, ".env.example", v.name, owner);
+      plan.push({ op: envOp, path: ".env.example", detail: `env ${v.name}` });
       if (!dryRun) deferredWrites.push(() => addEnvVar(envFile, v.name, v.example, v.description));
     }
     touchedFiles.add(".env.example");
@@ -329,16 +360,19 @@ export async function applyModule(args: {
       const pkgJsonPath = path.join(projectRoot, target);
       for (const [name, range] of Object.entries(appDeps)) {
         manifest = claim(manifest, target, `app.dependencies.${name}`, owner);
+        plan.push(depAction(target, pkgJsonPath, name, range, false));
         if (!dryRun)
           deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, false));
       }
       for (const [name, range] of Object.entries(appDevDeps)) {
         manifest = claim(manifest, target, `app.devDependencies.${name}`, owner);
+        plan.push(depAction(target, pkgJsonPath, name, range, true));
         if (!dryRun)
           deferredWrites.push(() => writeDepKeepingHigher(pkgJsonPath, name, range, true));
       }
       for (const [name, command] of Object.entries(appFields.scripts)) {
         manifest = claim(manifest, target, `app.scripts.${name}`, owner);
+        plan.push({ op: "modify", path: target, detail: `script ${name}` });
         if (!dryRun) deferredWrites.push(() => addPackageScript(pkgJsonPath, name, command));
       }
       touchedFiles.add(target);
@@ -348,97 +382,123 @@ export async function applyModule(args: {
     // App-overlay env vars share the same `.env.example` destination — no
     // separate per-app env files yet. Treat them like primary env.
     const envFile = path.join(projectRoot, ".env.example");
+    const envOp = fs.existsSync(envFile) ? "modify" : "create";
     for (const v of appFields.env) {
       manifest = claim(manifest, ".env.example", v.name, owner);
+      plan.push({ op: envOp, path: ".env.example", detail: `env ${v.name}` });
       if (!dryRun) deferredWrites.push(() => addEnvVar(envFile, v.name, v.example, v.description));
     }
     touchedFiles.add(".env.example");
   }
 
-  if (!dryRun) {
-    // Snapshot every file we're about to touch so a throw anywhere in the
-    // mutation phase rolls the worktree back to its pre-apply state instead of
-    // leaving a partial change. Captured up front (the pre-transaction bytes);
-    // codemod targets that surface later are snapshotted as they're claimed.
-    const tx = new FileTx();
-    tx.snapshot(manifestPath(projectRoot));
-    for (const rel of touchedFiles) tx.snapshot(path.join(projectRoot, rel));
-    if (packageRoot) {
-      tx.snapshot(path.join(packageRoot, "package.json"));
-      tx.snapshot(path.join(packageRoot, "tsconfig.json"));
-    }
-    for (const app of targetApps) tx.snapshot(path.join(projectRoot, app.dir, "package.json"));
-
-    try {
-      const record = recordFor(module, adapter, targetApps, namespace);
-      // Push into the category's array, replacing any same-(id, apps-key)
-      // record so re-adds are idempotent. Single-choice categories with
-      // home:"app" are kept to one record per app id by `add`/`init`
-      // validation; other homes stay capped at ≤ 1 total.
-      const existing = manifest.modules[module.category] ?? [];
-      const sameKey = (r: typeof record) => r.id === record.id && sameAppSet(r.apps, record.apps);
-      manifest = {
-        ...manifest,
-        modules: {
-          ...manifest.modules,
-          [module.category]: [...existing.filter((r) => !sameKey(r)), record],
+  // Codemod execution is shared between apply (mutate + persist) and dry-run
+  // (enumerate the source files they'd touch, persist nothing). ts-morph edits
+  // stay in memory until `project.save()`, which only runs when `persist` is
+  // true — so a dry-run *reads* source but never writes. Codemods read peer
+  // state from the manifest, not their own (not-yet-persisted) record, so
+  // running them against the in-memory manifest is safe in both modes. First-
+  // party codemods only ever target pre-existing user/peer files (never a file
+  // this same module's deferred template would create), so dry-run's
+  // unflushed templates don't break enumeration; a throw is a genuine blocker
+  // (e.g. a missing layout) worth surfacing before a real apply.
+  const runCodemods = async (
+    persist: boolean,
+    onSnapshot?: (abs: string) => void,
+  ): Promise<void> => {
+    if (!adapter.codemods?.length) return;
+    const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
+    const saves: Array<() => Promise<void>> = [];
+    for (const app of dispatchApps) {
+      const appRoot = path.join(projectRoot, app.dir);
+      const project = lazyProject(appRoot);
+      const ctx = buildContext({
+        projectRoot,
+        app,
+        appRoot,
+        manifest,
+        module,
+        adapter,
+        project: project.get,
+        touchedFiles,
+        dryRun,
+        onClaim: (file, region) => {
+          onSnapshot?.(path.join(projectRoot, file));
+          manifest = claim(manifest, file, region, owner);
         },
-      };
-      writeManifest(projectRoot, manifest);
-
-      for (const write of slotBootstrapWrites) write();
-      for (const write of deferredWrites) write();
-
-      // Codemods dispatch once per targeted app (or once with the seed app for
-      // repo-home). ts-morph edits stay in memory until `project.save()` runs
-      // last, so a codemod throw never reaches disk; direct-fs codemods are
-      // snapshotted as they claim / report touched files.
-      if (adapter.codemods?.length) {
-        const dispatchApps = home.kind === "repo" ? [seedApp] : targetApps;
-        const saves: Array<() => Promise<void>> = [];
-        for (const app of dispatchApps) {
-          const appRoot = path.join(projectRoot, app.dir);
-          const project = lazyProject(appRoot);
-          const ctx = buildContext({
-            projectRoot,
-            app,
-            appRoot,
-            manifest,
-            module,
-            adapter,
-            project: project.get,
-            touchedFiles,
-            dryRun,
-            onClaim: (file, region) => {
-              tx.snapshot(path.join(projectRoot, file));
-              manifest = claim(manifest, file, region, owner);
-            },
-          });
-          for (const invocation of adapter.codemods) {
-            const fn = CODEMOD_CATALOG[invocation.id]!;
-            const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
-            const result = await fn.apply(ctx, renderedArgs);
-            for (const f of result.touchedFiles) {
-              tx.snapshot(path.isAbsolute(f) ? f : path.join(projectRoot, f));
-            }
-            result.touchedFiles.forEach((f) => touchedFiles.add(f));
-            // Persist after every codemod so a later throw doesn't lose the
-            // already-claimed regions. Cheap (small JSON), and a partial-apply
-            // surfaces cleanly to `stanza remove`'s sweep.
-            writeManifest(projectRoot, manifest);
-          }
-          saves.push(() => project.save());
+      });
+      for (const invocation of adapter.codemods) {
+        const fn = CODEMOD_CATALOG[invocation.id]!;
+        const renderedArgs = renderArgs(invocation.args ?? {}, renderContextFor(app));
+        const result = await fn.apply(ctx, renderedArgs);
+        for (const f of result.touchedFiles) {
+          const abs = path.isAbsolute(f) ? f : path.join(projectRoot, f);
+          onSnapshot?.(abs);
+          const rel = path.relative(projectRoot, abs).replaceAll(path.sep, "/");
+          plan.push({ op: "modify", path: rel, detail: `codemod ${invocation.id}` });
+          touchedFiles.add(rel);
         }
-        for (const save of saves) await save();
+        // Persist after every codemod so a later throw doesn't lose the
+        // already-claimed regions. Cheap (small JSON), and a partial-apply
+        // surfaces cleanly to `stanza remove`'s sweep.
+        if (persist) writeManifest(projectRoot, manifest);
       }
-    } catch (err) {
-      // Restore the worktree to its pre-apply state, then surface the error.
-      tx.rollback();
-      throw err;
+      saves.push(() => project.save());
     }
+    if (persist) for (const save of saves) await save();
+  };
+
+  if (dryRun) {
+    // Rehearse codemods in-memory so the preview lists the files they'd edit.
+    // Nothing is saved.
+    await runCodemods(false);
+    return { manifest, touchedFiles: [...touchedFiles], dryRun, plan, bootstrappedPackage };
   }
 
-  return { manifest, touchedFiles: [...touchedFiles], dryRun, bootstrappedPackage };
+  // Snapshot every file we're about to touch so a throw anywhere in the
+  // mutation phase rolls the worktree back to its pre-apply state instead of
+  // leaving a partial change. Captured up front (the pre-transaction bytes);
+  // codemod targets that surface later are snapshotted as they're claimed.
+  const tx = new FileTx();
+  tx.snapshot(manifestPath(projectRoot));
+  for (const rel of touchedFiles) tx.snapshot(path.join(projectRoot, rel));
+  if (packageRoot) {
+    tx.snapshot(path.join(packageRoot, "package.json"));
+    tx.snapshot(path.join(packageRoot, "tsconfig.json"));
+  }
+  for (const app of targetApps) tx.snapshot(path.join(projectRoot, app.dir, "package.json"));
+
+  try {
+    const record = recordFor(module, adapter, targetApps, namespace);
+    // Push into the category's array, replacing any same-(id, apps-key)
+    // record so re-adds are idempotent. Single-choice categories with
+    // home:"app" are kept to one record per app id by `add`/`init`
+    // validation; other homes stay capped at ≤ 1 total.
+    const existing = manifest.modules[module.category] ?? [];
+    const sameKey = (r: typeof record) => r.id === record.id && sameAppSet(r.apps, record.apps);
+    manifest = {
+      ...manifest,
+      modules: {
+        ...manifest.modules,
+        [module.category]: [...existing.filter((r) => !sameKey(r)), record],
+      },
+    };
+    writeManifest(projectRoot, manifest);
+
+    for (const write of slotBootstrapWrites) write();
+    for (const write of deferredWrites) write();
+
+    // Codemods dispatch once per targeted app (or once with the seed app for
+    // repo-home). ts-morph edits stay in memory until `project.save()` runs
+    // last, so a codemod throw never reaches disk; direct-fs codemods are
+    // snapshotted as they claim / report touched files.
+    await runCodemods(true, (abs) => tx.snapshot(abs));
+  } catch (err) {
+    // Restore the worktree to its pre-apply state, then surface the error.
+    tx.rollback();
+    throw err;
+  }
+
+  return { manifest, touchedFiles: [...touchedFiles], dryRun, plan, bootstrappedPackage };
 }
 
 export function recordFor(
@@ -901,6 +961,57 @@ function shouldKeepExisting(existing: string, incoming: string): boolean {
 
 function isSemverishRange(v: string): boolean {
   return semver.validRange(v) !== null;
+}
+
+/**
+ * Plan entry for a template write. `create` vs `modify` is decided by whether
+ * the destination already exists — surfacing that a template would overwrite a
+ * file the user may have authored (Stanza templates overwrite unconditionally).
+ */
+function templateAction(rel: string, dest: string): PlanAction {
+  return fs.existsSync(dest)
+    ? { op: "modify", path: rel, detail: "template (overwrites)" }
+    : { op: "create", path: rel, detail: "template" };
+}
+
+/**
+ * Plan entry for a dependency write. Mirrors `writeDepKeepingHigher`'s decision
+ * via the shared `shouldKeepExisting` so the preview's `skip` matches what the
+ * writer would actually do — a user already on a newer (or non-semver) pin is
+ * left untouched.
+ */
+function depAction(
+  target: string,
+  pkgJsonPath: string,
+  name: string,
+  incoming: string,
+  dev: boolean,
+): PlanAction {
+  const detail = `${dev ? "dev dependency" : "dependency"} ${name}`;
+  if (wouldKeepExisting(pkgJsonPath, name, incoming, dev)) {
+    return { op: "skip", path: target, detail, reason: "newer version already pinned" };
+  }
+  return { op: "modify", path: target, detail };
+}
+
+/**
+ * Read-only counterpart to `writeDepKeepingHigher`: returns true when the
+ * existing pin would be kept (so the planner can mark a `skip` without writing).
+ * Shares `shouldKeepExisting` so planner and writer can't disagree.
+ */
+function wouldKeepExisting(
+  pkgJsonPath: string,
+  name: string,
+  incoming: string,
+  dev: boolean,
+): boolean {
+  if (!fs.existsSync(pkgJsonPath)) return false;
+  const key = dev ? "devDependencies" : "dependencies";
+  const pkg: Record<string, Record<string, string> | undefined> = JSON.parse(
+    fs.readFileSync(pkgJsonPath, "utf8"),
+  );
+  const existing = pkg[key]?.[name];
+  return existing !== undefined && shouldKeepExisting(existing, incoming);
 }
 
 /**

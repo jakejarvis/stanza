@@ -18,6 +18,7 @@ import pc from "picocolors";
 import { applyModule, RegionConflictError } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
+import { formatPlanLines, summarizePlan } from "../lib/plan-format";
 import { regenerateReadmeIfUnmodified } from "../lib/readme";
 import { loadRegistries } from "../lib/registry-loader";
 import * as telemetry from "../lib/telemetry";
@@ -233,8 +234,19 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     module: mod.id,
     namespace: namespace ?? DEFAULT_NAMESPACE,
   });
-  spinner.stop(`${pc.green("✓")} ${mod.label} added`);
-  if (result.bootstrappedPackage) {
+  spinner.stop(`${pc.green("✓")} ${mod.label} ${dryRun ? "planned" : "added"}`);
+
+  // Surface exactly what would change (dry-run) or did change (apply). The plan
+  // is built from the same walk that stages the writes, so it can't drift.
+  const appLabel = pickedAppId ? ` → ${pc.cyan(pickedAppId)}` : "";
+  if (dryRun) {
+    // A plain message (not p.note) so long env/codemod details aren't wrapped
+    // by a box border in narrow terminals.
+    const title = pc.bold(`Plan for ${category}/${moduleId}${appLabel}`);
+    p.log.message([title, ...formatPlanLines(result.plan)].join("\n"));
+  }
+
+  if (!dryRun && result.bootstrappedPackage) {
     const { name } = result.bootstrappedPackage;
     p.log.info(`Run ${pc.cyan("pnpm install")} to link ${pc.cyan(name)}.`);
   }
@@ -252,7 +264,11 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
     p.log.warn("Skipped README.md refresh (user-modified). Delete the file to regenerate.");
   }
 
-  if (dryRun) p.log.info(pc.yellow("[dry-run] no files were written"));
+  if (dryRun) {
+    p.log.info(`${summarizePlan(result.plan)} — ${pc.yellow("no files were written (dry run)")}`);
+  } else {
+    p.log.info(pc.dim(summarizePlan(result.plan)));
+  }
 }
 
 /**
