@@ -13,12 +13,14 @@ import type {
 import {
   categoryLabel,
   defaultWebApp,
+  DEFAULT_NAMESPACE,
   emptyManifest,
   isMulti,
   KNOWN_CATEGORIES,
 } from "@withstanza/schema";
 import pc from "picocolors";
 
+import { categoryCandidates } from "./candidates";
 import type { Registries } from "./registry-loader";
 
 export type WizardResult = {
@@ -175,20 +177,15 @@ function candidatesFor(
   category: CategoryId,
   pending: Partial<Record<CategoryId, Module>>,
 ): RegistryIndex["modules"] {
-  const manifest = emptyManifest({ name: "tmp" });
-  return index.modules
-    .filter((m) => m.category === category)
-    .filter((m) => peerCheckOk(m, manifest, pending));
-}
-
-function peerCheckOk(
-  m: RegistryIndex["modules"][number],
-  manifest: ReturnType<typeof emptyManifest>,
-  pending: Partial<Record<CategoryId, Module>>,
-): boolean {
-  // Use the resolver with summary adapters — we only need the peer check.
-  const synthetic = { ...m, adapters: m.adapters.map((a) => ({ ...a })) } as Module;
-  return resolveAdapter(synthetic, { manifest, pending }).ok;
+  return categoryCandidates({
+    indices: [{ namespace: DEFAULT_NAMESPACE, index }],
+    category,
+    manifest: emptyManifest({ name: "tmp" }),
+    pending,
+    targetAppKind: defaultWebApp().kind,
+  })
+    .filter((c) => c.compatible)
+    .map((c) => c.entry);
 }
 
 async function runNonInteractive(args: {

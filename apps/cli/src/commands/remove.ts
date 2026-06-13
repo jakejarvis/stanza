@@ -70,7 +70,7 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
     process.exitCode = 1;
     return;
   }
-  const moduleId = rawModuleId ? parseModuleSpec(rawModuleId).id : undefined;
+  let moduleId = rawModuleId ? parseModuleSpec(rawModuleId).id : undefined;
   if (moduleId !== undefined && !isValidModuleId(moduleId)) {
     p.log.error(
       `Invalid module id "${moduleId}". Ids must be alphanumeric segments ` +
@@ -120,13 +120,32 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
   let installed: StanzaModuleRecord;
   if (isMulti(category)) {
     if (!moduleId) {
-      const present = records.map((r) => r.id).join(", ");
-      p.log.error(
-        `Category "${category}" can hold several modules — specify which: ` +
-          `\`stanza remove ${category} <id>\`${present ? ` (installed: ${present})` : ""}.`,
-      );
-      process.exitCode = 1;
-      return;
+      // Omitted id in a multi-choice category. On a TTY, pick from what's
+      // installed; otherwise error with the installed list (CI never hangs).
+      if (process.stdin.isTTY && records.length > 0) {
+        const picked = await p.select({
+          message: `Which ${category} module to remove?`,
+          options: records.map((r) => {
+            const nsTag =
+              r.namespace && r.namespace !== DEFAULT_NAMESPACE ? ` ${pc.dim(r.namespace)}` : "";
+            return { value: r.id, label: `${r.id}${nsTag}`, hint: `@${r.version} [${r.adapter}]` };
+          }),
+        });
+        if (p.isCancel(picked)) {
+          process.exitCode = 1;
+          p.cancel("Cancelled.");
+          return;
+        }
+        moduleId = picked;
+      } else {
+        const present = records.map((r) => r.id).join(", ");
+        p.log.error(
+          `Category "${category}" can hold several modules — specify which: ` +
+            `\`stanza remove ${category} <id>\`${present ? ` (installed: ${present})` : ""}.`,
+        );
+        process.exitCode = 1;
+        return;
+      }
     }
     const record = records.find((r) => r.id === moduleId);
     if (!record) {

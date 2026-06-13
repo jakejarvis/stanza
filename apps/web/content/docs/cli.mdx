@@ -29,11 +29,12 @@ npx stanza-cli init [name] --yes --framework=next --orm=drizzle --db=postgres --
 Add one module to an existing project.
 
 ```sh
-npx stanza-cli add <category> <module> [--app=<id>]
+npx stanza-cli add <category> [module] [--app=<id>]
 ```
 
 Resolves peers, selects the matching adapter, and writes the module's templates, deps, env, and scripts to the right home. If an apply step fails partway through — including inside a codemod — Stanza rolls the changes back, so a failed `add` leaves your tree as it was. Adding a module to a single-choice category that's already filled fails until you remove the existing one — and that limit is **per app** for `home: "app"` categories (so picking a framework for one app doesn't block a different framework for another).
 
+- `module` — optional. **Omit it to pick interactively**: on a TTY, `add <category>` opens a menu of every module in that category, with incompatible (a peer isn't installed yet) or already-installed ones shown **disabled** with the reason inline. Off a TTY (CI, piped input) it errors with the list of available ids instead of hanging. If you type an id that doesn't exist, a TTY drops you into the same picker; otherwise you get the available list.
 - `--app=<id>` — pick which app the install targets. Required for app-relevant modules when the project has multiple apps and you're not running inside one of them. Single-app projects auto-target; multi-app projects also auto-pick when `cwd` is inside one app's directory. Interactive runs (TTY, no `--yes`) fall back to a prompt; non-interactive runs error out asking for the flag.
 - The flag is meaningless for `home: "repo"` modules like `tooling`.
 - `--dry-run` — preview the plan (created/modified/skipped files, including codemod edits) without writing. A real `add` prints the same tally as a one-line summary when it finishes.
@@ -46,7 +47,7 @@ Remove a module and sweep the files (regions) it owns.
 npx stanza-cli remove <category> [id] [--app=<id>]
 ```
 
-For single-choice categories the `id` is optional; for multi-choice categories (like `testing`) it's required. `--app=<id>` scopes removal in projects with multiple apps — without it, `remove` looks across every app for a matching record.
+For single-choice categories the `id` is optional. For multi-choice categories, omit it on a TTY to open an interactive picker over installed records, mirroring `stanza add <category>` over available modules. Off a TTY (CI, piped input), omitting the id errors with the installed list instead of hanging. `--app=<id>` scopes removal in projects with multiple apps — without it, `remove` looks across every app for a matching record.
 
 The package-dir sweep (when removing the last module under `packages/<dir>/`) strips the `workspace:*` dep from _every_ app's `package.json`, not just the first one.
 

@@ -5,8 +5,18 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import * as clack from "@clack/prompts";
 import { CATEGORIES, CURRENT_MANIFEST_VERSION } from "@withstanza/schema";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vite-plus/test";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -15,6 +25,20 @@ import { cmdAdd } from "./add";
 import { cmdDoctor } from "./doctor";
 import { cmdInit } from "./init";
 import { cmdRemove } from "./remove";
+
+// The interactive pickers call `select`/`isCancel`; everything else (log,
+// spinner, note, …) stays real so the existing exit-code/file assertions are
+// unaffected. `--yes` init + explicit-id add/remove never reach `select`.
+vi.mock("@clack/prompts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@clack/prompts")>();
+  return {
+    ...actual,
+    select: vi.fn<typeof actual.select>(),
+    isCancel: vi.fn<(value: unknown) => boolean>(() => false),
+  };
+});
+const mockSelect = vi.mocked(clack.select);
+const mockIsCancel = vi.mocked(clack.isCancel);
 
 let tmp: string;
 let prevCwd: string;
@@ -983,6 +1007,178 @@ describe("cmdDoctor", () => {
     process.exitCode = undefined;
     await cmdDoctor();
     expect(process.exitCode).toBe(1);
+  });
+});
+
+describe("cmdAdd interactive picker", () => {
+  let prevTTY: boolean;
+
+  beforeEach(async () => {
+    // Only a framework — so `auth`/`orm` have a missing peer to disable, and
+    // `db` is an open single-choice slot.
+    await cmdInit(args({ name: "app", yes: true, framework: "next" }));
+    process.chdir(path.join(tmp, "app"));
+    prevTTY = process.stdin.isTTY;
+  });
+
+  afterEach(() => {
+    process.stdin.isTTY = prevTTY;
+    mockSelect.mockReset();
+    mockIsCancel.mockReset();
+    mockIsCancel.mockReturnValue(false);
+  });
+
+  it("omitting the module id without a TTY errors with the available list", async () => {
+    process.stdin.isTTY = false;
+    const spy = vi.spyOn(clack.log, "error");
+    await cmdAdd(args({ slot: "auth" }));
+    expect(process.exitCode).toBe(1);
+    expect(spy).toHaveBeenCalledWith(expect.stringMatching(/Pick a module:[\s\S]*Available:/));
+    // Nothing was installed.
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.auth).toBeUndefined();
+    spy.mockRestore();
+  });
+
+  it("omitting the module id on a TTY opens a picker and installs the pick", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("clerk");
+
+    await cmdAdd(args({ slot: "auth" }));
+    expect(process.exitCode).toBeFalsy();
+
+    // The picker disabled the peer-incompatible option (better-auth needs a db)
+    // and left the compatible one selectable.
+    const opts = mockSelect.mock.calls.at(-1)![0].options;
+    const betterAuth = opts.find((o) => o.value === "better-auth");
+    expect(betterAuth?.disabled).toBe(true);
+    expect(betterAuth?.hint).toMatch(/database/);
+    const clerk = opts.find((o) => o.value === "clerk");
+    expect(clerk?.disabled).toBe(false);
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.auth[0].id).toBe("clerk");
+  });
+
+  it("cancels the picker without changing the manifest", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("clerk");
+    mockIsCancel.mockReturnValueOnce(true);
+    const before = fs.readFileSync("stanza.json", "utf8");
+
+    await cmdAdd(args({ slot: "auth" }));
+    expect(process.exitCode).toBe(1);
+    expect(mockIsCancel).toHaveBeenCalled();
+    expect(fs.readFileSync("stanza.json", "utf8")).toBe(before);
+  });
+
+  it("marks an already-installed add-on disabled in a multi-choice picker", async () => {
+    await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
+    process.exitCode = undefined;
+
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("playwright");
+    await cmdAdd(args({ slot: "testing" }));
+    expect(process.exitCode).toBeFalsy();
+
+    const opts = mockSelect.mock.calls.at(-1)![0].options;
+    const vitest = opts.find((o) => o.value === "vitest");
+    expect(vitest?.disabled).toBe(true);
+    expect(vitest?.hint).toMatch(/already added/);
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
+      "playwright",
+      "vitest",
+    ]);
+  });
+
+  it("drops an unknown explicit id into the picker on a TTY", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("postgres");
+
+    await cmdAdd(args({ slot: "db", moduleId: "bogus" }));
+    expect(process.exitCode).toBeFalsy();
+    expect(mockSelect).toHaveBeenCalled();
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.db[0].id).toBe("postgres");
+  });
+
+  it("errors on an unknown explicit id without a TTY (no picker)", async () => {
+    process.stdin.isTTY = false;
+    const spy = vi.spyOn(clack.log, "error");
+
+    await cmdAdd(args({ slot: "db", moduleId: "bogus" }));
+    expect(process.exitCode).toBe(1);
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringMatching(/No db module "bogus"[\s\S]*Available:/),
+    );
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.db).toBeUndefined();
+    spy.mockRestore();
+  });
+});
+
+describe("cmdRemove interactive picker", () => {
+  let prevTTY: boolean;
+
+  beforeEach(async () => {
+    await cmdInit(
+      args({ name: "app", yes: true, framework: "next", testing: "vitest,playwright" }),
+    );
+    process.chdir(path.join(tmp, "app"));
+    prevTTY = process.stdin.isTTY;
+  });
+
+  afterEach(() => {
+    process.stdin.isTTY = prevTTY;
+    mockSelect.mockReset();
+    mockIsCancel.mockReset();
+    mockIsCancel.mockReturnValue(false);
+  });
+
+  it("omitting the id on a TTY picks from the installed records", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("vitest");
+
+    await cmdRemove(args({ slot: "testing" }));
+    expect(process.exitCode).toBeFalsy();
+
+    // The picker listed exactly what's installed.
+    const values = mockSelect.mock.calls.at(-1)![0].options.map((o) => o.value);
+    expect(values).toHaveLength(2);
+    expect(values).toEqual(expect.arrayContaining(["vitest", "playwright"]));
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing.map((r: { id: string }) => r.id)).toEqual(["playwright"]);
+  });
+
+  it("cancels the picker without changing the manifest", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("vitest");
+    mockIsCancel.mockReturnValueOnce(true);
+    const before = fs.readFileSync("stanza.json", "utf8");
+
+    await cmdRemove(args({ slot: "testing" }));
+    expect(process.exitCode).toBe(1);
+    expect(mockIsCancel).toHaveBeenCalled();
+    expect(fs.readFileSync("stanza.json", "utf8")).toBe(before);
+  });
+
+  it("omitting the id without a TTY still errors", async () => {
+    process.stdin.isTTY = false;
+    await cmdRemove(args({ slot: "testing" }));
+    expect(process.exitCode).toBe(1);
+    expect(mockSelect).not.toHaveBeenCalled();
+
+    const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
+    expect(manifest.modules.testing.map((r: { id: string }) => r.id).toSorted()).toEqual([
+      "playwright",
+      "vitest",
+    ]);
   });
 });
 
