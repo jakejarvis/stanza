@@ -132,6 +132,7 @@ export async function cmdRemove(args: CliArgs): Promise<void> {
           }),
         });
         if (p.isCancel(picked)) {
+          process.exitCode = 1;
           p.cancel("Cancelled.");
           return;
         }

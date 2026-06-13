@@ -16,7 +16,7 @@ import {
 import { defineCommand } from "citty";
 import pc from "picocolors";
 
-import { type Candidate, categoryCandidates } from "../lib/candidates";
+import { type Candidate, categoryCandidates, moduleInstallKey } from "../lib/candidates";
 import { applyModule, RegionConflictError } from "../lib/codemod-runner";
 import { ensureCleanWorktree } from "../lib/git";
 import { findProjectRoot, readManifest, writeManifest } from "../lib/manifest";
@@ -144,7 +144,9 @@ export async function cmdAdd(args: CliArgs): Promise<void> {
   // picker disables incompatible/installed modules, so it shares the same
   // compatibility inputs the post-load checks below re-verify for the
   // explicit path.
-  const installedIds = new Set(existing.map((r) => r.id));
+  const installedIds = new Set(
+    existing.map((r) => moduleInstallKey(r.namespace ?? DEFAULT_NAMESPACE, r.id)),
+  );
   const targetAppKind = home.kind === "app" ? targetApps[0]!.kind : undefined;
   let namespace: string | undefined;
   let moduleId: string;

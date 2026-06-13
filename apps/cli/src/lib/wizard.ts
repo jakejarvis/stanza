@@ -182,6 +182,7 @@ function candidatesFor(
     category,
     manifest: emptyManifest({ name: "tmp" }),
     pending,
+    targetAppKind: defaultWebApp().kind,
   })
     .filter((c) => c.compatible)
     .map((c) => c.entry);

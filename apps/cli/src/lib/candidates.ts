@@ -24,6 +24,10 @@ export type Candidate = {
   reason?: string;
 };
 
+export function moduleInstallKey(namespace: string, id: string): string {
+  return `${namespace}:${id}`;
+}
+
 /**
  * List every module in `category` across the given indices, peer-checked
  * against the manifest (plus any in-flight `pending` picks) and the target app.
@@ -56,7 +60,7 @@ export function categoryCandidates(args: {
       // Definitive states first: an already-installed id, then an app-kind
       // mismatch (a native framework can't go into a web app). Either makes the
       // peer check moot, and the more specific reason is the more useful hint.
-      if (installedIds?.has(entry.id)) {
+      if (installedIds?.has(moduleInstallKey(namespace, entry.id))) {
         out.push({ namespace, entry, compatible: false, reason: "already added" });
         continue;
       }

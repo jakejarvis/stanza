@@ -47,7 +47,7 @@ Remove a module and sweep the files (regions) it owns.
 npx stanza-cli remove <category> [id] [--app=<id>]
 ```
 
-For single-choice categories the `id` is optional; for multi-choice categories (like `testing`) it's required. `--app=<id>` scopes removal in projects with multiple apps — without it, `remove` looks across every app for a matching record.
+For single-choice categories the `id` is optional. For multi-choice categories, omit it on a TTY to open an interactive picker over installed records, mirroring `stanza add <category>` over available modules. Off a TTY (CI, piped input), omitting the id errors with the installed list instead of hanging. `--app=<id>` scopes removal in projects with multiple apps — without it, `remove` looks across every app for a matching record.
 
 The package-dir sweep (when removing the last module under `packages/<dir>/`) strips the `workspace:*` dep from _every_ app's `package.json`, not just the first one.
 

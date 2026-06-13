@@ -1060,6 +1060,18 @@ describe("cmdAdd interactive picker", () => {
     expect(manifest.modules.auth[0].id).toBe("clerk");
   });
 
+  it("cancels the picker without changing the manifest", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("clerk");
+    mockIsCancel.mockReturnValueOnce(true);
+    const before = fs.readFileSync("stanza.json", "utf8");
+
+    await cmdAdd(args({ slot: "auth" }));
+    expect(process.exitCode).toBe(1);
+    expect(mockIsCancel).toHaveBeenCalled();
+    expect(fs.readFileSync("stanza.json", "utf8")).toBe(before);
+  });
+
   it("marks an already-installed add-on disabled in a multi-choice picker", async () => {
     await cmdAdd(args({ slot: "testing", moduleId: "vitest" }));
     process.exitCode = undefined;
@@ -1142,6 +1154,18 @@ describe("cmdRemove interactive picker", () => {
 
     const manifest = JSON.parse(fs.readFileSync("stanza.json", "utf8"));
     expect(manifest.modules.testing.map((r: { id: string }) => r.id)).toEqual(["playwright"]);
+  });
+
+  it("cancels the picker without changing the manifest", async () => {
+    process.stdin.isTTY = true;
+    mockSelect.mockResolvedValueOnce("vitest");
+    mockIsCancel.mockReturnValueOnce(true);
+    const before = fs.readFileSync("stanza.json", "utf8");
+
+    await cmdRemove(args({ slot: "testing" }));
+    expect(process.exitCode).toBe(1);
+    expect(mockIsCancel).toHaveBeenCalled();
+    expect(fs.readFileSync("stanza.json", "utf8")).toBe(before);
   });
 
   it("omitting the id without a TTY still errors", async () => {
