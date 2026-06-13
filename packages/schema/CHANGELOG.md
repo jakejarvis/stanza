@@ -1,5 +1,15 @@
 # @withstanza/schema
 
+## 0.1.1
+
+### Patch Changes
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Guard `app.dir` against path traversal and symlink escape. The manifest's `apps[].dir` is joined onto the project root for every write into an app, but was previously an unvalidated `z.string()` — a crafted/attacker-authored `stanza.json` (cloning an untrusted repo, CI automation) could set `dir: "../../etc"` and land template files outside the project. `appSpecSchema` now validates `dir` with `safeRelativePath` at parse time (rejecting `..`, absolute paths, and null bytes, so both `add` and `remove` refuse the manifest on read), and `applyModule` re-checks each target app's `dir` and asserts every resolved write destination stays within the project root after symlink resolution — closing a symlinked-app-dir escape that a lexical check alone misses.
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Reject env var line-injection in `.env.example` generation. Module env declarations now validate `name` against the dotenv/shell key pattern `^[A-Za-z_][A-Za-z0-9_]*$` and reject control characters (newlines, CR, …) in `example` and `description`, both at the schema boundary (`envVarSchema`, applied to fetched third-party modules) and as a defense-in-depth guard inside the pure `appendEnvVar` helper. Previously a module with a newline in `name`/`example`/`description` could smuggle extra `KEY=value` lines into the generated `.env.example`.
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Guard `regions` file keys against path traversal and symlink escape. `stanza remove` deletes files using the region keys read from `stanza.json`, but those outer keys were previously an unvalidated `z.string()` — a crafted/attacker-authored manifest (cloning an untrusted repo, CI automation) could set a region key to `"../../etc/evil"` and make `remove` `unlinkSync` a path outside the project. The `regions` record key is now validated with `safeRelativePath` at parse time (rejecting `..`, absolute paths, and null bytes, so `remove` refuses the manifest on read), and the remove command re-checks each region key and asserts the resolved real path stays within the project root after symlink resolution before any delete sink — closing a symlinked-directory escape that a lexical check alone misses (sibling to the `app.dir` guard).
+
 ## 0.1.0
 
 ### Minor Changes

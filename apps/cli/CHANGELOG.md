@@ -1,5 +1,32 @@
 # stanza-cli
 
+## 0.2.0
+
+### Minor Changes
+
+- [#28](https://github.com/jakejarvis/stanza/pull/28) [`dc34c92`](https://github.com/jakejarvis/stanza/commit/dc34c92c21495966d1f2df2052aac27c6d6c5719) - `stanza add --dry-run` now prints a grouped plan of every file it would create, modify, or skip — including the source files its codemods would edit and the reason for any skip (e.g. a dependency you already pin higher) — instead of just "no files were written". A real `add` prints the same created/modified/skipped tally as a one-line summary when it finishes.
+
+  To enumerate codemod edits accurately, a dry run now reads your source files, so it can surface blockers (like a missing root layout) before a real apply. It still writes nothing.
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Refuse cleartext `http://` for remote registry and npm endpoints. Registry and npm payloads have no integrity check beyond TLS, so a cleartext endpoint — set via `STANZA_REGISTRY`, a third-party `stanza.json#registries[*].url`, or `STANZA_NPM_REGISTRY` — let an on-path attacker swap module content or steer dependency versions, reaching code execution when the user installs/builds the vendored output. The loader now rejects remote `http://` and requires `https://`. `file://` URLs, bare filesystem paths, and loopback hosts (`localhost`/`127.0.0.1`/`::1`) stay allowed untouched, so local-dev, air-gapped, and CI-fixture workflows (including a local npm proxy) are unaffected. A third-party `http://` registry is skipped with a warning while the rest of the CLI keeps working; an `http://` value for `STANZA_REGISTRY`/`STANZA_NPM_REGISTRY` is a hard error. Set the new `STANZA_ALLOW_INSECURE_REGISTRY=1` to opt into a trusted internal `http://` mirror — the CLI prints a one-time stderr warning when it does.
+
+### Patch Changes
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Guard `app.dir` against path traversal and symlink escape. The manifest's `apps[].dir` is joined onto the project root for every write into an app, but was previously an unvalidated `z.string()` — a crafted/attacker-authored `stanza.json` (cloning an untrusted repo, CI automation) could set `dir: "../../etc"` and land template files outside the project. `appSpecSchema` now validates `dir` with `safeRelativePath` at parse time (rejecting `..`, absolute paths, and null bytes, so both `add` and `remove` refuse the manifest on read), and `applyModule` re-checks each target app's `dir` and asserts every resolved write destination stays within the project root after symlink resolution — closing a symlinked-app-dir escape that a lexical check alone misses.
+
+- [`6ada5c0`](https://github.com/jakejarvis/stanza/commit/6ada5c0a88bc86567ba7db7be9aa7d88bbbaed07) - Fix a batch of correctness bugs found in a critical-bug sweep:
+  - `stanza init --dry-run` no longer writes anything (previously it created the project directory, monorepo shell, and `stanza.json` despite saying "no files will be written").
+  - Direct-fs codemods (`append-to-file`, `add-package-dep`, `set-tsconfig-paths`) claim their region **before** writing, so a failed `add` rolls files back to their true pre-apply bytes and `RegionConflictError` fires before any disk change.
+  - `stanza remove`'s package-sweep guard reads the `consumesPackages` snapshot persisted on each installed record (falling back to a registry fetch only for legacy records), so a `packages/<dir>/` still imported by an installed module is protected even offline or after an upstream rename.
+  - `stanza remove` only applies the legacy bare-id owner fallback when no sibling install of the same module remains, so removing one app's install on a pre-composite-owner manifest can no longer sweep another app's files.
+  - `stanza doctor` no longer reports false drift for package-home modules installed with an `--app` restriction.
+  - `wrap-root-layout` resolves the framework per dispatched app, fixing multi-app projects with differing frameworks.
+  - The template/codemod render context carries the project's `packageManager`, so `{{pm}}`/`{{run …}}` render bun/npm commands instead of always pnpm.
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Reject env var line-injection in `.env.example` generation. Module env declarations now validate `name` against the dotenv/shell key pattern `^[A-Za-z_][A-Za-z0-9_]*$` and reject control characters (newlines, CR, …) in `example` and `description`, both at the schema boundary (`envVarSchema`, applied to fetched third-party modules) and as a defense-in-depth guard inside the pure `appendEnvVar` helper. Previously a module with a newline in `name`/`example`/`description` could smuggle extra `KEY=value` lines into the generated `.env.example`.
+
+- [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b) - Guard `regions` file keys against path traversal and symlink escape. `stanza remove` deletes files using the region keys read from `stanza.json`, but those outer keys were previously an unvalidated `z.string()` — a crafted/attacker-authored manifest (cloning an untrusted repo, CI automation) could set a region key to `"../../etc/evil"` and make `remove` `unlinkSync` a path outside the project. The `regions` record key is now validated with `safeRelativePath` at parse time (rejecting `..`, absolute paths, and null bytes, so `remove` refuses the manifest on read), and the remove command re-checks each region key and asserts the resolved real path stays within the project root after symlink resolution before any delete sink — closing a symlinked-directory escape that a lexical check alone misses (sibling to the `app.dir` guard).
+
 ## 0.1.1
 
 ### Patch Changes

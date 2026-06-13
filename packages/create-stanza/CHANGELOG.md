@@ -1,5 +1,12 @@
 # create-stanza
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [[`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b), [`6ada5c0`](https://github.com/jakejarvis/stanza/commit/6ada5c0a88bc86567ba7db7be9aa7d88bbbaed07), [`dc34c92`](https://github.com/jakejarvis/stanza/commit/dc34c92c21495966d1f2df2052aac27c6d6c5719), [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b), [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b), [`e776dc7`](https://github.com/jakejarvis/stanza/commit/e776dc74f6f76a897e2c3f473f44f46317d0d31b)]:
+  - stanza-cli@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes
