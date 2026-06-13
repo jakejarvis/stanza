@@ -2,16 +2,14 @@ import { IconArrowLeft, IconExternalLink } from "@tabler/icons-react";
 import { Link, createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import type { CategoryId } from "@withstanza/schema";
 import { categoryLabel, KNOWN_CATEGORIES, PEER_CATEGORIES } from "@withstanza/schema";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 
 import { AdapterSwitcher } from "@/components/detail/adapter-switcher";
 import { Install } from "@/components/detail/install";
 import { DepsTable, ScriptsTable, EnvTable } from "@/components/detail/tables";
-import { TemplatesList } from "@/components/detail/templates-list";
 import { ModuleLogo } from "@/components/module-logo";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import type { Selections } from "@/lib/selection";
 import { buildHead, getSoftwareSourceCodeJsonLd } from "@/lib/seo";
 import { getModuleDetail } from "@/server/module-detail.functions";
 
@@ -71,7 +69,7 @@ function ModuleDetailPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
 
-  const { module, adapter, resolvedPeers, peerOptions, effective, previews, index } = detail;
+  const { module, resolvedPeers, peerOptions, effective, index } = detail;
 
   const onPeerChange = useCallback(
     (category: CategoryId, id: string) => {
@@ -83,21 +81,6 @@ function ModuleDetailPage() {
     },
     [navigate, search],
   );
-
-  const templates = useMemo(() => adapter.templates ?? [], [adapter.templates]);
-
-  // Build the install selection: the current module + its resolved peers, as
-  // arrays (the unified selection shape). CommandPreview turns this into the
-  // package-manager-specific command string (`--framework=next --testing=vitest`).
-  const selections = useMemo<Selections>(() => {
-    const out: Selections = {};
-    for (const category of KNOWN_CATEGORIES) {
-      const id = resolvedPeers[category];
-      if (id !== undefined) out[category] = [id];
-    }
-    out[module.category] = [module.id];
-    return out;
-  }, [resolvedPeers, module.category, module.id]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -161,8 +144,7 @@ function ModuleDetailPage() {
         <DepsTable title="Dev Dependencies" entries={effective.devDependencies} />
         <EnvTable env={effective.env} />
         <ScriptsTable entries={effective.scripts} />
-        <TemplatesList templates={templates} previews={previews} />
-        <Install name="my-app" selections={selections} />
+        <Install category={module.category} id={module.id} />
       </div>
     </div>
   );

@@ -4,10 +4,10 @@ import type { CategoryId, ModuleMetadata, PackageManager } from "@withstanza/sch
 import { isMulti } from "@withstanza/schema";
 import { startTransition, useCallback, useMemo, useOptimistic, useRef } from "react";
 
+import { CommandPreview } from "@/components/builder/command-preview";
 import { FilePreview } from "@/components/builder/file-preview";
 import { ModuleCards } from "@/components/builder/module-cards";
 import { ProjectSetup } from "@/components/builder/project-setup";
-import { CommandPreview } from "@/components/command-preview";
 import {
   type BuilderSearch,
   type Selections,

@@ -17,8 +17,6 @@ import {
   PEER_CATEGORIES,
 } from "@withstanza/schema";
 
-import type { Preview } from "@/server/highlighter";
-import { renderPreview } from "@/server/highlighter.server";
 import { loadRegistryFile } from "@/server/registry-base.server";
 
 /** Typed `Object.keys` for a partial category-record (avoids a key-widening cast). */
@@ -46,8 +44,6 @@ export type EffectiveInstallFields = {
 
 export type ModuleDetail = {
   module: Module;
-  /** Adapter the resolver picked, given the (possibly auto-defaulted) peers. */
-  adapter: ModuleAdapter;
   /**
    * Peer assignments actually used for resolution — explicit + auto-defaults.
    * The detail page renders the switcher with these values pre-selected so the
@@ -58,8 +54,6 @@ export type ModuleDetail = {
   peerOptions: Partial<Record<CategoryId, string[]>>;
   /** Module-level + adapter-level fields merged with adapter-wins semantics. */
   effective: EffectiveInstallFields;
-  /** Pre-rendered Shiki HTML for each template in the resolved adapter, keyed by `dest`. */
-  previews: Record<string, Preview>;
   /** Light index of every module so client UI can label peer chips, etc. */
   index: RegistryIndex;
 };
@@ -90,21 +84,11 @@ export const getModuleDetail = createServerFn({ method: "GET" })
     const adapter = pickAdapter(module, resolvedPeers);
     const effective = effectiveInstallFields(module, adapter);
 
-    const previewEntries = await Promise.all(
-      (adapter.templates ?? []).map(async (tpl) => {
-        const content = tpl.content ?? "";
-        const preview = await renderPreview(content, tpl.dest);
-        return [tpl.dest, preview] as const;
-      }),
-    );
-
     return {
       module,
-      adapter,
       resolvedPeers,
       peerOptions,
       effective,
-      previews: Object.fromEntries(previewEntries),
       index,
     };
   });

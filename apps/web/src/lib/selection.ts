@@ -219,3 +219,20 @@ export function buildCommand(input: {
   const separator = pm === "npm" ? " -- " : " ";
   return `${base}${separator}${flags.join(" ")}`;
 }
+
+/**
+ * Build the `stanza add <category> <id>` command that adds a single module to an
+ * *existing* Stanza project. Unlike `buildCommand`, it carries no peer flags —
+ * the project's manifest already pins the peers the adapter resolves against.
+ * Each package manager runs the published `stanza-cli` binary via its own
+ * dlx-style runner.
+ */
+export function buildAddCommand(input: {
+  category: CategoryId;
+  id: string;
+  pm?: PackageManager;
+}): string {
+  const pm = input.pm ?? DEFAULT_PACKAGE_MANAGER;
+  const runner = pm === "pnpm" ? "pnpm dlx" : pm === "bun" ? "bunx" : "npx";
+  return `${runner} stanza-cli@latest add ${input.category} ${input.id}`;
+}
